@@ -87,11 +87,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func setUpStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        item.button?.image = NSImage(systemSymbolName: "rectangle.3.group", accessibilityDescription: AppIdentity.name)
+        item.button?.image = Self.menuBarImage()
         let menu = NSMenu()
         menu.delegate = self
         item.menu = menu
         statusItem = item
+    }
+
+    /// The door glyph from the bundle as a template image (tinted by macOS for light and dark
+    /// menu bars); an SF Symbol when running outside the bundle, e.g. via `swift run`.
+    private static func menuBarImage() -> NSImage? {
+        if let url = Bundle.main.url(forResource: "MenuBarIcon", withExtension: "svg"),
+           let image = NSImage(contentsOf: url)
+        {
+            image.size = NSSize(width: 18, height: 18)
+            image.isTemplate = true
+            image.accessibilityDescription = AppIdentity.name
+            return image
+        }
+        return NSImage(systemSymbolName: "door.left.hand.open", accessibilityDescription: AppIdentity.name)
     }
 
     /// Rebuilt on every open so the status lines are current.

@@ -36,6 +36,7 @@ class Doorman < Formula
 
   test do
     assert_path_exists prefix/"Doorman.app/Contents/MacOS/Doorman"
+    assert_path_exists prefix/"Doorman.app/Contents/Resources/AppIcon.icns"
     assert_match "open -a \"#{opt_prefix}/Doorman.app\"", (bin/"doorman").read
     assert_equal version.to_s,
                  shell_output("/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' " \

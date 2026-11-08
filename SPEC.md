@@ -27,7 +27,7 @@ Doorman ist ein macOS-Link-Picker in der Art von Browserosaurus. Er wird als Sta
 - Build mit Swift Package Manager. `mise run app` baut daraus `Doorman.app` (siehe 9). Gebaut wird mit Xcode 16 (Swift 6).
 - Die App läuft dauerhaft im Hintergrund:
   - `LSUIElement`, also kein Dock-Icon
-  - Menüleisten-Icon (`NSStatusItem`; das Menü wird bei jedem Öffnen neu aufgebaut, damit die Statuszeilen aktuell sind)
+  - Menüleisten-Icon (eine angelehnte Tür als Template-Bild, `NSStatusItem`; das Menü wird bei jedem Öffnen neu aufgebaut, damit die Statuszeilen aktuell sind)
   - Autostart über einen LaunchAgent (siehe 7)
 - Lizenz: MIT. Das Repo liegt öffentlich auf GitHub.
 
@@ -169,7 +169,7 @@ Seiteneffekte wie Dateisystem, `NSWorkspace` und `Process` stecken hinter kleine
 
 - **Tooling:** mise. `mise.toml` pinnt `actionlint`, `shellcheck` und `swiftformat`. Swift selbst kommt aus Xcode bzw. den Command Line Tools, weil Doorman das macOS-SDK braucht.
 - **Tasks:** Sie liegen in `.mise/tasks/` als ausführbare Shell-Skripte mit `#MISE`-Kopfzeilen und ersetzen das frühere Makefile: `test`, `app`, `install`, `run`, `lint`, `format`, `render-formula`, `check-formula`, `next-patch-version`, `app-changed-since-release`, `test-scripts`, `ci`, `clean`. Gemeinsame Einstellungen kommen aus `_lib.sh`. Die Skripte laufen auch ohne mise.
-- `mise run app` erzeugt `build/Doorman.app`. Die Info.plist kommt aus `Resources/`, ein eigenes App-Icon gibt es in v1 noch nicht. Signiert wird ad hoc. Die Version kommt aus `VERSION` oder dem letzten `v*`-Tag.
+- `mise run app` erzeugt `build/Doorman.app`. Info.plist, App-Icon (`Resources/Icon/AppIcon.icns`) und Menüleisten-Glyph (`MenuBarIcon.svg`, Template-Bild) kommen aus `Resources/`. Das `.icns` wird mit `mise run icons` aus `AppIcon.svg` erzeugt und eingecheckt. Signiert wird ad hoc. Die Version kommt aus `VERSION` oder dem letzten `v*`-Tag.
 - **Homebrew:**
   - Die Formula `doorman` liegt im Tap `schowave/homebrew-tap` unter `Formula/`.
   - Sie baut aus dem Release-Tarball (`depends_on xcode: 16` zum Bauen) und ruft `.mise/tasks/install` direkt auf, also ohne mise, mit `PREFIX`, `VERSION`, `SWIFT_BUILD_FLAGS=--disable-sandbox` und `BIN_APP_PATH` (der stabile `opt`-Pfad für `bin/doorman`, das `open -a` nutzt).

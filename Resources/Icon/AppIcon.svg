@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Doorman app icon "Ajar": a door standing ajar with warm light. macOS 824/1024 squircle grid. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#16697b"/>
+      <stop offset="1" stop-color="#0a2f3a"/>
+    </linearGradient>
+    <linearGradient id="spill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffcf70" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#ffcf70" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <path d="M362 742 L662 742 L760 868 L264 868 Z" fill="url(#spill)"/>
+  <rect x="362" y="262" width="300" height="480" fill="#ffcf70"/>
+  <rect x="348" y="248" width="328" height="508" rx="18" fill="none" stroke="#e9f1f2" stroke-width="28"/>
+  <path d="M362 262 L506 304 L506 704 L362 742 Z" fill="#dce7ea"/>
+  <circle cx="484" cy="512" r="15" fill="#0a2f3a"/>
+</svg>

@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="Resources/Icon/AppIcon.svg" width="128" alt="Doorman app icon: a door standing ajar with warm light">
+
 # Doorman
 
 **Every link, through the right door.**
