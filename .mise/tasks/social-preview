@@ -1,0 +1,6 @@
+#!/bin/sh
+#MISE description="Render docs/social/preview.png (GitHub social preview, 1280×640) from the icon and picker art"
+# shellcheck source=_lib.sh
+. "$(dirname "$0")/_lib.sh"
+python3 -I docs/social/compose.py . docs/social/preview.svg
+swift docs/social/render-png.swift docs/social/preview.svg docs/social/preview.png
