@@ -24,7 +24,7 @@ Doorman ist ein macOS-Link-Picker in der Art von Browserosaurus. Er wird als Sta
 ## 2. Plattform und Technik
 
 - Swift 6, SwiftUI und AppKit, **macOS 14+**.
-- Build mit Swift Package Manager. `make app` baut daraus `Doorman.app`. Ein vollständiges Xcode ist nicht nötig.
+- Build mit Swift Package Manager. `mise run app` baut daraus `Doorman.app` (siehe 9). Gebaut wird mit Xcode 16 (Swift 6).
 - Die App läuft dauerhaft im Hintergrund:
   - `LSUIElement`, also kein Dock-Icon
   - Menüleisten-Icon (`NSStatusItem`; das Menü wird bei jedem Öffnen neu aufgebaut, damit die Statuszeilen aktuell sind)
@@ -80,7 +80,7 @@ Ein **Ziel** ist ein Eintrag im Panel. Jedes Ziel hat eine stabile `id`, einen A
 
 ### 3.4 Erlaubte URLs
 
-URLs landen als Kommandozeilen-Argumente bei den Browsern. Deshalb lässt Doorman nur `http`, `https` und `file` durch (`URLPolicy`); alles andere, auch `.webloc`-Inhalte wie `--remote-debugging-port=…` oder `javascript:`, wird verworfen. Die Prüfung greift beim Empfang und noch einmal beim Bauen der Launch-Kommandos.
+URLs landen als Kommandozeilen-Argumente bei den Browsern. Deshalb lässt Doorman nur `http`, `https` und `file` durch (`URLPolicy`); alles andere, etwa `--remote-debugging-port=…` oder `javascript:`, wird verworfen. Aus `.webloc`-Dateien kommen nur `http` und `https`, damit eine heruntergeladene Datei keine lokale Datei öffnen kann. Die Prüfung greift beim Empfang und noch einmal beim Bauen der Launch-Kommandos.
 
 Ist `zen.profilePath` gesetzt, bekommt jeder Zen-Aufruf zusätzlich `--profile <pfad>`, damit `--space` die Instanz mit diesem Profil erreicht.
 
@@ -128,7 +128,7 @@ Die Datei liegt unter `~/.config/doorman/config.json`. Sie ist optional; fehlt s
 
 Die Menüleiste enthält folgende Einträge:
 - Status: „Standardbrowser: ja/nein“, bei „nein“ mit dem Eintrag „Als Standardbrowser setzen“
-- „Beim Login starten“ (Toggle)
+- „Beim Login starten“ (Toggle). Der Haken zeigt nur, ob der LaunchAgent existiert; ist er in den Systemeinstellungen unter „Anmeldeobjekte“ deaktiviert, sieht Doorman das nicht.
 - „Konfiguration öffnen“ (in TextEdit bzw. dem Standard-Texteditor)
 - Versionsanzeige
 - „Beenden“
@@ -168,20 +168,25 @@ Seiteneffekte wie Dateisystem, `NSWorkspace` und `Process` stecken hinter kleine
 ## 9. Build, Distribution, CI
 
 - **Tooling:** mise. `mise.toml` pinnt `actionlint`, `shellcheck` und `swiftformat`. Swift selbst kommt aus Xcode bzw. den Command Line Tools, weil Doorman das macOS-SDK braucht.
-- **Tasks:** Sie liegen in `.mise/tasks/` als ausführbare Shell-Skripte mit `#MISE`-Kopfzeilen und ersetzen das frühere Makefile: `test`, `app`, `install`, `run`, `lint`, `format`, `render-formula`, `check-formula`, `next-patch-version`, `ci`, `clean`. Gemeinsame Einstellungen kommen aus `_lib.sh`. Die Skripte laufen auch ohne mise.
+- **Tasks:** Sie liegen in `.mise/tasks/` als ausführbare Shell-Skripte mit `#MISE`-Kopfzeilen und ersetzen das frühere Makefile: `test`, `app`, `install`, `run`, `lint`, `format`, `render-formula`, `check-formula`, `next-patch-version`, `app-changed-since-release`, `test-scripts`, `ci`, `clean`. Gemeinsame Einstellungen kommen aus `_lib.sh`. Die Skripte laufen auch ohne mise.
 - `mise run app` erzeugt `build/Doorman.app`. Die Info.plist kommt aus `Resources/`, ein eigenes App-Icon gibt es in v1 noch nicht. Signiert wird ad hoc. Die Version kommt aus `VERSION` oder dem letzten `v*`-Tag.
 - **Homebrew:**
   - Die Formula `doorman` liegt im Tap `schowave/homebrew-tap` unter `Formula/`.
-  - Sie baut aus dem Release-Tarball und ruft `.mise/tasks/install` direkt auf, also ohne mise, mit `PREFIX`, `VERSION` und `SWIFT_BUILD_FLAGS=--disable-sandbox`.
-  - Die Vorlage `packaging/homebrew/doorman.rb` nutzt `@VERSION@` und `@SHA256@`. `render-formula` setzt die Werte ein, `check-formula` prüft das Ergebnis.
-- **CI** (`ci.yml`, macOS-Runner): `mise run ci` mit lint, test, App-Bundle und Formula-Check.
+  - Sie baut aus dem Release-Tarball (`depends_on xcode: 16` zum Bauen) und ruft `.mise/tasks/install` direkt auf, also ohne mise, mit `PREFIX`, `VERSION`, `SWIFT_BUILD_FLAGS=--disable-sandbox` und `BIN_APP_PATH` (der stabile `opt`-Pfad für `bin/doorman`, das `open -a` nutzt).
+  - Die Vorlage `packaging/homebrew/doorman.rb` nutzt `@URL@`, `@VERSION@` und `@SHA256@`. `render-formula` setzt die Werte ein, `check-formula` prüft das Ergebnis.
+- **CI** (`ci.yml`, macOS-Runner):
+  - Job `test`: `mise run ci` mit lint, Unit-Tests, Tests der Release-Skripte, App-Bundle und Formula-Check.
+  - Job `formula`: rendert die Formula für einen lokalen Tarball und führt `brew install --build-from-source`, `brew test` und `brew audit --strict` aus, also den Weg, den Nutzer gehen.
 - **Release** (`release.yml`): läuft bei einem Tag `v*` oder wenn ein anderer Workflow es aufruft (`workflow_call`). Ablauf: testen, App bauen, GitHub-Release anlegen (falls noch keines existiert), dann die Formula im Tap aktualisieren. Dafür braucht es das Secret `TAP_GITHUB_TOKEN`. Der Workflow lässt sich erneut ausführen.
 - **Renovate** (GitHub App, `renovate.json`):
-  - Einmal pro Woche (Montag vor 6 Uhr) kommen alle Updates, Majors eingeschlossen, in einen PR. Das betrifft GitHub Actions (auf Digests gepinnt) und die mise-Tools.
-  - Renovate merged den PR selbst, sobald die CI grün ist.
+  - Einmal pro Woche (Montag vor 6 Uhr), je ein PR für GitHub Actions (auf Digests gepinnt) und einer für die mise-Tools. Getrennt, damit eine neue Lint-Regel nicht auch die Action-Updates blockiert.
+  - Updates werden erst übernommen, wenn sie 7 Tage alt sind (`minimumReleaseAge`).
+  - Majors erstellt Renovate erst nach Freigabe im Dependency Dashboard.
+  - Renovate merged die PRs selbst, sobald die CI grün ist.
 - **Auto-Release** (`auto-release.yml`):
-  - Ein Merge von `renovate[bot]` auf `main` legt den nächsten Patch-Tag an (`next-patch-version`) und ruft `release.yml` auf.
-  - Mit dem `GITHUB_TOKEN` gepushte Tags starten selbst keine Workflows, deshalb der direkte Aufruf.
+  - Ein Merge von `renovate[bot]` auf `main` legt den nächsten Patch-Tag an (`next-patch-version`), aber nur, wenn sich seit dem letzten Tag die App geändert hat (`Sources/`, `Resources/`, `Package.swift`/`.resolved`; `app-changed-since-release`). Updates, die nur CI oder Lint-Werkzeuge betreffen, ergeben kein Release.
+  - Der Tag entsteht per API; trägt `HEAD` schon einen Tag, passiert nichts. Eine `concurrency`-Gruppe verhindert parallele Releases.
+  - Mit dem `GITHUB_TOKEN` angelegte Tags starten selbst keine Workflows, deshalb ruft der Job `release.yml` direkt auf.
   - Ohne vorhandenen `v*`-Tag passiert nichts; das erste Release entsteht von Hand.
 
 ## 10. Tests
@@ -193,5 +198,8 @@ Folgende Teile des Cores sind abgedeckt:
 - Ordnen, Ausblenden, Labels und Hotkey-Vergabe der Konfiguration
 - Discovery: Reihenfolge, Allowlist, `extraApps`, Pfadfilter, Zen-Fallbacks
 - Launch-Command je Zieltyp, inklusive Zen-Kaltstart
+- Tastenbelegung im Panel (`PickerKeys`), inklusive Feststelltaste
+- Entscheidung über den Symlink in `~/Applications` und das Neuschreiben des LaunchAgents
+- Release-Skripte (`test-scripts`): nächster Patch-Tag, App-Änderung seit dem letzten Release, URL-Argument von `render-formula`
 
 Die UI wird manuell getestet.

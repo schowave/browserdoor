@@ -130,6 +130,12 @@ Only known browsers in `/Applications`, `~/Applications` or `/System` appear. Ad
 </details>
 
 <details>
+<summary><b>"Beim Login starten" is checked, but Doorman doesn't start at login</b></summary>
+
+The checkmark only shows that Doorman's LaunchAgent exists. macOS can still block it: check **System Settings → General → Login Items & Extensions** and allow Doorman under *Allow in the Background*.
+</details>
+
+<details>
 <summary><b>Links still open in my old browser</b></summary>
 
 Open the menu bar menu. If it shows *Standardbrowser: nein*, choose *Als Standardbrowser setzen* and confirm the macOS dialog.
@@ -155,7 +161,7 @@ mise tasks          # list all tasks
 mise run test       # unit tests
 mise run run        # build build/Doorman.app and start it
 mise run format     # swiftformat
-mise run ci         # everything CI runs: lint, test, app bundle, formula check
+mise run ci         # lint, unit tests, release-script tests, app bundle, formula check
 ```
 
 - `Sources/DoormanCore` contains the logic: parsers, discovery, config and launch commands. Its unit tests run without the UI.
@@ -165,7 +171,9 @@ mise run ci         # everything CI runs: lint, test, app bundle, formula check
 ### Releases and dependencies
 
 - **Manual release:** push a tag such as `v0.2.0`. [`release.yml`](.github/workflows/release.yml) then tests and builds Doorman, creates the GitHub release and updates `Formula/doorman.rb` in [schowave/homebrew-tap](https://github.com/schowave/homebrew-tap).
-- **Renovate** bundles all updates, both GitHub Actions and mise tools, into one pull request every Monday and merges it once CI passes. Each merge creates a **patch release** through [`auto-release.yml`](.github/workflows/auto-release.yml).
+- **Renovate** opens one pull request for GitHub Actions and one for the mise tools every Monday. It takes only versions that have been out for 7 days, and waits for your approval on the Dependency Dashboard before a major update. It merges each pull request once CI passes.
+- **Patch releases:** when a Renovate merge changes the app itself (`Sources/`, `Resources/`, `Package.swift`), [`auto-release.yml`](.github/workflows/auto-release.yml) tags the next patch version and releases it. Updates that only affect CI or tooling don't produce a release.
+- **CI** also builds the Homebrew formula from a source tarball with `brew install --build-from-source`, `brew test` and `brew audit --strict`.
 
 ## Acknowledgements
 
