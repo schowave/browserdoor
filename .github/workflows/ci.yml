@@ -20,7 +20,8 @@ jobs:
         run: mise run ci
 
   formula:
-    # Builds the rendered formula the way users get it: brew install from a source tarball.
+    # Builds the rendered formula the way users get it: from a source tarball, then as a
+    # bottle that is poured again (no Xcode needed on the user's side).
     runs-on: macos-15
     env:
       HOMEBREW_NO_AUTO_UPDATE: "1"
@@ -33,13 +34,19 @@ jobs:
           tarball="$RUNNER_TEMP/doorman-0.0.1.tar.gz"
           git archive --format=tar.gz --prefix=doorman-0.0.1/ -o "$tarball" HEAD
           sha=$(shasum -a 256 "$tarball" | cut -d' ' -f1)
-          brew tap-new --no-git local/ci
-          tap="$(brew --repository)/Library/Taps/local/homebrew-ci"
-          .mise/tasks/render-formula 0.0.1 "$sha" "file://$tarball" > "$tap/Formula/doorman.rb"
-          cat "$tap/Formula/doorman.rb"
-      - name: brew install --build-from-source
-        run: brew install --build-from-source --verbose local/ci/doorman
+          .mise/tasks/render-formula 0.0.1 "$sha" "file://$tarball" > "$RUNNER_TEMP/doorman.rb"
+          cat "$RUNNER_TEMP/doorman.rb"
+      - name: Build from source as a bottle
+        run: .mise/tasks/bottle "$RUNNER_TEMP/doorman.rb" "file://$RUNNER_TEMP/bottles" "$RUNNER_TEMP/bottles"
+      - name: Pour the bottle
+        run: |
+          brew bottle --merge --write --no-commit "$RUNNER_TEMP"/bottles/*.json
+          cat "$(brew --repository)/Library/Taps/schowave/homebrew-tap/Formula/doorman.rb"
+          brew uninstall doorman
+          brew install schowave/tap/doorman
+          poured=$(brew info --json=v2 schowave/tap/doorman | jq '.formulae[0].installed[0].poured_from_bottle')
+          [ "$poured" = true ] || { echo "::error::doorman was not poured from the bottle"; exit 1; }
       - name: brew test
-        run: brew test local/ci/doorman
-      - name: brew audit
-        run: brew audit --strict --formula local/ci/doorman
+        run: brew test schowave/tap/doorman
+      - name: brew audit (formula with bottle block, as in the tap)
+        run: brew audit --strict --formula schowave/tap/doorman

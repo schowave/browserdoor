@@ -1,7 +1,12 @@
 name: Release
 
 # Runs for a pushed tag like v0.1.0, or when auto-release calls it with a tag it just created.
-# → test and build, create the GitHub release, update the Homebrew tap.
+# → test and build, create the GitHub release, build bottles (Apple Silicon from macOS 14,
+#   Intel from macOS 15) and attach them to the release, update the Homebrew tap.
+# A failed bottle build does not block the tap update: the formula then simply carries fewer
+# bottles, and those Macs build from source. If no bottle was built at all, the tap is left alone.
+# Bottles already attached to the release (tarball plus JSON) are reused on a re-run, so the
+# formula's sha256 values stay valid; delete both assets to rebuild one.
 # Needs the secret TAP_GITHUB_TOKEN: a fine-grained token with contents:write on schowave/homebrew-tap.
 # Safe to re-run: an existing release is kept, an unchanged formula is not committed again.
 
@@ -57,7 +62,107 @@ jobs:
           .mise/tasks/render-formula "${TAG#v}" "$sha" > doorman.rb
           cat doorman.rb
 
-      - name: Push formula to tap
+      - uses: actions/upload-artifact@v7
+        with:
+          name: formula
+          path: doorman.rb
+          overwrite: true
+
+  bottle:
+    needs: release
+    strategy:
+      fail-fast: false
+      matrix:
+        # Homebrew pours a bottle on its own macOS version and newer ones.
+        include:
+          - os: macos-14
+            bottle_tag: arm64_sonoma
+          - os: macos-15-intel
+            bottle_tag: sequoia
+    runs-on: ${{ matrix.os }}
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_INSTALL_CLEANUP: "1"
+      HOMEBREW_NO_ENV_HINTS: "1"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: formula
+
+      - name: Reuse a bottle from an earlier run
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BOTTLE_TAG: ${{ matrix.bottle_tag }}
+        run: |
+          # The JSON is uploaded after the tarball, so its presence means the bottle is complete.
+          json="doorman--${TAG#v}.${BOTTLE_TAG}.bottle.json"
+          if gh release download "$TAG" --pattern "$json" --dir bottles 2>/dev/null; then
+            echo "Reusing $json from the release"
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Select Xcode 16
+        # macos-14 defaults to Xcode 15; Package.swift needs Swift 6.
+        if: matrix.os == 'macos-14' && steps.existing.outputs.found != 'true'
+        run: |
+          xcode=$(find /Applications -maxdepth 1 -name 'Xcode_16*.app' \
+            | grep -E '/Xcode_16(\.[0-9]+)*\.app$' | sort -V | tail -n 1 || true)
+          if [ -z "$xcode" ]; then
+            echo "::error::No Xcode 16 on this runner"
+            exit 1
+          fi
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
+
+      - name: Build bottle
+        if: steps.existing.outputs.found != 'true'
+        run: .mise/tasks/bottle doorman.rb "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}" bottles
+
+      - name: brew test
+        if: steps.existing.outputs.found != 'true'
+        run: brew test schowave/tap/doorman
+
+      - name: Attach bottle to the release
+        if: steps.existing.outputs.found != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # A tarball without JSON is left over from an aborted run; the tap never points to it.
+          gh release upload "$TAG" bottles/*.tar.gz --clobber
+          gh release upload "$TAG" bottles/*.json
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bottle-${{ matrix.os }}
+          path: bottles/*.json
+          overwrite: true
+
+  tap:
+    needs: [release, bottle]
+    if: ${{ !cancelled() && needs.release.result == 'success' }}
+    runs-on: macos-15
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_ENV_HINTS: "1"
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: formula
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: bottle-*
+          path: bottles
+          merge-multiple: true
+
+      - name: Push formula with bottles to tap
         env:
           TAP_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
         run: |
@@ -65,10 +170,19 @@ jobs:
             echo "::error::TAP_GITHUB_TOKEN is empty or missing"
             exit 1
           fi
-          git clone "https://x-access-token:${TAP_TOKEN}@github.com/schowave/homebrew-tap.git" tap
-          mkdir -p tap/Formula
-          cp doorman.rb tap/Formula/doorman.rb
-          cd tap
+          # Clone where brew finds the tap, so `brew bottle --merge` can write into it.
+          tap="$(brew --repository)/Library/Taps/schowave/homebrew-tap"
+          rm -rf "$tap"
+          if ! ls bottles/*.json >/dev/null 2>&1; then
+            echo "::error::No bottle was built; leaving the tap unchanged"
+            exit 1
+          fi
+          git clone "https://x-access-token:${TAP_TOKEN}@github.com/schowave/homebrew-tap.git" "$tap"
+          mkdir -p "$tap/Formula"
+          cp doorman.rb "$tap/Formula/doorman.rb"
+          brew bottle --merge --write --no-commit bottles/*.json
+          cat "$tap/Formula/doorman.rb"
+          cd "$tap"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Formula/doorman.rb

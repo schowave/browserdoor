@@ -31,7 +31,7 @@ What it does:
 ## Requirements
 
 - macOS 14 (Sonoma) or later
-- Xcode 16, since Homebrew builds Doorman from source
+- No Xcode on Apple Silicon (macOS 14 or later) and on Intel Macs with macOS 15 or later: Homebrew installs a prebuilt bottle. On Intel Macs with macOS 14 it builds from source and needs Xcode 16.
 - For spaces: [Zen](https://zen-browser.app) 1.24 or later. Older versions show up as a single entry.
 
 ## Installation
@@ -174,7 +174,7 @@ The logic lives in `Sources/DoormanCore` and is tested without the UI; `Sources/
 
 ### Releases and dependencies
 
-Pushing a tag like `v0.2.0` runs [`release.yml`](.github/workflows/release.yml): tests, build, GitHub release, and an updated `Formula/doorman.rb` in [schowave/homebrew-tap](https://github.com/schowave/homebrew-tap). CI also installs the formula from a source tarball with `brew install --build-from-source` and runs `brew test` and `brew audit --strict`.
+Pushing a tag like `v0.2.0` runs [`release.yml`](.github/workflows/release.yml): tests, build, GitHub release, bottles for Apple Silicon (built on macOS 14) and Intel (macOS 15) attached to the release, and an updated `Formula/doorman.rb` with a `bottle do` block in [schowave/homebrew-tap](https://github.com/schowave/homebrew-tap). CI also builds the formula from a source tarball as a bottle (`mise run bottle`), pours that bottle again and runs `brew test` and `brew audit --strict`.
 
 Renovate opens a weekly pull request for GitHub Actions and one for the mise tools, waits seven days after a release before picking it up, and asks before major updates. It merges once CI is green. If a merge changes the app itself, [`auto-release.yml`](.github/workflows/auto-release.yml) tags and releases the next patch version.
 

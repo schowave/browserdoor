@@ -1,0 +1,34 @@
+#!/bin/sh
+#MISE description="Build a Homebrew bottle: bottle <formula.rb> <root url> <out dir>"
+# Installs the formula from a throwaway local schowave/tap with --build-bottle, then writes
+# the bottle tarball (under the name its URL will use) and its JSON into <out dir>.
+# Merge the JSONs into the formula with `brew bottle --merge --write --no-commit`.
+# Replaces the local doorman installation: meant for CI runners.
+set -eu
+usage="usage: bottle <formula.rb> <root url> <out dir>"
+formula="$(realpath "${1:?$usage}")"
+root_url="${2:?$usage}"
+mkdir -p "${3:?$usage}"
+out="$(realpath "$3")"
+
+tap="$(brew --repository)/Library/Taps/schowave/homebrew-tap"
+if [ -d "$tap" ]; then
+  echo "bottle: schowave/tap is already tapped; refusing to overwrite its formula ($tap)" >&2
+  exit 1
+fi
+brew tap-new --no-git schowave/tap
+cp "$formula" "$tap/Formula/doorman.rb"
+
+brew install --build-bottle --verbose schowave/tap/doorman
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+cd "$work"
+brew bottle --json --root-url="$root_url" schowave/tap/doorman
+for json in doorman--*.bottle.json; do
+  # local_filename has a double dash, the URL (filename) a single one.
+  local_name="$(jq -r '.[].bottle.tags[].local_filename' "$json")"
+  url_name="$(jq -r '.[].bottle.tags[].filename' "$json")"
+  mv "$local_name" "$out/$url_name"
+  mv "$json" "$out/"
+  echo "bottle: $out/$url_name"
+done
