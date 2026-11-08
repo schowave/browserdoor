@@ -26,10 +26,9 @@ class Doorman < Formula
     <<~EOS
       Start Doorman once; it then offers to become your default browser,
       links itself to ~/Applications/Doorman.app and adds a login item:
-        open #{opt_prefix}/Doorman.app
+        doorman
 
-      After `brew upgrade doorman`, quit Doorman from the menu bar and run
-        open ~/Applications/Doorman.app
+      After `brew upgrade doorman`, quit Doorman from the menu bar and run `doorman` again.
       Configuration: ~/.config/doorman/config.json (menu bar → Konfiguration öffnen…)
     EOS
   end

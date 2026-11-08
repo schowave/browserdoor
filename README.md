@@ -42,8 +42,10 @@ Doorman is a macOS link picker. When you click a link anywhere, it asks where th
 
 ```sh
 brew install schowave/tap/doorman
-open "$(brew --prefix)/opt/doorman/Doorman.app"
+doorman
 ```
+
+`doorman` starts the app. It always points at the installed version, so it also works after an upgrade.
 
 On first launch, Doorman:
 
@@ -51,7 +53,7 @@ On first launch, Doorman:
 2. adds a **login item**, a LaunchAgent in `~/Library/LaunchAgents`.
 3. links itself to `~/Applications/Doorman.app`. That path keeps pointing at the current version after `brew upgrade`.
 
-**After `brew upgrade doorman`**, quit Doorman from the menu bar and start it again with `open ~/Applications/Doorman.app`.
+**After `brew upgrade doorman`**, quit Doorman from the menu bar and start it again with `doorman`.
 
 ## Usage
 
