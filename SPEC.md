@@ -78,6 +78,12 @@ Ein **Ziel** ist ein Eintrag im Panel. Jedes Ziel hat eine stabile `id`, einen A
 - **Allowlist**: Gezeigt werden nur bekannte Browser (`KnownBrowsers`, analog zu Browserosaurus), plus die Bundle-IDs aus `extraApps` in der Konfiguration. LaunchServices listet sonst auch Terminals, Web-App-Wrapper, Finicky/Browserosaurus usw.
 - Ausgenommen sind Doorman selbst sowie Zen und die Chromium-Browser, wenn sie schon über 3.1 oder 3.2 abgedeckt sind.
 
+### 3.4 Erlaubte URLs
+
+URLs landen als Kommandozeilen-Argumente bei den Browsern. Deshalb lässt Doorman nur `http`, `https` und `file` durch (`URLPolicy`); alles andere, auch `.webloc`-Inhalte wie `--remote-debugging-port=…` oder `javascript:`, wird verworfen. Die Prüfung greift beim Empfang und noch einmal beim Bauen der Launch-Kommandos.
+
+Ist `zen.profilePath` gesetzt, bekommt jeder Zen-Aufruf zusätzlich `--profile <pfad>`, damit `--space` die Instanz mit diesem Profil erreicht.
+
 ## 4. Panel (UI)
 
 - Ein schwebendes, randloses `NSPanel` an der Mausposition. Es wird auf den sichtbaren Bildschirmbereich begrenzt.

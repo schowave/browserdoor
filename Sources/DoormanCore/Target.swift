@@ -3,7 +3,9 @@ import Foundation
 /// One entry the user can pick: a Zen workspace, a Chromium profile, or a plain browser.
 public struct Target: Equatable, Sendable, Identifiable {
     public enum Kind: Equatable, Sendable {
-        case zenSpace(app: URL, executable: URL, space: ZenSpace)
+        /// `profile` is set only when the config overrides Zen's default profile;
+        /// the command then has to address that profile's instance explicitly.
+        case zenSpace(app: URL, executable: URL, space: ZenSpace, profile: URL? = nil)
         case chromium(app: URL, profileDirectory: String)
         case app(URL)
     }
@@ -21,7 +23,7 @@ public struct Target: Equatable, Sendable, Identifiable {
 
     public var appURL: URL {
         switch kind {
-        case .zenSpace(let app, _, _), .chromium(let app, _), .app(let app): app
+        case .zenSpace(let app, _, _, _), .chromium(let app, _), .app(let app): app
         }
     }
 
@@ -41,20 +43,23 @@ extension Target {
     /// - Parameter appIsRunning: whether the target app already runs. Only matters for Zen:
     ///   a running Zen gets the command via its remote service (direct exec returns at once);
     ///   a cold start goes through LaunchServices so Zen isn't a child of this process.
+    ///   URLs that `URLPolicy` rejects are dropped: they would become command-line flags.
     public func launchCommands(for urls: [URL], appIsRunning: Bool = true) -> [LaunchCommand] {
+        let urls = URLPolicy.filter(urls)
         guard !urls.isEmpty else { return [] }
         let strings = urls.map(\.absoluteString)
         switch kind {
-        case .zenSpace(let app, let executable, let space):
+        case .zenSpace(let app, let executable, let space, let profile):
+            let base = (profile.map { ["--profile", $0.path] } ?? []) + ["--space", space.uuid]
             guard appIsRunning else {
                 // Zen stores the space for startup; extra URLs open in the same window.
                 return [.run(
                     executable: URL(fileURLWithPath: "/usr/bin/open"),
-                    arguments: ["-a", app.path, "--args", "--space", space.uuid] + strings
+                    arguments: ["-a", app.path, "--args"] + base + strings
                 )]
             }
             // `--space <space> [<url>]` takes a single URL, so one call per URL.
-            return strings.map { .run(executable: executable, arguments: ["--space", space.uuid, $0]) }
+            return strings.map { .run(executable: executable, arguments: base + [$0]) }
         case .chromium(let app, let dir):
             return [.run(
                 executable: URL(fileURLWithPath: "/usr/bin/open"),

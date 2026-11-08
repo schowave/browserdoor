@@ -102,7 +102,7 @@ public struct Discovery {
             Target(
                 id: Target.zenID(space.uuid),
                 name: space.name,
-                kind: .zenSpace(app: app, executable: executable, space: space)
+                kind: .zenSpace(app: app, executable: executable, space: space, profile: zenProfileOverride)
             )
         }
     }

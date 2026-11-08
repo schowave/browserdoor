@@ -27,7 +27,7 @@ final class IconProvider {
         switch target.kind {
         case .app(let app), .chromium(let app, _):
             return .image(appIcon(app))
-        case .zenSpace(let app, _, let space):
+        case .zenSpace(let app, _, let space, _):
             let color = space.color.map { Color(red: Double($0.r) / 255, green: Double($0.g) / 255, blue: Double($0.b) / 255) }
                 ?? Color.secondary.opacity(0.35)
             if let emoji = space.emojiIcon {

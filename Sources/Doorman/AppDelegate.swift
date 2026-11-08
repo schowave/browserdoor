@@ -28,7 +28,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
             return url
         }
-        picker.show(urls: resolved)
+        let allowed = URLPolicy.filter(resolved)
+        if allowed.count < resolved.count {
+            log.notice("ignored \(resolved.count - allowed.count) url(s) with a disallowed scheme")
+        }
+        picker.show(urls: allowed)
     }
 
     // MARK: Onboarding
