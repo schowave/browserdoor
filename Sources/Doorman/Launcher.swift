@@ -7,6 +7,8 @@ let log = Logger(subsystem: AppIdentity.bundleId, category: "app")
 @MainActor
 enum Launcher {
     static func open(_ urls: [URL], in target: Target) {
+        let start = ContinuousClock.now
+        defer { log.debug("timing: launch \(String(describing: ContinuousClock.now - start), privacy: .public)") }
         let bundleId = Bundle(url: target.appURL)?.bundleIdentifier
         let running = bundleId.map { !NSRunningApplication.runningApplications(withBundleIdentifier: $0).isEmpty } ?? false
 

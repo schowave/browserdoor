@@ -7,5 +7,5 @@ actionlint
 shellcheck .mise/tasks/_lib.sh .mise/tasks/test .mise/tasks/app .mise/tasks/install .mise/tasks/run \
   .mise/tasks/lint .mise/tasks/format .mise/tasks/render-formula .mise/tasks/check-formula \
   .mise/tasks/next-patch-version .mise/tasks/ci .mise/tasks/clean \
-  .mise/tasks/app-changed-since-release .mise/tasks/test-scripts
+  .mise/tasks/app-changed-since-release .mise/tasks/test-scripts .mise/tasks/check-strings
 swiftformat --lint .

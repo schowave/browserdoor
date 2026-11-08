@@ -1,0 +1,78 @@
+/* Doorman – German. Keys are the English text; see Sources/Doorman/System.swift (L). */
+
+/* Menu bar menu and main menu */
+"Update to Doorman %@…" = "Auf Doorman %@ aktualisieren…";
+"Doorman isn't your default browser" = "Doorman ist nicht Standardbrowser";
+"Make Default Browser" = "Als Standardbrowser festlegen";
+"Settings…" = "Einstellungen…";
+"Check for Updates…" = "Nach Updates suchen…";
+"Quit Doorman" = "Doorman beenden";
+"Edit" = "Bearbeiten";
+"Undo" = "Widerrufen";
+"Redo" = "Wiederholen";
+"Cut" = "Ausschneiden";
+"Copy" = "Kopieren";
+"Paste" = "Einsetzen";
+"Select All" = "Alles auswählen";
+"Window" = "Fenster";
+"Close" = "Schließen";
+
+/* Onboarding */
+"Use Doorman as your default browser?" = "Doorman als Standardbrowser verwenden?";
+"Doorman then asks for every link which browser, profile or Zen space should open it." = "Doorman fragt dann bei jedem Link, welcher Browser, welches Profil oder welcher Zen-Space ihn öffnen soll.";
+"Make Default" = "Als Standard festlegen";
+"Later" = "Später";
+
+/* Picker */
+"%ld links" = "%ld Links";
+"Copy URL (⌘C)" = "URL kopieren (⌘C)";
+"config.json is invalid; using defaults" = "config.json ist fehlerhaft – Standardwerte aktiv";
+
+/* Settings window */
+"Doorman Settings" = "Doorman-Einstellungen";
+"General" = "Allgemein";
+"Targets" = "Ziele";
+"Advanced" = "Erweitert";
+"Default browser" = "Standardbrowser";
+"Doorman handles links" = "Doorman öffnet Links";
+"Make Doorman the Default Browser" = "Doorman als Standardbrowser festlegen";
+"Start at login" = "Beim Anmelden starten";
+"Updates" = "Updates";
+"Check for updates automatically" = "Automatisch nach Updates suchen";
+"Version %@" = "Version %@";
+"Check Now" = "Jetzt prüfen";
+"Up to date" = "Aktuell";
+"%@ available" = "%@ verfügbar";
+"Check failed" = "Prüfung fehlgeschlagen";
+"Drag to reorder. Hidden targets don't appear in the picker. Without a custom key, targets get number keys." = "Zum Sortieren ziehen. Ausgeblendete Ziele erscheinen nicht in der Auswahl. Ziele ohne eigene Taste bekommen Zifferntasten.";
+"Show in picker" = "In der Auswahl zeigen";
+"Key" = "Taste";
+"Shortcut key in the picker" = "Taste in der Auswahl";
+"Default target (Enter)" = "Standardziel (Eingabetaste)";
+"Make default target (Enter)" = "Als Standardziel festlegen (Eingabetaste)";
+"Additional apps" = "Weitere Apps";
+"Apps that aren't browsers but can open web links, e.g. a web-app wrapper." = "Apps, die keine Browser sind, aber Weblinks öffnen können, z. B. ein Web-App-Wrapper.";
+"Add App…" = "App hinzufügen…";
+"Remove" = "Entfernen";
+"Choose an App" = "App auswählen";
+"Profile" = "Profil";
+"Automatic (default profile)" = "Automatisch (Standardprofil)";
+"Choose…" = "Auswählen…";
+"Reset" = "Zurücksetzen";
+"Choose a Zen Profile Folder" = "Zen-Profilordner auswählen";
+"Configuration file" = "Konfigurationsdatei";
+"Show in Finder" = "Im Finder zeigen";
+"The settings live in this file, so you can keep it in your dotfiles." = "Die Einstellungen stehen in dieser Datei. So kannst du sie in deinen Dotfiles versionieren.";
+"config.json can't be read; saving here will replace it." = "config.json ist nicht lesbar; Änderungen hier ersetzen die Datei.";
+"Couldn't save settings: %@" = "Einstellungen konnten nicht gespeichert werden: %@";
+
+/* Updates */
+"Doorman is up to date" = "Doorman ist aktuell";
+"Version %@ is the latest version." = "Version %@ ist die neueste Version.";
+"Couldn't check for updates" = "Suche nach Updates fehlgeschlagen";
+"Doorman %@ is available" = "Doorman %@ ist verfügbar";
+"You have version %@. The update runs “brew upgrade doorman” in Terminal and restarts Doorman." = "Installiert ist Version %@. Das Update führt „brew upgrade doorman“ im Terminal aus und startet Doorman neu.";
+"You have version %@." = "Installiert ist Version %@.";
+"Update in Terminal" = "Im Terminal aktualisieren";
+"Open Release Page" = "Release-Seite öffnen";
+"Release Notes" = "Release-Notes";

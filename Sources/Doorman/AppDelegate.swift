@@ -1,6 +1,5 @@
 import AppKit
 import DoormanCore
-import UniformTypeIdentifiers
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
@@ -11,14 +10,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_: Notification) {
         setUpStatusItem()
+        setUpMainMenu()
         LSRegisterURL(Bundle.main.bundleURL as CFURL, true)
         Installation.ensureUserApplicationsLink()
         Installation.refreshLoginItem()
         picker.prewarm()
+        UpdateChecker.shared.startAutomaticChecks()
         if !defaults.bool(forKey: Self.onboardedKey) {
             defaults.set(true, forKey: Self.onboardedKey)
             onboard()
         }
+    }
+
+    /// Opening Doorman again (Finder, Spotlight, `doorman`) while it runs shows the settings.
+    func applicationShouldHandleReopen(_: NSApplication, hasVisibleWindows _: Bool) -> Bool {
+        SettingsWindowController.shared.show()
+        return false
     }
 
     /// Both URL clicks (http/https) and opened files (.html, .webloc) arrive here.
@@ -42,15 +49,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: Onboarding
 
     private func onboard() {
-        if !isDefaultBrowser {
+        if !DefaultBrowser.isDoorman {
             NSApp.activate()
             let alert = NSAlert()
-            alert.messageText = "\(AppIdentity.name) als Standardbrowser verwenden?"
-            alert.informativeText = "Dann fragt \(AppIdentity.name) bei jedem Link, in welchem Browser oder Zen-Space er geöffnet werden soll."
-            alert.addButton(withTitle: "Als Standard setzen")
-            alert.addButton(withTitle: "Später")
+            alert.messageText = L("Use Doorman as your default browser?")
+            alert.informativeText = L("Doorman then asks for every link which browser, profile or Zen space should open it.")
+            alert.addButton(withTitle: L("Make Default"))
+            alert.addButton(withTitle: L("Later"))
             if alert.runModal() == .alertFirstButtonReturn {
-                makeDefaultBrowser()
+                DefaultBrowser.makeDoorman()
             }
         }
         if !Installation.launchesAtLogin {
@@ -58,29 +65,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    // MARK: Default browser
+    // MARK: Main menu
 
-    private var isDefaultBrowser: Bool {
-        guard
-            let probe = URL(string: "https://example.com"),
-            let handler = NSWorkspace.shared.urlForApplication(toOpen: probe)
-        else { return false }
-        return Bundle(url: handler)?.bundleIdentifier == Bundle.main.bundleIdentifier
-    }
+    /// Doorman shows no menu bar of its own, but key equivalents in the settings window
+    /// (⌘C/⌘V in text fields, ⌘W, ⌘,) come from the main menu.
+    private func setUpMainMenu() {
+        let main = NSMenu()
 
-    private func makeDefaultBrowser() {
-        let app = Bundle.main.bundleURL
-        // macOS asks the user to confirm; http covers https as well.
-        NSWorkspace.shared.setDefaultApplication(at: app, toOpenURLsWithScheme: "http") { error in
-            if let error {
-                log.error("set default browser: \(error.localizedDescription, privacy: .public)")
-            }
-        }
-        NSWorkspace.shared.setDefaultApplication(at: app, toOpen: .html) { error in
-            if let error {
-                log.error("set html handler: \(error.localizedDescription, privacy: .public)")
-            }
-        }
+        let appMenu = NSMenu()
+        appMenu.addItem(item(L("Settings…"), #selector(settingsAction), key: ","))
+        appMenu.addItem(.separator())
+        appMenu.addItem(withTitle: L("Quit Doorman"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        main.addItem(withTitle: AppIdentity.name, action: nil, keyEquivalent: "").submenu = appMenu
+
+        let edit = NSMenu(title: L("Edit"))
+        edit.addItem(withTitle: L("Undo"), action: Selector(("undo:")), keyEquivalent: "z")
+        edit.addItem(withTitle: L("Redo"), action: Selector(("redo:")), keyEquivalent: "Z")
+        edit.addItem(.separator())
+        edit.addItem(withTitle: L("Cut"), action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        edit.addItem(withTitle: L("Copy"), action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        edit.addItem(withTitle: L("Paste"), action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        edit.addItem(withTitle: L("Select All"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        main.addItem(withTitle: L("Edit"), action: nil, keyEquivalent: "").submenu = edit
+
+        let window = NSMenu(title: L("Window"))
+        window.addItem(withTitle: L("Close"), action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        main.addItem(withTitle: L("Window"), action: nil, keyEquivalent: "").submenu = window
+
+        NSApp.mainMenu = main
     }
 
     // MARK: Status item
@@ -108,31 +120,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return NSImage(systemSymbolName: "door.left.hand.open", accessibilityDescription: AppIdentity.name)
     }
 
-    /// Rebuilt on every open so the status lines are current.
+    /// Rebuilt on every open so the status lines are current. Kept to cheap calls only.
     func menuNeedsUpdate(_ menu: NSMenu) {
-        rebuild(menu)
-    }
-
-    private func rebuild(_ menu: NSMenu) {
         menu.removeAllItems()
 
-        if isDefaultBrowser {
-            menu.addItem(withTitle: "Standardbrowser: ja", action: nil, keyEquivalent: "").isEnabled = false
-        } else {
-            menu.addItem(withTitle: "Standardbrowser: nein", action: nil, keyEquivalent: "").isEnabled = false
-            menu.addItem(item("Als Standardbrowser setzen", #selector(setDefaultAction)))
+        if case let .available(release) = UpdateChecker.shared.status {
+            menu.addItem(item(L("Update to Doorman %@…", release.version.description), #selector(checkForUpdatesAction)))
+            menu.addItem(.separator())
         }
-
-        let login = item("Beim Login starten", #selector(toggleLoginAction))
-        login.state = Installation.launchesAtLogin ? .on : .off
-        menu.addItem(login)
-
+        if !DefaultBrowser.isDoorman {
+            menu.addItem(withTitle: L("Doorman isn't your default browser"), action: nil, keyEquivalent: "").isEnabled = false
+            menu.addItem(item(L("Make Default Browser"), #selector(setDefaultAction)))
+            menu.addItem(.separator())
+        }
+        menu.addItem(item(L("Settings…"), #selector(settingsAction), key: ","))
+        menu.addItem(item(L("Check for Updates…"), #selector(checkForUpdatesAction)))
         menu.addItem(.separator())
-        menu.addItem(item("Konfiguration öffnen…", #selector(openConfigAction)))
-        menu.addItem(.separator())
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
-        menu.addItem(withTitle: "\(AppIdentity.name) \(version)", action: nil, keyEquivalent: "").isEnabled = false
-        menu.addItem(item("Beenden", #selector(quitAction), key: "q"))
+        menu.addItem(withTitle: "\(AppIdentity.name) \(RunningApp.version)", action: nil, keyEquivalent: "").isEnabled = false
+        menu.addItem(item(L("Quit Doorman"), #selector(quitAction), key: "q"))
     }
 
     private func item(_ title: String, _ action: Selector, key: String = "") -> NSMenuItem {
@@ -142,28 +147,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func setDefaultAction() {
-        makeDefaultBrowser()
+        DefaultBrowser.makeDoorman()
     }
 
-    @objc private func toggleLoginAction() {
-        Installation.setLaunchAtLogin(!Installation.launchesAtLogin)
+    @objc private func settingsAction() {
+        SettingsWindowController.shared.show()
     }
 
-    @objc private func openConfigAction() {
-        let environment = SystemEnvironment()
-        let url = Config.fileURL(home: environment.home)
-        if !FileManager.default.fileExists(atPath: url.path) {
-            do {
-                try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-                try Config.template(for: Discovery(environment: environment).discover()).write(to: url)
-            } catch {
-                log.error("write config template: \(error.localizedDescription, privacy: .public)")
-                return
-            }
-        }
-        // Open as text: a .json default handler might be an IDE that takes ages to start.
-        let textEdit = NSWorkspace.shared.urlForApplication(toOpen: UTType.plainText) ?? URL(fileURLWithPath: "/System/Applications/TextEdit.app")
-        NSWorkspace.shared.open([url], withApplicationAt: textEdit, configuration: NSWorkspace.OpenConfiguration())
+    @objc private func checkForUpdatesAction() {
+        Task { await UpdateChecker.shared.check(userInitiated: true) }
     }
 
     @objc private func quitAction() {

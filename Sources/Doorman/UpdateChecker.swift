@@ -1,0 +1,163 @@
+import AppKit
+import DoormanCore
+
+/// Asks GitHub for the latest release, once a day (if enabled) and on request. Doorman can't
+/// replace itself (Homebrew install, unsigned), so an update runs `brew upgrade` in Terminal.
+@MainActor @Observable
+final class UpdateChecker {
+    static let shared = UpdateChecker()
+
+    enum Status: Equatable {
+        case idle
+        case checking
+        case upToDate
+        case available(ReleaseInfo)
+        case failed(String)
+    }
+
+    private(set) var status: Status = .idle
+    private(set) var lastCheck: Date?
+
+    var automatic: Bool {
+        didSet { defaults.set(automatic, forKey: Keys.automatic) }
+    }
+
+    private let defaults = UserDefaults.standard
+    private var timer: Timer?
+
+    private enum Keys {
+        static let automatic = "checkForUpdatesAutomatically"
+        static let lastCheck = "lastUpdateCheck"
+        static let skipped = "skippedUpdateVersion"
+    }
+
+    private init() {
+        defaults.register(defaults: [Keys.automatic: true])
+        automatic = defaults.bool(forKey: Keys.automatic)
+        lastCheck = defaults.object(forKey: Keys.lastCheck) as? Date
+    }
+
+    /// Checks now if due, then re-evaluates every hour.
+    func startAutomaticChecks() {
+        checkIfDue()
+        timer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { _ in
+            Task { @MainActor in UpdateChecker.shared.checkIfDue() }
+        }
+    }
+
+    private func checkIfDue() {
+        guard automatic, UpdateCheck.isDue(lastCheck: lastCheck, now: Date()) else { return }
+        Task { await check(userInitiated: false) }
+    }
+
+    /// `userInitiated`: always report the result. Automatic checks only speak up for a new
+    /// version the user hasn't dismissed.
+    func check(userInitiated: Bool) async {
+        status = .checking
+        do {
+            var request = URLRequest(url: UpdateCheck.latestReleaseAPI, timeoutInterval: 15)
+            request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+            request.setValue("Doorman/\(RunningApp.version)", forHTTPHeaderField: "User-Agent")
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
+            let release = try UpdateCheck.parseLatestRelease(data)
+            lastCheck = Date()
+            defaults.set(lastCheck, forKey: Keys.lastCheck)
+
+            guard UpdateCheck.isUpdate(release, over: RunningApp.version) else {
+                status = .upToDate
+                if userInitiated {
+                    showUpToDate()
+                }
+                return
+            }
+            status = .available(release)
+            if userInitiated || defaults.string(forKey: Keys.skipped) != release.tag {
+                showAvailable(release)
+            }
+        } catch {
+            status = .failed(error.localizedDescription)
+            log.error("update check: \(error.localizedDescription, privacy: .public)")
+            if userInitiated {
+                showFailed(error)
+            }
+        }
+    }
+
+    // MARK: Alerts
+
+    private func showUpToDate() {
+        NSApp.activate()
+        let alert = NSAlert()
+        alert.messageText = L("Doorman is up to date")
+        alert.informativeText = L("Version %@ is the latest version.", RunningApp.version)
+        alert.runModal()
+    }
+
+    private func showFailed(_ error: Error) {
+        NSApp.activate()
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = L("Couldn't check for updates")
+        alert.informativeText = error.localizedDescription
+        alert.runModal()
+    }
+
+    private func showAvailable(_ release: ReleaseInfo) {
+        NSApp.activate()
+        let alert = NSAlert()
+        alert.messageText = L("Doorman %@ is available", release.version.description)
+        let canUpgrade = Self.brewExecutable != nil
+        alert.informativeText = canUpgrade
+            ? L("You have version %@. The update runs “brew upgrade doorman” in Terminal and restarts Doorman.", RunningApp.version)
+            : L("You have version %@.", RunningApp.version)
+        alert.addButton(withTitle: canUpgrade ? L("Update in Terminal") : L("Open Release Page"))
+        alert.addButton(withTitle: L("Release Notes"))
+        alert.addButton(withTitle: L("Later"))
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            if canUpgrade {
+                upgradeInTerminal()
+            } else {
+                NSWorkspace.shared.open(release.url)
+            }
+        case .alertSecondButtonReturn:
+            NSWorkspace.shared.open(release.url)
+        default:
+            defaults.set(release.tag, forKey: Keys.skipped)
+        }
+    }
+
+    // MARK: Upgrade
+
+    /// `<prefix>/bin/brew` when Doorman runs from a Homebrew Cellar.
+    static var brewExecutable: URL? {
+        let path = Bundle.main.bundlePath
+        guard let range = path.range(of: "/Cellar/") else { return nil }
+        let brew = URL(fileURLWithPath: String(path[..<range.lowerBound])).appendingPathComponent("bin/brew")
+        return FileManager.default.isExecutableFile(atPath: brew.path) ? brew : nil
+    }
+
+    /// Opens a `.command` script in Terminal: upgrade, quit this Doorman, start the new one.
+    private func upgradeInTerminal() {
+        guard let brew = Self.brewExecutable else { return }
+        let doorman = brew.deletingLastPathComponent().appendingPathComponent("doorman").path
+        let script = """
+        #!/bin/sh
+        echo "Updating Doorman…"
+        "\(brew.path)" update --quiet && "\(brew.path)" upgrade doorman || { echo; echo "Update failed."; exit 1; }
+        pkill -x Doorman
+        sleep 1
+        "\(doorman)"
+        echo; echo "Doorman updated and restarted. You can close this window."
+        """
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("doorman-update.command")
+        do {
+            try script.write(to: url, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+            NSWorkspace.shared.open(url)
+        } catch {
+            log.error("write update script: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+}

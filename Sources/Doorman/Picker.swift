@@ -38,7 +38,7 @@ final class PickerPanel: NSPanel {
 @MainActor
 final class PickerController: NSObject, NSWindowDelegate {
     private let model = PickerModel()
-    private let icons = IconProvider()
+    private let icons = IconProvider.shared
     private var panel: PickerPanel?
 
     /// Resolves all icons once so slow work (extracting Zen's icons) starts before the first link.
@@ -57,15 +57,18 @@ final class PickerController: NSObject, NSWindowDelegate {
             return
         }
 
+        let start = ContinuousClock.now
         model.urls = urls
         model.copied = false
         reload()
+        let loaded = ContinuousClock.now
 
         let panel = panel ?? makePanel()
         self.panel = panel
         resize(panel)
         position(panel)
         panel.makeKeyAndOrderFront(nil)
+        log.debug("timing: reload \(String(describing: loaded - start), privacy: .public), panel \(String(describing: ContinuousClock.now - loaded), privacy: .public)")
     }
 
     private func reload() {
@@ -75,14 +78,17 @@ final class PickerController: NSObject, NSWindowDelegate {
         do {
             config = try Config.load(from: Config.fileURL(home: environment.home))
         } catch {
-            model.warning = "config.json fehlerhaft – Defaults aktiv"
+            model.warning = L("config.json is invalid; using defaults")
         }
         let profileOverride = config.zen?.profilePath.map {
             URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath, isDirectory: true)
         }
+        let t0 = ContinuousClock.now
         let targets = Discovery(environment: environment, zenProfileOverride: profileOverride, extraApps: config.extraApps ?? []).discover()
+        let t1 = ContinuousClock.now
         let entries = config.entries(for: targets)
         model.rows = entries.map { PickerModel.Row(entry: $0, icon: icons.icon(for: $0.target)) }
+        log.debug("timing: discover \(String(describing: t1 - t0), privacy: .public), icons \(String(describing: ContinuousClock.now - t1), privacy: .public)")
         model.selection = config.defaultIndex(in: entries) ?? 0
     }
 
@@ -244,7 +250,7 @@ struct PickerView: View {
                 if model.urls.count == 1, let url = model.urls.first {
                     Text(url.absoluteString)
                 } else {
-                    Text("\(model.urls.count) Links")
+                    Text(L("%ld links", model.urls.count))
                 }
             }
             .font(.callout)
@@ -257,7 +263,7 @@ struct PickerView: View {
                 Image(systemName: model.copied ? "checkmark" : "doc.on.doc")
             }
             .buttonStyle(.borderless)
-            .help("URL kopieren (⌘C)")
+            .help(L("Copy URL (⌘C)"))
         }
         .padding(.horizontal, 4)
     }

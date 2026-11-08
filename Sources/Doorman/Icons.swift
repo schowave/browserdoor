@@ -17,6 +17,8 @@ enum EntryIcon {
 /// SVGs inside Zen's `omni.ja`, extracted once per Zen version into the caches directory.
 @MainActor
 final class IconProvider {
+    static let shared = IconProvider()
+
     private var appIcons: [URL: NSImage] = [:]
     private var svgs: [String: NSImage] = [:]
     /// Extraction state per Zen version. A failure is remembered so `unzip` never runs twice.

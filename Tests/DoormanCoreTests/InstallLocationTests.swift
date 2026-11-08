@@ -44,6 +44,19 @@ struct InstallLocationTests {
         #expect(LoginAgent.needsRewrite(existing: Data("garbage".utf8), appPath: "/x"))
     }
 
+    @Test func devBuildDoesNotTakeOverLoginItem() throws {
+        let installed = "/Users/x/Applications/Doorman.app"
+        let agent = try LoginAgent.plist(label: "l", appPath: installed)
+        #expect(LoginAgent.appPath(in: agent) == installed)
+        // Installed app still there: a dev build leaves the agent alone.
+        #expect(!LoginAgent.shouldRepoint(existing: agent, to: "/repo/build/Doorman.app", appExists: { _ in true }))
+        // Installed app gone (moved/uninstalled): repoint to the running copy.
+        #expect(LoginAgent.shouldRepoint(existing: agent, to: "/Applications/Doorman.app", appExists: { _ in false }))
+        // Same path: nothing to do.
+        #expect(!LoginAgent.shouldRepoint(existing: agent, to: installed, appExists: { _ in false }))
+        #expect(LoginAgent.shouldRepoint(existing: Data("x".utf8), to: installed, appExists: { _ in true }))
+    }
+
     @Test func userApplicationsLink() {
         let link = InstallLocation.userApplicationsLink(home: URL(fileURLWithPath: "/Users/x"), appName: "Doorman")
         #expect(link.path == "/Users/x/Applications/Doorman.app")

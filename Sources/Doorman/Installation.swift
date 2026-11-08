@@ -80,7 +80,9 @@ enum Installation {
             }
         }
         guard launchesAtLogin, let data = try? Data(contentsOf: agentURL) else { return }
-        if LoginAgent.needsRewrite(existing: data, appPath: stableAppURL.path) {
+        let target = stableAppURL.path
+        let appExists = { (path: String) in FileManager.default.fileExists(atPath: path) }
+        if LoginAgent.shouldRepoint(existing: data, to: target, appExists: appExists) {
             setLaunchAtLogin(true)
         }
     }

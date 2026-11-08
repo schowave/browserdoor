@@ -1,0 +1,15 @@
+#!/bin/sh
+#MISE description="Check that every L(\"…\") key has a German translation and the strings files parse"
+# shellcheck source=_lib.sh
+. "$(dirname "$0")/_lib.sh"
+de=Resources/Localization/de.lproj/Localizable.strings
+plutil -lint Resources/Localization/*.lproj/Localizable.strings >/dev/null
+missing="$(grep -rhoE 'L\("([^"\\]|\\.)*"' Sources/Doorman | sed 's/^L(//' | sort -u | while IFS= read -r key; do
+  grep -qF "$key =" "$de" || echo "$key"
+done)"
+if [ -n "$missing" ]; then
+  echo "check-strings: missing German translations:" >&2
+  echo "$missing" >&2
+  exit 1
+fi
+echo "check-strings: ok"

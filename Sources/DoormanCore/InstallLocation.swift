@@ -79,6 +79,24 @@ public enum LoginAgent {
         return try PropertyListSerialization.data(fromPropertyList: dict, format: .xml, options: 0)
     }
 
+    /// The app an existing agent starts, if it is one of ours.
+    public static func appPath(in existing: Data) -> String? {
+        guard
+            let dict = try? PropertyListSerialization.propertyList(from: existing, format: nil) as? [String: Any],
+            let args = dict["ProgramArguments"] as? [String],
+            args.count == 3, args[0] == "/usr/bin/open", args[1] == "-a"
+        else { return nil }
+        return args[2]
+    }
+
+    /// Whether to point an existing agent at `candidate`: only when the app it starts is gone
+    /// (e.g. moved) or the plist is broken. A second copy of Doorman, such as a dev build,
+    /// must not take over the login item of the installed one.
+    public static func shouldRepoint(existing: Data, to candidate: String, appExists: (String) -> Bool) -> Bool {
+        guard let current = appPath(in: existing) else { return true }
+        return current != candidate && !appExists(current)
+    }
+
     /// Whether an existing agent plist must be rewritten to start `appPath`.
     public static func needsRewrite(existing: Data, appPath: String) -> Bool {
         guard

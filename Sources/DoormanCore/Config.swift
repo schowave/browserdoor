@@ -52,6 +52,14 @@ public struct Config: Codable, Equatable, Sendable {
         return try JSONDecoder().decode(Config.self, from: Data(contentsOf: url))
     }
 
+    /// Writes the config as pretty, key-sorted JSON (stable diffs for dotfiles), atomically.
+    public func save(to url: URL) throws {
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        try encoder.encode(self).write(to: url, options: .atomic)
+    }
+
     /// A starter config listing every currently discovered target with its name as label.
     public static func template(for targets: [Target]) throws -> Data {
         let config = Config(
@@ -82,18 +90,7 @@ public extension Config {
     /// Orders, filters, labels and assigns hotkeys.
     func entries(for discovered: [Target]) -> [PickerEntry] {
         let hiddenSet = Set(hidden ?? [])
-        let visible = discovered.filter { !hiddenSet.contains($0.id) }
-
-        let orderList = order ?? []
-        let rank = Dictionary(orderList.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
-        let sorted = visible.enumerated().sorted { a, b in
-            switch (rank[a.element.id], rank[b.element.id]) {
-            case let (ra?, rb?): ra < rb
-            case (.some, nil): true
-            case (nil, .some): false
-            case (nil, nil): a.offset < b.offset
-            }
-        }.map(\.element)
+        let sorted = ordered(discovered).filter { !hiddenSet.contains($0.id) }
 
         var entries = sorted.map { target in
             let override = targets?[target.id]
@@ -119,6 +116,19 @@ public extension Config {
             entries[i].hotkey = key
         }
         return entries
+    }
+
+    /// `discovered` in config order: listed IDs first, the rest in discovery order.
+    func ordered(_ discovered: [Target]) -> [Target] {
+        let rank = Dictionary((order ?? []).enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
+        return discovered.enumerated().sorted { a, b in
+            switch (rank[a.element.id], rank[b.element.id]) {
+            case let (ra?, rb?): ra < rb
+            case (.some, nil): true
+            case (nil, .some): false
+            case (nil, nil): a.offset < b.offset
+            }
+        }.map(\.element)
     }
 
     /// Index of the entry preselected for Enter.
