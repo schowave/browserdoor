@@ -42,9 +42,9 @@ def main():
 
   <g transform="translate(72 96) scale(0.17)">{icon}</g>
   <text x="80" y="346" font-family="Avenir Next, Helvetica Neue, sans-serif" font-size="88" font-weight="700" fill="#ffffff">Doorman</text>
-  <text x="84" y="400" font-family="{FONT}" font-size="34" fill="#ffcf70">Every link, through the right door.</text>
-  <text x="84" y="456" font-family="{FONT}" font-size="25" fill="#cfe2e7">Pick the Zen space, Chrome profile or browser</text>
-  <text x="84" y="490" font-family="{FONT}" font-size="25" fill="#cfe2e7">for every link you click on macOS.</text>
+  <text x="84" y="404" font-family="{FONT}" font-size="30" fill="#e9f1f2">A link picker for macOS.</text>
+  <text x="84" y="456" font-family="{FONT}" font-size="25" fill="#b9d3da">Click a link, then choose the Zen space,</text>
+  <text x="84" y="490" font-family="{FONT}" font-size="25" fill="#b9d3da">Chrome profile or browser it opens in.</text>
   <rect x="80" y="530" width="452" height="50" rx="10" fill="#000000" fill-opacity="0.28"/>
   <text x="102" y="563" font-family="Menlo, monospace" font-size="21" fill="#e9f1f2">brew install schowave/tap/doorman</text>
 
