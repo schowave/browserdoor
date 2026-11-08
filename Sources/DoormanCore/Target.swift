@@ -40,14 +40,14 @@ public struct Target: Equatable, Sendable, Identifiable {
     }
 }
 
-public enum LaunchCommand: Equatable, Sendable {
+enum LaunchCommand: Equatable, Sendable {
     /// Run an executable directly.
     case run(executable: URL, arguments: [String])
     /// Hand the URLs to an app via LaunchServices.
     case open(urls: [URL], app: URL)
 }
 
-public extension Target {
+extension Target {
     /// - Parameter appIsRunning: whether the target app already runs. Only matters for Zen:
     ///   a running Zen gets the command via its remote service (direct exec returns at once);
     ///   a cold start goes through LaunchServices so Zen isn't a child of this process.

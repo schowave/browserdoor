@@ -173,7 +173,7 @@ final class PickerController: NSObject, NSWindowDelegate {
         let urls = model.urls
         let target = model.rows[index].entry.target
         close()
-        Launcher.open(urls, in: target)
+        Links.opener.open(urls, in: target)
     }
 
     private func copyURLs() {

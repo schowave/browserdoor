@@ -29,20 +29,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// Both URL clicks (http/https) and opened files (.html, .webloc) arrive here.
     func application(_: NSApplication, open urls: [URL]) {
-        log.debug("open event: \(urls.count) url(s)")
-        let resolved = urls.compactMap { url -> URL? in
-            if url.isFileURL, url.pathExtension.lowercased() == "webloc" {
-                return (try? Data(contentsOf: url))
-                    .flatMap(WeblocParser.url(fromWebloc:))
-                    .flatMap { URLPolicy.isAllowedFromWebloc($0) ? $0 : nil }
-            }
-            return url
+        let links = Links.opener.links(from: urls)
+        if links.count < urls.count {
+            log.notice("ignored \(urls.count - links.count) item(s) that aren't allowed links")
         }
-        let allowed = URLPolicy.filter(resolved)
-        if allowed.count < resolved.count {
-            log.notice("ignored \(resolved.count - allowed.count) url(s) with a disallowed scheme")
-        }
-        picker.show(urls: allowed)
+        picker.show(urls: links)
     }
 
     // MARK: Onboarding

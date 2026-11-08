@@ -1,8 +1,8 @@
 import Foundation
 
 /// Reads the target URL out of a `.webloc` file (XML or binary property list).
-public enum WeblocParser {
-    public static func url(fromWebloc data: Data) -> URL? {
+enum WeblocParser {
+    static func url(fromWebloc data: Data) -> URL? {
         guard
             let plist = try? PropertyListSerialization.propertyList(from: data, format: nil),
             let dict = plist as? [String: Any],
