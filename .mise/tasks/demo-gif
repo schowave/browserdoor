@@ -5,4 +5,4 @@
 frames="$(mktemp -d)"
 trap 'rm -rf "$frames"' EXIT
 python3 -I docs/demo/frames.py "$frames" | swift docs/demo/render.swift docs/demo.gif 1
-ls -lh docs/demo.gif | awk '{print "docs/demo.gif: " $5}'
+echo "docs/demo.gif: $(du -h docs/demo.gif | cut -f1)"
