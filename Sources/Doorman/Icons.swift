@@ -21,11 +21,13 @@ final class IconProvider {
 
     private var appIcons: [URL: NSImage] = [:]
     private var svgs: [String: NSImage] = [:]
-    /// Extraction state per Zen version. A failure is remembered so `unzip` never runs twice.
-    private enum Extraction { case running, done, failed }
-    private var extraction: [String: Extraction] = [:]
-
-    nonisolated static let omniPrefix = "chrome/browser/skin/classic/browser/zen-icons/selectable"
+    /// Zen versions whose icons are being extracted right now.
+    private var preparing: Set<String> = []
+    private let environment = SystemEnvironment()
+    private let zenIcons = ZenIconCache(
+        root: (FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first ?? FileManager.default.temporaryDirectory)
+            .appendingPathComponent("\(AppIdentity.bundleId)/zen-icons", isDirectory: true)
+    )
 
     func icon(for target: Target) -> EntryIcon {
         switch target.kind {
@@ -53,70 +55,34 @@ final class IconProvider {
         return icon
     }
 
+    /// The space's SVG if Zen's icons are extracted. Starts the extraction in the background
+    /// otherwise; until it finishes the picker shows the letter fallback.
     private func zenSVG(_ name: String, zenApp: URL) -> NSImage? {
-        guard let dir = zenIconDirectory(zenApp: zenApp) else { return nil }
-        let key = dir.appendingPathComponent(name).path
-        if let cached = svgs[key] {
+        let version = environment.appInfo(at: zenApp)?.version ?? "unknown"
+        guard let file = zenIcons.iconFile(named: name, zenVersion: version) else {
+            prepareZenIcons(zenApp: zenApp, version: version)
+            return nil
+        }
+        if let cached = svgs[file.path] {
             return cached
         }
-        guard let image = NSImage(contentsOfFile: key) else { return nil }
+        guard let image = NSImage(contentsOf: file) else { return nil }
         image.isTemplate = true
-        svgs[key] = image
+        svgs[file.path] = image
         return image
     }
 
-    /// The extracted icon directory, or nil while extraction is pending or after it failed.
-    /// Extraction runs in the background; until then the picker shows the letter fallback.
-    private func zenIconDirectory(zenApp: URL) -> URL? {
-        let version = SystemEnvironment.infoPlist(of: zenApp)?["CFBundleVersion"] as? String ?? "unknown"
-        guard let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return nil }
-        let dir = caches.appendingPathComponent("\(AppIdentity.bundleId)/zen-icons/\(version)", isDirectory: true)
-        let marker = dir.appendingPathComponent(".complete")
-
-        switch extraction[version] {
-        case .done: return dir
-        case .running, .failed: return nil
-        case nil: break
-        }
-        if FileManager.default.fileExists(atPath: marker.path) {
-            extraction[version] = .done
-            return dir
-        }
-
-        extraction[version] = .running
-        let omni = zenApp.appendingPathComponent("Contents/Resources/browser/omni.ja")
+    private func prepareZenIcons(zenApp: URL, version: String) {
+        guard zenIcons.state(zenVersion: version) == .missing, preparing.insert(version).inserted else { return }
+        let cache = zenIcons
         Task { [weak self] in
-            // Only Sendable values cross into the detached task; the result comes back here.
-            let ok = await Task.detached(priority: .utility) {
-                let ok = IconProvider.extract(omni: omni, to: dir)
-                if ok {
-                    FileManager.default.createFile(atPath: marker.path, contents: nil)
-                }
-                return ok
+            let state = await Task.detached(priority: .utility) {
+                cache.prepare(zenApp: zenApp, zenVersion: version)
             }.value
-            self?.extraction[version] = ok ? .done : .failed
-            if !ok {
-                log.error("could not extract Zen icons from \(omni.path, privacy: .public)")
+            self?.preparing.remove(version)
+            if state == .failed {
+                log.error("could not extract Zen icons for Zen \(version, privacy: .public)")
             }
         }
-        return nil
-    }
-
-    /// `omni.ja` is a zip; `unzip` may warn about its optimized layout but extracts fine.
-    private nonisolated static func extract(omni: URL, to dir: URL) -> Bool {
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
-        process.arguments = ["-o", "-j", "-qq", omni.path, "\(omniPrefix)/*", "-d", dir.path]
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
-        do {
-            try process.run()
-            process.waitUntilExit()
-        } catch {
-            return false
-        }
-        let files = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
-        return files.contains { $0.hasSuffix(".svg") }
     }
 }
