@@ -20,6 +20,39 @@ public enum InstallLocation {
         return (prefix + ["opt", formula] + inside).joined(separator: "/")
     }
 
+    public enum LinkDecision: Equatable, Sendable {
+        /// The link already points at the opt path.
+        case keep
+        case create
+        /// One of Doorman's own Homebrew links pointing elsewhere (e.g. an old Cellar version).
+        case replace
+        /// A real app, or somebody else's link: never touch it.
+        case leaveAlone
+    }
+
+    /// What to do with `~/Applications/<App>.app`.
+    /// - Parameters:
+    ///   - linkDestination: the symlink's target if the path is a symlink, else nil.
+    ///   - pathExists: whether anything (file, folder, link) exists at the path.
+    public static func linkDecision(linkDestination: String?, pathExists: Bool, optPath: String) -> LinkDecision {
+        if let destination = linkDestination {
+            if destination == optPath {
+                return .keep
+            }
+            return isOwnHomebrewPath(destination, optPath: optPath) ? .replace : .leaveAlone
+        }
+        return pathExists ? .leaveAlone : .create
+    }
+
+    /// `…/Cellar/<formula>/<version>/<App>.app` or `…/opt/<formula>/<App>.app` of the same formula.
+    static func isOwnHomebrewPath(_ path: String, optPath: String) -> Bool {
+        let parts = optPath.split(separator: "/").map(String.init)
+        guard parts.count >= 3, let app = parts.last else { return false }
+        let formula = parts[parts.count - 2]
+        return path.hasSuffix("/\(app)")
+            && (path.contains("/Cellar/\(formula)/") || path.hasSuffix("/opt/\(formula)/\(app)"))
+    }
+
     /// `~/Applications/<App>.app`, the stable link Doorman maintains for Homebrew installs.
     public static func userApplicationsLink(home: URL, appName: String) -> URL {
         home.appendingPathComponent("Applications", isDirectory: true)
@@ -44,5 +77,14 @@ public enum LoginAgent {
             "ProcessType": "Interactive",
         ]
         return try PropertyListSerialization.data(fromPropertyList: dict, format: .xml, options: 0)
+    }
+
+    /// Whether an existing agent plist must be rewritten to start `appPath`.
+    public static func needsRewrite(existing: Data, appPath: String) -> Bool {
+        guard
+            let dict = try? PropertyListSerialization.propertyList(from: existing, format: nil) as? [String: Any],
+            let args = dict["ProgramArguments"] as? [String]
+        else { return true }
+        return args != ["/usr/bin/open", "-a", appPath]
     }
 }

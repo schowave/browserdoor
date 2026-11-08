@@ -17,4 +17,11 @@ struct URLPolicyTests {
     func rejects(_ string: String) throws {
         #expect(try !URLPolicy.isAllowed(#require(URL(string: string))))
     }
+
+    @Test func weblocIsWebOnly() throws {
+        #expect(try URLPolicy.isAllowedFromWebloc(#require(URL(string: "https://example.com"))))
+        #expect(try URLPolicy.isAllowedFromWebloc(#require(URL(string: "http://example.com"))))
+        #expect(try !URLPolicy.isAllowedFromWebloc(#require(URL(string: "file:///Users/x/Downloads/x.html"))))
+        #expect(try !URLPolicy.isAllowedFromWebloc(#require(URL(string: "--flag"))))
+    }
 }

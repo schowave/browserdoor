@@ -66,7 +66,7 @@ final class IconProvider {
     /// The extracted icon directory, or nil while extraction is pending or after it failed.
     /// Extraction runs in the background; until then the picker shows the letter fallback.
     private func zenIconDirectory(zenApp: URL) -> URL? {
-        let version = Bundle(url: zenApp)?.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
+        let version = SystemEnvironment.infoPlist(of: zenApp)?["CFBundleVersion"] as? String ?? "unknown"
         guard let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return nil }
         let dir = caches.appendingPathComponent("\(AppIdentity.bundleId)/zen-icons/\(version)", isDirectory: true)
         let marker = dir.appendingPathComponent(".complete")

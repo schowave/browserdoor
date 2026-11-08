@@ -26,13 +26,13 @@ enum Installation {
 
         let fm = FileManager.default
         let link = InstallLocation.userApplicationsLink(home: home, appName: AppIdentity.name)
-        if let existing = try? fm.destinationOfSymbolicLink(atPath: link.path) {
-            if existing == opt {
-                return link
-            }
-            try? fm.removeItem(at: link) // our own stale link
-        } else if fm.fileExists(atPath: link.path) {
-            return nil // a real app is there; don't touch it
+        let destination = try? fm.destinationOfSymbolicLink(atPath: link.path)
+        let exists = destination != nil || fm.fileExists(atPath: link.path)
+        switch InstallLocation.linkDecision(linkDestination: destination, pathExists: exists, optPath: opt) {
+        case .keep: return link
+        case .leaveAlone: return nil
+        case .replace: try? fm.removeItem(at: link)
+        case .create: break
         }
         do {
             try fm.createDirectory(at: link.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -79,12 +79,8 @@ enum Installation {
                 setLaunchAtLogin(true)
             }
         }
-        guard launchesAtLogin,
-              let data = try? Data(contentsOf: agentURL),
-              let dict = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
-              let args = dict["ProgramArguments"] as? [String]
-        else { return }
-        if args.last != stableAppURL.path {
+        guard launchesAtLogin, let data = try? Data(contentsOf: agentURL) else { return }
+        if LoginAgent.needsRewrite(existing: data, appPath: stableAppURL.path) {
             setLaunchAtLogin(true)
         }
     }

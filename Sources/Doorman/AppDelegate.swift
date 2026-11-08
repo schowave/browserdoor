@@ -26,7 +26,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         log.debug("open event: \(urls.count) url(s)")
         let resolved = urls.compactMap { url -> URL? in
             if url.isFileURL, url.pathExtension.lowercased() == "webloc" {
-                return (try? Data(contentsOf: url)).flatMap(WeblocParser.url(fromWebloc:))
+                return (try? Data(contentsOf: url))
+                    .flatMap(WeblocParser.url(fromWebloc:))
+                    .flatMap { URLPolicy.isAllowedFromWebloc($0) ? $0 : nil }
             }
             return url
         }

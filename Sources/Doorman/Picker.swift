@@ -133,24 +133,42 @@ final class PickerController: NSObject, NSWindowDelegate {
     }
 
     private func handleKey(_ event: NSEvent) -> Bool {
-        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        switch event.keyCode {
-        case 53: close(); return true // esc
-        case 36, 76: pick(model.selection); return true // return, enter
-        case 126: moveSelection(-1); return true // up
-        case 125: moveSelection(1); return true // down
-        default: break
+        let action = PickerKeys.action(
+            keyCode: event.keyCode,
+            characters: event.charactersIgnoringModifiers,
+            modifiers: Self.modifiers(event.modifierFlags),
+            hotkeys: model.rows.map(\.entry.hotkey)
+        )
+        switch action {
+        case .cancel: close()
+        case .confirm: pick(model.selection)
+        case .moveUp: moveSelection(-1)
+        case .moveDown: moveSelection(1)
+        case .copy: copyURLs()
+        case let .pick(index): pick(index)
+        case .ignore: return false
         }
-        guard let chars = event.charactersIgnoringModifiers?.lowercased(), chars.count == 1 else { return false }
-        if flags == .command, chars == "c" {
-            copyURLs(); return true
+        return true
+    }
+
+    private static func modifiers(_ flags: NSEvent.ModifierFlags) -> KeyModifiers {
+        var result: KeyModifiers = []
+        if flags.contains(.command) {
+            result.insert(.command)
         }
-        guard flags.isDisjoint(with: [.command, .control, .option]) else { return false }
-        if let index = model.rows.firstIndex(where: { $0.entry.hotkey.map(String.init) == chars }) {
-            pick(index)
-            return true
+        if flags.contains(.control) {
+            result.insert(.control)
         }
-        return false
+        if flags.contains(.option) {
+            result.insert(.option)
+        }
+        if flags.contains(.shift) {
+            result.insert(.shift)
+        }
+        if !flags.isDisjoint(with: [.capsLock, .function, .numericPad, .help]) {
+            result.insert(.ignorable)
+        }
+        return result
     }
 
     private func moveSelection(_ delta: Int) {

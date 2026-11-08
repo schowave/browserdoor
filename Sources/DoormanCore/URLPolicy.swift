@@ -13,6 +13,13 @@ public enum URLPolicy {
         return !url.absoluteString.hasPrefix("-")
     }
 
+    /// URLs read from a `.webloc` file: web only. A downloaded `.webloc` must not be able to
+    /// open a local file (with file-origin rights) in a browser.
+    public static func isAllowedFromWebloc(_ url: URL) -> Bool {
+        guard let scheme = url.scheme?.lowercased() else { return false }
+        return (scheme == "http" || scheme == "https") && isAllowed(url)
+    }
+
     public static func filter(_ urls: [URL]) -> [URL] {
         urls.filter(isAllowed)
     }

@@ -16,6 +16,34 @@ struct InstallLocationTests {
         #expect(InstallLocation.homebrewOptPath(forBundlePath: "/opt/homebrew/Cellar/doorman/Doorman.app") == nil)
     }
 
+    let opt = "/opt/homebrew/opt/doorman/Doorman.app"
+
+    @Test func linkDecisions() {
+        #expect(InstallLocation.linkDecision(linkDestination: nil, pathExists: false, optPath: opt) == .create)
+        #expect(InstallLocation.linkDecision(linkDestination: opt, pathExists: true, optPath: opt) == .keep)
+        #expect(InstallLocation.linkDecision(
+            linkDestination: "/opt/homebrew/Cellar/doorman/0.1.0/Doorman.app", pathExists: true, optPath: opt
+        ) == .replace)
+        #expect(InstallLocation.linkDecision(
+            linkDestination: "/usr/local/opt/doorman/Doorman.app", pathExists: true, optPath: opt
+        ) == .replace)
+        // Somebody else's link (e.g. to a dev build) and real apps stay untouched.
+        #expect(InstallLocation.linkDecision(
+            linkDestination: "/Users/x/repos/doorman/build/Doorman.app", pathExists: true, optPath: opt
+        ) == .leaveAlone)
+        #expect(InstallLocation.linkDecision(
+            linkDestination: "/opt/homebrew/Cellar/other/1.0/Doorman.app", pathExists: true, optPath: opt
+        ) == .leaveAlone)
+        #expect(InstallLocation.linkDecision(linkDestination: nil, pathExists: true, optPath: opt) == .leaveAlone)
+    }
+
+    @Test func agentRewrite() throws {
+        let current = try LoginAgent.plist(label: "l", appPath: "/Users/x/Applications/Doorman.app")
+        #expect(!LoginAgent.needsRewrite(existing: current, appPath: "/Users/x/Applications/Doorman.app"))
+        #expect(LoginAgent.needsRewrite(existing: current, appPath: "/Applications/Doorman.app"))
+        #expect(LoginAgent.needsRewrite(existing: Data("garbage".utf8), appPath: "/x"))
+    }
+
     @Test func userApplicationsLink() {
         let link = InstallLocation.userApplicationsLink(home: URL(fileURLWithPath: "/Users/x"), appName: "Doorman")
         #expect(link.path == "/Users/x/Applications/Doorman.app")

@@ -17,7 +17,7 @@ struct SystemEnvironment: BrowserEnvironment {
     }
 
     func appInfo(at app: URL) -> AppInfo? {
-        guard let bundle = Bundle(url: app), let id = bundle.bundleIdentifier else { return nil }
+        guard let info = Self.infoPlist(of: app), let id = info["CFBundleIdentifier"] as? String else { return nil }
         var name = FileManager.default.displayName(atPath: app.path)
         if name.hasSuffix(".app") {
             name.removeLast(4)
@@ -25,9 +25,15 @@ struct SystemEnvironment: BrowserEnvironment {
         return AppInfo(
             bundleId: id,
             name: name,
-            version: bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String,
-            executableName: bundle.object(forInfoDictionaryKey: "CFBundleExecutable") as? String
+            version: info["CFBundleShortVersionString"] as? String,
+            executableName: info["CFBundleExecutable"] as? String
         )
+    }
+
+    /// Reads Info.plist from disk every time. `Bundle(url:)` caches per path, so after an app
+    /// updates itself (Zen does) it would keep reporting the old version until Doorman restarts.
+    static func infoPlist(of app: URL) -> [String: Any]? {
+        NSDictionary(contentsOf: app.appendingPathComponent("Contents/Info.plist")) as? [String: Any]
     }
 
     func contents(of file: URL) -> Data? {
