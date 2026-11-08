@@ -155,23 +155,20 @@ Beim ersten Start passiert Folgendes:
 
 ## 8. Architektur
 
-```
-Sources/
-  DoormanCore/   reine Logik, ohne AppKit-UI, vollständig getestet
-    MozLz4            Decoder
-    ZenProfile        profiles.ini → Profilpfad
-    ZenSpaces         zen-sessions.jsonlz4 → [ZenSpace]
-    ChromiumProfiles  Local State → [ChromiumProfile]
-    Config            Laden, Defaults, Ordnen, Ausblenden, Hotkeys
-    Target            Modell + Launch-Command je Ziel
-    Discovery         Ziele ermitteln (über das Protokoll BrowserEnvironment)
-    KnownBrowsers     Allowlist der Browser-Bundle-IDs
-    WeblocParser      .webloc → URL
-  Doorman/       App: AppDelegate + Menüleiste, Panel, Icons, Launcher, SystemEnvironment
-Tests/DoormanCoreTests/
-```
+Begriffe: siehe [GLOSSARY.md](GLOSSARY.md). Die Logik steckt in wenigen tiefen Modulen in `DoormanCore`, getestet über ihr Interface; die App (`Sources/Doorman`) rendert und stellt die Adapter für die Seams.
 
-Seiteneffekte wie Dateisystem, `NSWorkspace` und `Process` stecken hinter kleinen Protokollen. Der Core bleibt so testbar.
+| Modul (DoormanCore) | Besitzt | Seam / Adapter |
+|---|---|---|
+| `TargetCatalog` | Config-Datei (inkl. unlesbar), Zen-Profilpfad, Discovery, Picker-Einträge, Edit-Zeilen, effektive Tasten, Speichern | `BrowserEnvironment`: `SystemEnvironment` · `FakeEnvironment` |
+| `Discovery` | Ziele finden (Allowlist, Pfadfilter, Zen-Versionsprüfung, Chromium-Profile, Extra-Apps) | `BrowserEnvironment` |
+| `PickerSession` | Links, Einträge, Auswahl; Eingabe → Effekte (close/open/copy) | in-process |
+| `LinkOpener` | Eingehende Items → erlaubte Links; Link + Ziel → Start inkl. Zen läuft/kalt und Aktivierung | `LaunchPort`: `SystemLaunchPort` · `RecordingPort` |
+| `Installation` | Homebrew-Fakten, stabiler Link, LaunchAgent, Migration von SMAppService | echtes Dateisystem (Temp-Home in Tests); `LegacyLoginItem`: `SMAppServiceLoginItem` · Fake |
+| `UpdatePolicy` | Wann prüfen, was melden, Später, Fehler | `ReleaseSource`: `GitHubReleaseSource` · Stub; `UpdatePreferences`: `UserDefaultsUpdatePreferences` · In-Memory |
+| `ZenIconCache` | Icon-Cache je Zen-Version, gemerkte Fehlschläge | Extraktor: `unzip` · Fake |
+| Parser | `MozLz4`, `ZenSpaces`, `ZenProfile`, `ChromiumProfiles`, `WeblocParser` | in-process |
+
+App: `AppDelegate` (Menüleiste, Onboarding), `PickerController` (rendert die Session, führt Effekte aus), `Settings` (Fenster über `CatalogState`), `UpdateChecker` (Dialoge, Upgrade im Terminal), `IconProvider` (NSImages, startet die Icon-Extraktion), Adapter (`SystemEnvironment`, `SystemLaunchPort`, `SMAppServiceLoginItem`).
 
 ## 9. Build, Distribution, CI
 
