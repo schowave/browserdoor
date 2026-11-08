@@ -14,7 +14,7 @@ Doorman is a macOS link picker. When you click a link anywhere, it asks where th
 ![Swift 6](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-<img src="docs/picker.svg" width="400" alt="Illustration of the Doorman picker: a small panel at the mouse pointer listing Zen workspaces, Chrome profiles and Safari, each with a number key">
+<img src="docs/demo.gif" width="720" alt="Animated demo: a link is clicked in a chat app, the Doorman picker appears at the pointer listing Zen spaces, Chrome profiles and Safari; the down arrow selects the Client space, Return opens it, and Zen shows the new tab in the Client space">
 
 </div>
 
@@ -180,6 +180,7 @@ mise run test       # unit tests
 mise run run        # build build/Doorman.app and start it
 mise run format     # swiftformat
 mise run ci         # lint, unit tests, release-script tests, app bundle, formula check
+mise run demo-gif   # re-render docs/demo.gif from docs/demo/frames.py
 ```
 
 - `Sources/DoormanCore` contains the logic: parsers, discovery, config and launch commands. Its unit tests run without the UI.
