@@ -45,11 +45,18 @@ struct FakeEnvironment: BrowserEnvironment {
 
     func appInfo(at app: URL) -> AppInfo? {
         apps.values.first(where: { $0.url == app })?.info ?? extraInfos[app]
+            ?? nonBrowserApps.values.first(where: { $0.url == app })?.info
     }
 
     /// Extra copies of an app registered under the same bundle ID at another path.
     var extraInfos: [URL: AppInfo] = [:]
     var extraHandlers: [URL] = []
+    /// Apps LaunchServices knows but that don't handle https.
+    var nonBrowserApps: [String: (url: URL, info: AppInfo)] = [:]
+    func applicationURL(bundleId: String) -> URL? {
+        apps[bundleId]?.url ?? nonBrowserApps[bundleId]?.url
+    }
+
     func contents(of file: URL) -> Data? {
         files[file.path]
     }

@@ -29,7 +29,7 @@ Doorman is a macOS link picker. When you click a link anywhere, it asks where th
 - **All your real browsers.** Doorman detects them from a built-in list, so terminals, web-app wrappers and test builds stay out of the list.
 - **Keyboard first.** Every target has a number key. `Enter` opens the default target.
 - **Several links at once.** When several links arrive at the same time, they share one panel, and a single choice opens them all.
-- **Small and native.** A menu bar app in Swift and SwiftUI, with no Electron and no background network access.
+- **Small and native.** A menu bar app in Swift and SwiftUI, with no Electron. Its only network access is the optional update check against GitHub.
 - **Safe with odd input.** Only `http`, `https` and `file` URLs are passed on to a browser.
 
 ## Requirements
@@ -66,11 +66,17 @@ Click a link in any app. The picker opens at the mouse pointer:
 | `⌘C` | Copy the URL(s) |
 | `Esc`, or a click outside the panel | Cancel |
 
-The menu bar icon shows whether Doorman is the default browser. It lets you switch the login item on or off and opens the configuration file. The menu labels are in German.
+The menu bar icon opens **Settings…** (⌘,) and **Check for Updates…**. If Doorman isn't your default browser, the menu says so and offers to fix it. Doorman follows your system language (English or German).
 
 ## Configuration
 
-The configuration is optional. Choose **Konfiguration öffnen…** in the menu bar menu. If the file doesn't exist yet, Doorman creates `~/.config/doorman/config.json` and fills it with every target it currently detects. Edit that file to change the targets.
+Open **Settings…** from the menu bar, or start Doorman again while it runs (`doorman`):
+
+- **General:** default browser, start at login, automatic update checks.
+- **Targets:** every detected Zen space, browser and profile. Drag to reorder, untick to hide, click a name to rename it, type a key to set a shortcut, and use the star to pick the default target for `Enter`. Use **+** to add any app, and **−** to remove one you added.
+- **Advanced:** additional apps, the Zen profile, and the configuration file in Finder.
+
+Settings are stored in `~/.config/doorman/config.json`, so you can also edit the file by hand or keep it in your dotfiles:
 
 ```json
 {
@@ -134,7 +140,7 @@ Only known browsers in `/Applications`, `~/Applications` or `/System` appear. Ad
 </details>
 
 <details>
-<summary><b>"Beim Login starten" is checked, but Doorman doesn't start at login</b></summary>
+<summary><b>"Start at login" is on, but Doorman doesn't start at login</b></summary>
 
 The checkmark only shows that Doorman's LaunchAgent exists. macOS can still block it: check **System Settings → General → Login Items & Extensions** and allow Doorman under *Allow in the Background*.
 </details>
@@ -142,8 +148,16 @@ The checkmark only shows that Doorman's LaunchAgent exists. macOS can still bloc
 <details>
 <summary><b>Links still open in my old browser</b></summary>
 
-Open the menu bar menu. If it shows *Standardbrowser: nein*, choose *Als Standardbrowser setzen* and confirm the macOS dialog.
+Open the menu bar menu. If it says Doorman isn't your default browser, choose **Make Default Browser** and confirm the macOS dialog.
 </details>
+
+## Updates
+
+Doorman checks GitHub for a new release once a day; turn this off under **Settings → General**. When an update is available, **Update in Terminal** runs `brew upgrade doorman` and restarts Doorman. You can also update by hand:
+
+```sh
+brew upgrade doorman && doorman
+```
 
 ## Uninstall
 

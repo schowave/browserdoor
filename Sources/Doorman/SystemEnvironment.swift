@@ -36,6 +36,10 @@ struct SystemEnvironment: BrowserEnvironment {
         NSDictionary(contentsOf: app.appendingPathComponent("Contents/Info.plist")) as? [String: Any]
     }
 
+    func applicationURL(bundleId: String) -> URL? {
+        NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId)
+    }
+
     func contents(of file: URL) -> Data? {
         try? Data(contentsOf: file)
     }

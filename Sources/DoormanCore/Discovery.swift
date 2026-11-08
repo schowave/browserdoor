@@ -23,6 +23,8 @@ public protocol BrowserEnvironment {
     func httpsHandlers() -> [URL]
     func appInfo(at app: URL) -> AppInfo?
     func contents(of file: URL) -> Data?
+    /// Where LaunchServices finds an app, for `extraApps` that don't register for web links.
+    func applicationURL(bundleId: String) -> URL?
 }
 
 public struct Discovery {
@@ -59,7 +61,14 @@ public struct Discovery {
         }
 
         let wanted = KnownBrowsers.bundleIds.union(extraApps)
-        let others = installed.values
+        var candidates = installed
+        // Apps the user added explicitly count even if they don't register for https.
+        for id in extraApps where candidates[id] == nil {
+            if let url = environment.applicationURL(bundleId: id), let info = environment.appInfo(at: url) {
+                candidates[id] = (url, info)
+            }
+        }
+        let others = candidates.values
             .filter { wanted.contains($0.info.bundleId) && !covered.contains($0.info.bundleId) }
             .map { Target(id: Target.appID($0.info.bundleId), name: $0.info.name, kind: .app($0.url)) }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }

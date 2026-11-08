@@ -44,7 +44,7 @@
 "Up to date" = "Aktuell";
 "%@ available" = "%@ verfügbar";
 "Check failed" = "Prüfung fehlgeschlagen";
-"Drag to reorder. Hidden targets don't appear in the picker. Without a custom key, targets get number keys." = "Zum Sortieren ziehen. Ausgeblendete Ziele erscheinen nicht in der Auswahl. Ziele ohne eigene Taste bekommen Zifferntasten.";
+"Drag to reorder. Hidden targets don't appear in the picker. Without a custom key, targets get number keys." = "Zum Sortieren ziehen. Ausgeblendete Ziele erscheinen nicht in der Auswahl. Grau angezeigte Tasten sind automatisch vergeben; eine eigene Taste einfach eintippen.";
 "Show in picker" = "In der Auswahl zeigen";
 "Key" = "Taste";
 "Shortcut key in the picker" = "Taste in der Auswahl";
@@ -76,3 +76,7 @@
 "Update in Terminal" = "Im Terminal aktualisieren";
 "Open Release Page" = "Release-Seite öffnen";
 "Release Notes" = "Release-Notes";
+"Add an app" = "App hinzufügen";
+"Remove the selected app (only apps you added)" = "Ausgewählte App entfernen (nur selbst hinzugefügte)";
+"Click to rename" = "Zum Umbenennen klicken";
+"Renamed from “%@”" = "Umbenannt, ursprünglich „%@“";

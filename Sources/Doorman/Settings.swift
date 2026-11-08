@@ -23,6 +23,9 @@ final class SettingsModel {
     var isDefaultBrowser = false
     var launchesAtLogin = false
     var configError: String?
+    /// The key each visible target actually gets in the picker (custom or automatic).
+    var effectiveKeys: [String: String] = [:]
+    var selection: String?
 
     private var config = Config()
     private let environment = SystemEnvironment()
@@ -45,6 +48,27 @@ final class SettingsModel {
         zenProfilePath = config.zen?.profilePath
         isDefaultBrowser = DefaultBrowser.isDoorman
         launchesAtLogin = Installation.launchesAtLogin
+        updateEffectiveKeys()
+    }
+
+    private func updateEffectiveKeys() {
+        var preview = config
+        preview.apply(rows)
+        let entries = preview.entries(for: rows.map(\.target))
+        effectiveKeys = Dictionary(entries.compactMap { entry in entry.hotkey.map { (entry.id, String($0)) } },
+                                   uniquingKeysWith: { first, _ in first })
+    }
+
+    /// The selected row is an app the user added (and can remove with −).
+    var selectionIsExtraApp: Bool {
+        guard let id = selection, id.hasPrefix("app:") else { return false }
+        return extraApps.contains { id == "app:\($0.bundleId)" }
+    }
+
+    func removeSelectedExtraApp() {
+        guard selectionIsExtraApp, let id = selection else { return }
+        removeExtraApp(String(id.dropFirst("app:".count)))
+        selection = nil
     }
 
     private func discovery() -> Discovery {
@@ -65,6 +89,7 @@ final class SettingsModel {
         config.defaultTarget = defaultTarget
         config.extraApps = extraApps.map(\.bundleId)
         config.zen = zenProfilePath.map { Config.Zen(profilePath: $0) }
+        updateEffectiveKeys()
         do {
             try config.save(to: configURL)
             configError = nil
@@ -252,13 +277,32 @@ private struct TargetsTab: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            List {
-                ForEach($model.rows) { $row in
-                    TargetRow(row: $row, model: model)
+            VStack(spacing: 0) {
+                List(selection: $model.selection) {
+                    ForEach($model.rows) { $row in
+                        TargetRow(row: $row, model: model).tag(row.id as String?)
+                    }
+                    .onMove { model.move(from: $0, to: $1) }
                 }
-                .onMove { model.move(from: $0, to: $1) }
+                .listStyle(.inset(alternatesRowBackgrounds: true))
+                Divider()
+                HStack(spacing: 0) {
+                    Button { model.addExtraApp() } label: {
+                        Image(systemName: "plus").frame(width: 24, height: 20)
+                    }
+                    .help(L("Add an app"))
+                    Divider().frame(height: 16)
+                    Button { model.removeSelectedExtraApp() } label: {
+                        Image(systemName: "minus").frame(width: 24, height: 20)
+                    }
+                    .disabled(!model.selectionIsExtraApp)
+                    .help(L("Remove the selected app (only apps you added)"))
+                    Spacer()
+                }
+                .buttonStyle(.borderless)
+                .padding(4)
             }
-            .listStyle(.inset(alternatesRowBackgrounds: true))
+            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.separator))
             if let error = model.configError {
                 Text(error).font(.callout).foregroundStyle(.red)
             }
@@ -286,17 +330,18 @@ private struct TargetRow: View {
             .help(L("Show in picker"))
             IconView(icon: model.icon(for: row.target)).frame(width: 22, height: 22)
             TextField(row.target.name, text: Binding(
-                get: { row.label ?? "" },
-                set: { row.label = $0.isEmpty ? nil : $0; model.save() }
+                get: { row.displayName },
+                set: { row.label = ($0.isEmpty || $0 == row.target.name) ? nil : $0; model.save() }
             ))
             .textFieldStyle(.plain)
             .opacity(row.hidden ? 0.5 : 1)
+            .help(row.label == nil ? L("Click to rename") : L("Renamed from “%@”", row.target.name))
             Spacer(minLength: 8)
-            TextField(L("Key"), text: Binding(
-                get: { row.hotkey ?? "" },
+            TextField(row.hidden ? "–" : (model.effectiveKeys[row.id]?.uppercased() ?? "–"), text: Binding(
+                get: { row.hotkey?.uppercased() ?? "" },
                 set: { row.hotkey = TargetSetting.normalizeHotkey($0); model.save() }
             ))
-            .frame(width: 44)
+            .frame(width: 36)
             .multilineTextAlignment(.center)
             .font(.system(.body, design: .monospaced))
             .help(L("Shortcut key in the picker"))

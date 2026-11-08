@@ -122,16 +122,24 @@ Die Datei liegt unter `~/.config/doorman/config.json`. Sie ist optional; fehlt s
   3. übrige Browser alphabetisch
 - **`extraApps`**: Bundle-IDs von Apps, die keine bekannten Browser sind, aber trotzdem als Ziel erscheinen sollen.
 - **`targets.<id>.label`**: Überschreibt den Anzeigenamen. Gleichzeitig ist es der lesbare Zusatz zur UUID.
-- **Menüeintrag „Konfiguration öffnen“**: Er öffnet die Datei. Fehlt sie, legt er sie mit allen aktuell erkannten Ziel-IDs als Vorlage an.
+- Die Datei wird normalerweise über das Einstellungsfenster gepflegt (siehe 6). Es schreibt sie bei jeder Änderung neu (sortierte Schlüssel, stabile Diffs); Einstellungen von Zielen, die gerade nicht erkannt werden, bleiben erhalten.
 
-## 6. Menüleiste
+## 6. Menüleiste, Einstellungen, Updates
 
-Die Menüleiste enthält folgende Einträge:
-- Status: „Standardbrowser: ja/nein“, bei „nein“ mit dem Eintrag „Als Standardbrowser setzen“
-- „Beim Login starten“ (Toggle). Der Haken zeigt nur, ob der LaunchAgent existiert; ist er in den Systemeinstellungen unter „Anmeldeobjekte“ deaktiviert, sieht Doorman das nicht.
-- „Konfiguration öffnen“ (in TextEdit bzw. dem Standard-Texteditor)
-- Versionsanzeige
-- „Beenden“
+**Menüleisten-Menü** (wird bei jedem Öffnen neu aufgebaut, nur billige Abfragen):
+- „Auf Doorman X aktualisieren…“, falls ein Update bekannt ist
+- Hinweis „Doorman ist nicht Standardbrowser“ plus „Als Standardbrowser festlegen“, nur wenn nötig
+- „Einstellungen…“ (⌘,), „Nach Updates suchen…“, Versionszeile, „Doorman beenden“
+
+**Einstellungsfenster** (SwiftUI in einem `NSWindow`; öffnet sich auch, wenn Doorman bei laufender App erneut gestartet wird, z. B. per `doorman`):
+- *Allgemein:* Standardbrowser-Status und -Button, „Beim Anmelden starten“ (LaunchAgent; der Haken zeigt nur, ob er existiert, nicht ob er in den Systemeinstellungen blockiert ist), Updates.
+- *Ziele:* alle erkannten Ziele mit Icon, per Ziehen sortierbar, ein-/ausblendbar, umbenennbar, eigene Taste (die tatsächlich vergebene Taste steht grau als Platzhalter), Stern für das Standardziel. **+** fügt Apps über einen Auswahldialog hinzu (`extraApps`; sie erscheinen auch ohne https-Registrierung), **−** entfernt eine solche App.
+- *Erweitert:* weitere Apps, Zen-Profil, Konfigurationsdatei im Finder zeigen.
+- Ein unsichtbares Hauptmenü liefert ⌘C/⌘V/⌘A, ⌘W und ⌘, für das Fenster.
+
+**Updates:** `GET https://api.github.com/repos/schowave/doorman/releases/latest`, automatisch höchstens einmal pro 24 h (abschaltbar) und auf Anfrage. Ist die Version neuer (`AppVersion`-Vergleich; Dev-Builds `0.0.0` nie), erscheint ein Dialog. „Im Terminal aktualisieren“ öffnet ein `.command`-Skript: `brew update && brew upgrade doorman`, altes Doorman beenden, neues per `doorman` starten. Ohne Homebrew-Installation gibt es stattdessen die Release-Seite. „Später“ unterdrückt die automatische Meldung für diese Version. Das ist der einzige Netzwerkzugriff von Doorman.
+
+**Sprache:** Englisch und Deutsch nach Systemsprache (`Resources/Localization/*.lproj/Localizable.strings`, Schlüssel = englischer Text). `mise run check-strings` prüft, dass jeder Schlüssel übersetzt ist.
 
 ## 7. Erster Start
 

@@ -55,6 +55,15 @@ struct DiscoveryTests {
         #expect(!ids.contains { $0.contains("doorman") })
     }
 
+    @Test func extraAppWithoutHttpsHandlerStillAppears() {
+        var env = environment()
+        let url = URL(fileURLWithPath: "/Applications/Notes Tool.app")
+        env.nonBrowserApps["com.example.notes"] = (url, AppInfo(bundleId: "com.example.notes", name: "Notes Tool"))
+        #expect(!Discovery(environment: env).discover().contains { $0.id == "app:com.example.notes" })
+        let targets = Discovery(environment: env, extraApps: ["com.example.notes"]).discover()
+        #expect(targets.first { $0.id == "app:com.example.notes" }?.appURL == url)
+    }
+
     @Test func ignoresCopiesOutsideApplicationFolders() {
         let chrome = Discovery(environment: environment()).discover().first { $0.id.hasPrefix("chromium:com.google.Chrome:") }
         #expect(chrome?.appURL.path == "/Applications/Google Chrome.app")
