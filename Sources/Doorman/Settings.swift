@@ -220,7 +220,7 @@ private struct GeneralTab: View {
                 LabeledContent(L("Version %@", RunningApp.version)) {
                     HStack {
                         statusText
-                        Button(L("Check Now")) { Task { await updates.check(userInitiated: true) } }
+                        Button(L("Check Now")) { Task { await updates.checkNow() } }
                             .disabled(updates.status == .checking)
                     }
                 }

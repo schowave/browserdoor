@@ -16,72 +16,55 @@ final class UpdateChecker {
     }
 
     private(set) var status: Status = .idle
-    private(set) var lastCheck: Date?
 
     var automatic: Bool {
-        didSet { defaults.set(automatic, forKey: Keys.automatic) }
+        didSet { preferences.checksAutomatically = automatic }
     }
 
-    private let defaults = UserDefaults.standard
+    private let preferences = UserDefaultsUpdatePreferences()
+    private let policy: UpdatePolicy
     private var timer: Timer?
 
-    private enum Keys {
-        static let automatic = "checkForUpdatesAutomatically"
-        static let lastCheck = "lastUpdateCheck"
-        static let skipped = "skippedUpdateVersion"
-    }
-
     private init() {
-        defaults.register(defaults: [Keys.automatic: true])
-        automatic = defaults.bool(forKey: Keys.automatic)
-        lastCheck = defaults.object(forKey: Keys.lastCheck) as? Date
+        policy = UpdatePolicy(
+            currentVersion: RunningApp.version,
+            source: GitHubReleaseSource(userAgent: "Doorman/\(RunningApp.version)"),
+            preferences: preferences
+        )
+        automatic = preferences.checksAutomatically
     }
 
     /// Checks now if due, then re-evaluates every hour.
     func startAutomaticChecks() {
-        checkIfDue()
+        Task { await checkAutomatically() }
         timer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { _ in
-            Task { @MainActor in UpdateChecker.shared.checkIfDue() }
+            Task { @MainActor in await UpdateChecker.shared.checkAutomatically() }
         }
     }
 
-    private func checkIfDue() {
-        guard automatic, UpdateCheck.isDue(lastCheck: lastCheck, now: Date()) else { return }
-        Task { await check(userInitiated: false) }
-    }
-
-    /// `userInitiated`: always report the result. Automatic checks only speak up for a new
-    /// version the user hasn't dismissed.
-    func check(userInitiated: Bool) async {
+    private func checkAutomatically() async {
+        guard policy.isDue else { return }
         status = .checking
-        do {
-            var request = URLRequest(url: UpdateCheck.latestReleaseAPI, timeoutInterval: 15)
-            request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-            request.setValue("Doorman/\(RunningApp.version)", forHTTPHeaderField: "User-Agent")
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
-            let release = try UpdateCheck.parseLatestRelease(data)
-            lastCheck = Date()
-            defaults.set(lastCheck, forKey: Keys.lastCheck)
-
-            guard UpdateCheck.isUpdate(release, over: RunningApp.version) else {
-                status = .upToDate
-                if userInitiated {
-                    showUpToDate()
-                }
-                return
-            }
-            status = .available(release)
-            if userInitiated || defaults.string(forKey: Keys.skipped) != release.tag {
-                showAvailable(release)
-            }
-        } catch {
-            status = .failed(error.localizedDescription)
-            log.error("update check: \(error.localizedDescription, privacy: .public)")
-            if userInitiated {
-                showFailed(error)
-            }
+        let notice = await policy.checkAutomatically()
+        updateStatus()
+        if case let .available(release) = notice {
+            showAvailable(release)
         }
+    }
+
+    /// A check the user asked for: always shows the result.
+    func checkNow() async {
+        status = .checking
+        let notice = await policy.checkNow()
+        switch notice {
+        case .upToDate: status = .upToDate; showUpToDate()
+        case let .available(release): status = .available(release); showAvailable(release)
+        case let .failed(message): status = .failed(message); showFailed(message)
+        }
+    }
+
+    private func updateStatus() {
+        status = policy.available.map(Status.available) ?? (preferences.lastCheck == nil ? .idle : .upToDate)
     }
 
     // MARK: Alerts
@@ -94,12 +77,12 @@ final class UpdateChecker {
         alert.runModal()
     }
 
-    private func showFailed(_ error: Error) {
+    private func showFailed(_ message: String) {
         NSApp.activate()
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = L("Couldn't check for updates")
-        alert.informativeText = error.localizedDescription
+        alert.informativeText = message
         alert.runModal()
     }
 
@@ -124,7 +107,7 @@ final class UpdateChecker {
         case .alertSecondButtonReturn:
             NSWorkspace.shared.open(release.url)
         default:
-            defaults.set(release.tag, forKey: Keys.skipped)
+            policy.putOff(release)
         }
     }
 

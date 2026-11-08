@@ -145,7 +145,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func checkForUpdatesAction() {
-        Task { await UpdateChecker.shared.check(userInitiated: true) }
+        Task { await UpdateChecker.shared.checkNow() }
     }
 
     @objc private func quitAction() {
