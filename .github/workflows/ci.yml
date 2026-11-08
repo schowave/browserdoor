@@ -18,3 +18,5 @@ jobs:
         run: |
           test -x build/Doorman.app/Contents/MacOS/Doorman
           codesign --verify build/Doorman.app
+      - name: Check formula template
+        run: scripts/check-formula.sh

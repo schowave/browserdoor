@@ -156,7 +156,7 @@ Seiteneffekte wie Dateisystem, `NSWorkspace` und `Process` stecken hinter kleine
 
 ## 9. Build, Distribution, CI
 
-- `make app` führt `swift build -c release` aus und erzeugt `build/Doorman.app`. Info.plist und Icon kommen dabei aus `Resources/`. Signiert wird ad hoc (`codesign -s -`).
+- `make app` führt `swift build -c release` aus und erzeugt `build/Doorman.app`. Die Info.plist kommt dabei aus `Resources/` (ein eigenes App-Icon gibt es in v1 noch nicht). Signiert wird ad hoc (`codesign -s -`).
 - `make install PREFIX=…` legt die App unter `$PREFIX/Doorman.app` ab und ein Startskript unter `$PREFIX/bin/doorman`.
 - **Homebrew**:
   - Die Formula `doorman` liegt im Tap `schowave/homebrew-tap`.
@@ -165,7 +165,8 @@ Seiteneffekte wie Dateisystem, `NSWorkspace` und `Process` stecken hinter kleine
   - Eine Vorlage liegt in `packaging/homebrew/doorman.rb`.
 - **CI** (GitHub Actions, macOS-Runner):
   - `swift test` und `make app`
-  - Bei einem Tag `v*`: GitHub-Release anlegen und die Formula im Tap aktualisieren (URL plus sha256).
+  - `scripts/check-formula.sh` rendert die Formula-Vorlage probeweise und prüft sie.
+  - Bei einem Tag `v*`: testen, App bauen, GitHub-Release anlegen (falls noch nicht vorhanden) und die Formula im Tap aktualisieren. Die Vorlage nutzt die Platzhalter `@VERSION@` und `@SHA256@`, gerendert von `scripts/render-formula.sh`. Der Workflow ist wiederholbar.
 
 ## 10. Tests
 

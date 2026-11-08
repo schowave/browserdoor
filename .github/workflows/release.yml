@@ -1,7 +1,8 @@
 name: Release
 
-# Push a tag like v0.1.0 → test, create the GitHub release, update the Homebrew tap.
+# Push a tag like v0.1.0 → test and build, create the GitHub release, update the Homebrew tap.
 # Needs the secret TAP_GITHUB_TOKEN: a fine-grained token with contents:write on schowave/homebrew-tap.
+# Safe to re-run: an existing release is kept, an unchanged formula is not committed again.
 
 on:
   push:
@@ -19,19 +20,24 @@ jobs:
       - name: Test
         run: make test
 
+      - name: Build app bundle
+        run: make app VERSION="${GITHUB_REF_NAME#v}"
+
+      - name: Check formula template
+        run: scripts/check-formula.sh
+
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
+            || gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag
 
       - name: Render formula
         run: |
-          version="${GITHUB_REF_NAME#v}"
           url="https://github.com/${GITHUB_REPOSITORY}/archive/refs/tags/${GITHUB_REF_NAME}.tar.gz"
           sha=$(curl -sSfL "$url" | shasum -a 256 | cut -d' ' -f1)
-          sed -e "s/VERSION/${version}/g" -e "s/SHA256/${sha}/" \
-              -e '/^# Template for/d' -e '/^# The release workflow/d' \
-              packaging/homebrew/doorman.rb > doorman.rb
+          scripts/render-formula.sh "${GITHUB_REF_NAME#v}" "$sha" > doorman.rb
           cat doorman.rb
 
       - name: Push formula to tap
@@ -45,5 +51,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Formula/doorman.rb
+          if git diff --cached --quiet; then
+            echo "Formula unchanged"
+            exit 0
+          fi
           git commit -m "doorman ${GITHUB_REF_NAME#v}"
           git push

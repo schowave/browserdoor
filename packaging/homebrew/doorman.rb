@@ -1,14 +1,16 @@
 # Template for schowave/homebrew-tap/Formula/doorman.rb.
-# The release workflow fills in VERSION and SHA256 and pushes it to the tap.
+# The release workflow (scripts/render-formula.sh) replaces the @…@ placeholders.
 class Doorman < Formula
   desc "Pick the browser, Chrome profile or Zen workspace for every link you open"
   homepage "https://github.com/schowave/doorman"
-  url "https://github.com/schowave/doorman/archive/refs/tags/vVERSION.tar.gz"
-  sha256 "SHA256"
+  url "https://github.com/schowave/doorman/archive/refs/tags/v@VERSION@.tar.gz"
+  sha256 "@SHA256@"
   license "MIT"
   head "https://github.com/schowave/doorman.git", branch: "main"
 
   depends_on macos: :sonoma
+
+  # Needs a Swift 6 toolchain (Xcode 16 or its Command Line Tools).
 
   def install
     # Homebrew's sandbox forbids SwiftPM's own sandbox.
