@@ -79,10 +79,14 @@ final class IconProvider {
 
         extraction[version] = .running
         let omni = zenApp.appendingPathComponent("Contents/Resources/browser/omni.ja")
-        Task.detached(priority: .utility) { [weak self] in
-            let ok = Self.extract(omni: omni, to: dir)
-            if ok { FileManager.default.createFile(atPath: marker.path, contents: nil) }
-            await MainActor.run { self?.extraction[version] = ok ? .done : .failed }
+        Task { [weak self] in
+            // Only Sendable values cross into the detached task; the result comes back here.
+            let ok = await Task.detached(priority: .utility) {
+                let ok = IconProvider.extract(omni: omni, to: dir)
+                if ok { FileManager.default.createFile(atPath: marker.path, contents: nil) }
+                return ok
+            }.value
+            self?.extraction[version] = ok ? .done : .failed
             if !ok { log.error("could not extract Zen icons from \(omni.path, privacy: .public)") }
         }
         return nil
