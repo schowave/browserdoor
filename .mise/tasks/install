@@ -7,5 +7,7 @@
 mkdir -p "$PREFIX/bin"
 rm -rf "${PREFIX:?}/$APP_NAME.app"
 cp -R "$APP" "$PREFIX/$APP_NAME.app"
-printf '#!/bin/sh\nexec open "%s" "$@"\n' "$PREFIX/$APP_NAME.app" > "$PREFIX/bin/doorman"
+# -a: extra arguments are files/URLs for Doorman, not for their default apps.
+bin_app="${BIN_APP_PATH:-$PREFIX/$APP_NAME.app}"
+printf '#!/bin/sh\nexec open -a "%s" "$@"\n' "$bin_app" > "$PREFIX/bin/doorman"
 chmod +x "$PREFIX/bin/doorman"

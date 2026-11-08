@@ -18,3 +18,28 @@ jobs:
       - uses: jdx/mise-action@v5
       - name: Lint, test, build, check formula
         run: mise run ci
+
+  formula:
+    # Builds the rendered formula the way users get it: brew install from a source tarball.
+    runs-on: macos-15
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_INSTALL_CLEANUP: "1"
+      HOMEBREW_NO_ENV_HINTS: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - name: Render formula for a local tarball
+        run: |
+          tarball="$RUNNER_TEMP/doorman-0.0.1.tar.gz"
+          git archive --format=tar.gz --prefix=doorman-0.0.1/ -o "$tarball" HEAD
+          sha=$(shasum -a 256 "$tarball" | cut -d' ' -f1)
+          brew tap-new --no-git local/ci
+          tap="$(brew --repository)/Library/Taps/local/homebrew-ci"
+          .mise/tasks/render-formula 0.0.1 "$sha" "file://$tarball" > "$tap/Formula/doorman.rb"
+          cat "$tap/Formula/doorman.rb"
+      - name: brew install --build-from-source
+        run: brew install --build-from-source --verbose local/ci/doorman
+      - name: brew test
+        run: brew test local/ci/doorman
+      - name: brew audit
+        run: brew audit --strict --formula local/ci/doorman
