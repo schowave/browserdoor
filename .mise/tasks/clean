@@ -1,0 +1,5 @@
+#!/bin/sh
+#MISE description="Remove build products"
+# shellcheck source=_lib.sh
+. "$(dirname "$0")/_lib.sh"
+rm -rf "$BUILD_DIR" .build

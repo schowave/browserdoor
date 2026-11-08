@@ -32,7 +32,9 @@ public struct ZenSpace: Equatable, Sendable {
 
 public struct RGB: Equatable, Sendable {
     public var r: Int, g: Int, b: Int
-    public init(_ r: Int, _ g: Int, _ b: Int) { (self.r, self.g, self.b) = (r, g, b) }
+    public init(_ r: Int, _ g: Int, _ b: Int) {
+        (self.r, self.g, self.b) = (r, g, b)
+    }
 }
 
 public enum ZenSpaces {

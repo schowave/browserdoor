@@ -1,13 +1,15 @@
 import AppKit
-import SwiftUI
 import DoormanCore
+import SwiftUI
 
 @MainActor @Observable
 final class PickerModel {
     struct Row: Identifiable {
         var entry: PickerEntry
         var icon: EntryIcon
-        var id: String { entry.id }
+        var id: String {
+            entry.id
+        }
     }
 
     var urls: [URL] = []
@@ -21,10 +23,14 @@ final class PickerModel {
 final class PickerPanel: NSPanel {
     var keyHandler: ((NSEvent) -> Bool)?
 
-    override var canBecomeKey: Bool { true }
+    override var canBecomeKey: Bool {
+        true
+    }
 
     override func sendEvent(_ event: NSEvent) {
-        if event.type == .keyDown, keyHandler?(event) == true { return }
+        if event.type == .keyDown, keyHandler?(event) == true {
+            return
+        }
         super.sendEvent(event)
     }
 }
@@ -55,7 +61,7 @@ final class PickerController: NSObject, NSWindowDelegate {
         model.copied = false
         reload()
 
-        let panel = self.panel ?? makePanel()
+        let panel = panel ?? makePanel()
         self.panel = panel
         resize(panel)
         position(panel)
@@ -136,7 +142,9 @@ final class PickerController: NSObject, NSWindowDelegate {
         default: break
         }
         guard let chars = event.charactersIgnoringModifiers?.lowercased(), chars.count == 1 else { return false }
-        if flags == .command, chars == "c" { copyURLs(); return true }
+        if flags == .command, chars == "c" {
+            copyURLs(); return true
+        }
         guard flags.isDisjoint(with: [.command, .control, .option]) else { return false }
         if let index = model.rows.firstIndex(where: { $0.entry.hotkey.map(String.init) == chars }) {
             pick(index)
@@ -168,12 +176,16 @@ final class PickerController: NSObject, NSWindowDelegate {
         panel?.orderOut(nil)
         model.urls = []
         // Hand focus back to wherever the click came from.
-        if NSApp.isActive { NSApp.hide(nil) }
+        if NSApp.isActive {
+            NSApp.hide(nil)
+        }
     }
 
-    func windowDidResignKey(_ notification: Notification) {
+    func windowDidResignKey(_: Notification) {
         log.debug("panel resigned key")
-        if panel?.isVisible == true { close() }
+        if panel?.isVisible == true {
+            close()
+        }
     }
 }
 
@@ -191,7 +203,11 @@ struct PickerView: View {
                     RowView(row: row, selected: index == model.selection)
                         .contentShape(Rectangle())
                         .onTapGesture { onPick(index) }
-                        .onHover { if $0 { model.selection = index } }
+                        .onHover {
+                            if $0 {
+                                model.selection = index
+                            }
+                        }
                 }
             }
             if let warning = model.warning {
@@ -260,20 +276,20 @@ struct IconView: View {
 
     var body: some View {
         switch icon {
-        case .image(let image):
+        case let .image(image):
             Image(nsImage: image).resizable().aspectRatio(contentMode: .fit)
-        case .zenSpace(let glyph, let color):
+        case let .zenSpace(glyph, color):
             ZStack {
                 RoundedRectangle(cornerRadius: 6).fill(color)
                 switch glyph {
-                case .svg(let image):
+                case let .svg(image):
                     Image(nsImage: image)
                         .renderingMode(.template)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .foregroundStyle(.black.opacity(0.75))
                         .padding(5)
-                case .text(let text):
+                case let .text(text):
                     Text(text).font(.system(size: 13, weight: .semibold)).foregroundStyle(.black.opacity(0.75))
                 }
             }

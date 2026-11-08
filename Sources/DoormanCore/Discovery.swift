@@ -83,7 +83,9 @@ public struct Discovery {
     func isInApplicationFolder(_ app: URL) -> Bool {
         let path = app.standardizedFileURL.path
         // /System/Volumes/Data is the firmlinked user volume (home dirs, caches), not the system.
-        if path.hasPrefix("/System/Volumes/Data/") { return false }
+        if path.hasPrefix("/System/Volumes/Data/") {
+            return false
+        }
         let roots = ["/Applications/", "/System/", environment.home.appendingPathComponent("Applications").path + "/"]
         return roots.contains { path.hasPrefix($0) }
     }
@@ -146,7 +148,9 @@ public struct Discovery {
         }
         for (i, min) in minimum.enumerated() {
             let value = i < parts.count ? parts[i] : 0
-            if value != min { return value > min }
+            if value != min {
+                return value > min
+            }
         }
         return true
     }

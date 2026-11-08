@@ -1,0 +1,6 @@
+#!/bin/sh
+#MISE description="Build and start Doorman from build/"
+#MISE depends=["app"]
+# shellcheck source=_lib.sh
+. "$(dirname "$0")/_lib.sh"
+open "$APP"

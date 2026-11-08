@@ -1,0 +1,7 @@
+#!/bin/sh
+#MISE description="Print the next patch tag after the latest v* tag (nothing if there is none)"
+# shellcheck source=_lib.sh
+. "$(dirname "$0")/_lib.sh"
+latest="$(git tag --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1 || true)"
+[ -n "$latest" ] || exit 0
+echo "$latest" | awk -F. -v OFS=. '{ $3 += 1; print }'

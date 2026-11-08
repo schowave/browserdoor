@@ -53,11 +53,24 @@ Target IDs look like this:
 
 ## Develop
 
+Tooling and tasks come from [mise](https://mise.jdx.dev). Swift comes from Xcode or the Command Line Tools.
+
 ```sh
-make test   # swift test
-make app    # build/Doorman.app (ad-hoc signed)
-make run
+mise install        # actionlint, shellcheck, swiftformat (versions pinned in mise.toml)
+mise tasks          # list all tasks
+mise run test       # unit tests
+mise run app        # build/Doorman.app (ad-hoc signed)
+mise run run        # build and start
+mise run format     # swiftformat
+mise run ci         # everything CI runs: lint, test, app, formula check
 ```
+
+The tasks in `.mise/tasks/` are plain shell scripts. The Homebrew formula runs `.mise/tasks/install` directly, so mise isn't needed to install Doorman.
+
+## Releases and dependencies
+
+- **Manual release:** push a tag such as `v0.2.0`. The release workflow then tests and builds Doorman, creates the GitHub release and updates `Formula/doorman.rb` in [schowave/homebrew-tap](https://github.com/schowave/homebrew-tap).
+- **Renovate** (GitHub App, `renovate.json`): bundles all updates (GitHub Actions, mise tools) into one PR on Monday mornings and merges it once CI is green. Each such merge produces a **patch release** through `auto-release.yml`.
 
 The design is described in [SPEC.md](SPEC.md).
 

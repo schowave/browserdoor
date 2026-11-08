@@ -1,6 +1,6 @@
+@testable import DoormanCore
 import Foundation
 import Testing
-@testable import DoormanCore
 
 struct MozLz4Tests {
     @Test func decodesLiteralOnlyBlock() throws {
@@ -20,8 +20,8 @@ struct MozLz4Tests {
     @Test func decodesMatchFollowedByLiterals() throws {
         // 2 literals + minimal match (4) from offset 2, then a literal-only last sequence.
         var bytes = MozLz4.magic + [9, 0, 0, 0]
-        bytes += [0x20] + Array("ab".utf8) + [2, 0]   // "ab" + match 4 → "ababab"
-        bytes += [0x30] + Array("xyz".utf8)            // last sequence: literals only
+        bytes += [0x20] + Array("ab".utf8) + [2, 0] // "ab" + match 4 → "ababab"
+        bytes += [0x30] + Array("xyz".utf8) // last sequence: literals only
         let decoded = try MozLz4.decompress(Data(bytes))
         #expect(String(decoding: decoded, as: UTF8.self) == "abababxyz")
     }
@@ -65,10 +65,10 @@ struct MozLz4Tests {
 
     @Test func survivesRandomInput() {
         var generator = SystemRandomNumberGenerator()
-        for _ in 0..<2_000 {
-            let length = Int.random(in: 0..<64, using: &generator)
-            let size = UInt8.random(in: 0...200, using: &generator)
-            let body = (0..<length).map { _ in UInt8.random(in: 0...255, using: &generator) }
+        for _ in 0 ..< 2000 {
+            let length = Int.random(in: 0 ..< 64, using: &generator)
+            let size = UInt8.random(in: 0 ... 200, using: &generator)
+            let body = (0 ..< length).map { _ in UInt8.random(in: 0 ... 255, using: &generator) }
             _ = try? MozLz4.decompress(Data(MozLz4.magic + [size, 0, 0, 0] + body))
         }
     }

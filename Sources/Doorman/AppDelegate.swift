@@ -9,7 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let defaults = UserDefaults.standard
     private static let onboardedKey = "didOnboard"
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    func applicationDidFinishLaunching(_: Notification) {
         setUpStatusItem()
         LSRegisterURL(Bundle.main.bundleURL as CFURL, true)
         Installation.ensureUserApplicationsLink()
@@ -22,7 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     /// Both URL clicks (http/https) and opened files (.html, .webloc) arrive here.
-    func application(_ application: NSApplication, open urls: [URL]) {
+    func application(_: NSApplication, open urls: [URL]) {
         log.debug("open event: \(urls.count) url(s)")
         let resolved = urls.compactMap { url -> URL? in
             if url.isFileURL, url.pathExtension.lowercased() == "webloc" {
@@ -47,9 +47,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             alert.informativeText = "Dann fragt \(AppIdentity.name) bei jedem Link, in welchem Browser oder Zen-Space er geöffnet werden soll."
             alert.addButton(withTitle: "Als Standard setzen")
             alert.addButton(withTitle: "Später")
-            if alert.runModal() == .alertFirstButtonReturn { makeDefaultBrowser() }
+            if alert.runModal() == .alertFirstButtonReturn {
+                makeDefaultBrowser()
+            }
         }
-        if !Installation.launchesAtLogin { Installation.setLaunchAtLogin(true) }
+        if !Installation.launchesAtLogin {
+            Installation.setLaunchAtLogin(true)
+        }
     }
 
     // MARK: Default browser
@@ -66,10 +70,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let app = Bundle.main.bundleURL
         // macOS asks the user to confirm; http covers https as well.
         NSWorkspace.shared.setDefaultApplication(at: app, toOpenURLsWithScheme: "http") { error in
-            if let error { log.error("set default browser: \(error.localizedDescription, privacy: .public)") }
+            if let error {
+                log.error("set default browser: \(error.localizedDescription, privacy: .public)")
+            }
         }
         NSWorkspace.shared.setDefaultApplication(at: app, toOpen: .html) { error in
-            if let error { log.error("set html handler: \(error.localizedDescription, privacy: .public)") }
+            if let error {
+                log.error("set html handler: \(error.localizedDescription, privacy: .public)")
+            }
         }
     }
 
@@ -117,7 +125,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return item
     }
 
-    @objc private func setDefaultAction() { makeDefaultBrowser() }
+    @objc private func setDefaultAction() {
+        makeDefaultBrowser()
+    }
 
     @objc private func toggleLoginAction() {
         Installation.setLaunchAtLogin(!Installation.launchesAtLogin)
@@ -140,5 +150,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NSWorkspace.shared.open([url], withApplicationAt: textEdit, configuration: NSWorkspace.OpenConfiguration())
     }
 
-    @objc private func quitAction() { NSApp.terminate(nil) }
+    @objc private func quitAction() {
+        NSApp.terminate(nil)
+    }
 }

@@ -23,13 +23,21 @@ public struct Target: Equatable, Sendable, Identifiable {
 
     public var appURL: URL {
         switch kind {
-        case .zenSpace(let app, _, _, _), .chromium(let app, _), .app(let app): app
+        case let .zenSpace(app, _, _, _), let .chromium(app, _), let .app(app): app
         }
     }
 
-    public static func zenID(_ uuid: String) -> String { "zen:\(uuid)" }
-    public static func chromiumID(_ bundleId: String, _ dir: String) -> String { "chromium:\(bundleId):\(dir)" }
-    public static func appID(_ bundleId: String) -> String { "app:\(bundleId)" }
+    public static func zenID(_ uuid: String) -> String {
+        "zen:\(uuid)"
+    }
+
+    public static func chromiumID(_ bundleId: String, _ dir: String) -> String {
+        "chromium:\(bundleId):\(dir)"
+    }
+
+    public static func appID(_ bundleId: String) -> String {
+        "app:\(bundleId)"
+    }
 }
 
 public enum LaunchCommand: Equatable, Sendable {
@@ -39,17 +47,17 @@ public enum LaunchCommand: Equatable, Sendable {
     case open(urls: [URL], app: URL)
 }
 
-extension Target {
+public extension Target {
     /// - Parameter appIsRunning: whether the target app already runs. Only matters for Zen:
     ///   a running Zen gets the command via its remote service (direct exec returns at once);
     ///   a cold start goes through LaunchServices so Zen isn't a child of this process.
     ///   URLs that `URLPolicy` rejects are dropped: they would become command-line flags.
-    public func launchCommands(for urls: [URL], appIsRunning: Bool = true) -> [LaunchCommand] {
+    func launchCommands(for urls: [URL], appIsRunning: Bool = true) -> [LaunchCommand] {
         let urls = URLPolicy.filter(urls)
         guard !urls.isEmpty else { return [] }
         let strings = urls.map(\.absoluteString)
         switch kind {
-        case .zenSpace(let app, let executable, let space, let profile):
+        case let .zenSpace(app, executable, space, profile):
             let base = (profile.map { ["--profile", $0.path] } ?? []) + ["--space", space.uuid]
             guard appIsRunning else {
                 // Zen stores the space for startup; extra URLs open in the same window.
@@ -60,12 +68,12 @@ extension Target {
             }
             // `--space <space> [<url>]` takes a single URL, so one call per URL.
             return strings.map { .run(executable: executable, arguments: base + [$0]) }
-        case .chromium(let app, let dir):
+        case let .chromium(app, dir):
             return [.run(
                 executable: URL(fileURLWithPath: "/usr/bin/open"),
                 arguments: ["-na", app.path, "--args", "--profile-directory=\(dir)"] + strings
             )]
-        case .app(let app):
+        case let .app(app):
             return [.open(urls: urls, app: app)]
         }
     }

@@ -1,0 +1,16 @@
+#!/bin/sh
+#MISE description="Build build/Doorman.app (release, ad-hoc signed)"
+# shellcheck source=_lib.sh
+. "$(dirname "$0")/_lib.sh"
+# shellcheck disable=SC2086
+swift build -c release $SWIFT_BUILD_FLAGS
+# shellcheck disable=SC2086
+bin_path="$(swift build -c release $SWIFT_BUILD_FLAGS --show-bin-path)"
+rm -rf "$APP"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+cp "$bin_path/$APP_NAME" "$APP/Contents/MacOS/$APP_NAME"
+cp Resources/Info.plist "$APP/Contents/Info.plist"
+plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP/Contents/Info.plist"
+plutil -replace CFBundleVersion -string "$VERSION" "$APP/Contents/Info.plist"
+codesign --force --sign - "$APP"
+echo "built $APP ($VERSION)"

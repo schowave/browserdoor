@@ -167,17 +167,22 @@ Seiteneffekte wie Dateisystem, `NSWorkspace` und `Process` stecken hinter kleine
 
 ## 9. Build, Distribution, CI
 
-- `make app` führt `swift build -c release` aus und erzeugt `build/Doorman.app`. Die Info.plist kommt dabei aus `Resources/` (ein eigenes App-Icon gibt es in v1 noch nicht). Signiert wird ad hoc (`codesign -s -`).
-- `make install PREFIX=…` legt die App unter `$PREFIX/Doorman.app` ab und ein Startskript unter `$PREFIX/bin/doorman`.
-- **Homebrew**:
-  - Die Formula `doorman` liegt im Tap `schowave/homebrew-tap`.
-  - Sie baut aus dem Release-Tarball, mit `depends_on macos: :sonoma`.
-  - Die caveats beschreiben den ersten Start (`open $(brew --prefix)/opt/doorman/Doorman.app`).
-  - Eine Vorlage liegt in `packaging/homebrew/doorman.rb`.
-- **CI** (GitHub Actions, macOS-Runner):
-  - `swift test` und `make app`
-  - `scripts/check-formula.sh` rendert die Formula-Vorlage probeweise und prüft sie.
-  - Bei einem Tag `v*`: testen, App bauen, GitHub-Release anlegen (falls noch nicht vorhanden) und die Formula im Tap aktualisieren. Die Vorlage nutzt die Platzhalter `@VERSION@` und `@SHA256@`, gerendert von `scripts/render-formula.sh`. Der Workflow ist wiederholbar.
+- **Tooling:** mise. `mise.toml` pinnt `actionlint`, `shellcheck` und `swiftformat`. Swift selbst kommt aus Xcode bzw. den Command Line Tools, weil Doorman das macOS-SDK braucht.
+- **Tasks:** Sie liegen in `.mise/tasks/` als ausführbare Shell-Skripte mit `#MISE`-Kopfzeilen und ersetzen das frühere Makefile: `test`, `app`, `install`, `run`, `lint`, `format`, `render-formula`, `check-formula`, `next-patch-version`, `ci`, `clean`. Gemeinsame Einstellungen kommen aus `_lib.sh`. Die Skripte laufen auch ohne mise.
+- `mise run app` erzeugt `build/Doorman.app`. Die Info.plist kommt aus `Resources/`, ein eigenes App-Icon gibt es in v1 noch nicht. Signiert wird ad hoc. Die Version kommt aus `VERSION` oder dem letzten `v*`-Tag.
+- **Homebrew:**
+  - Die Formula `doorman` liegt im Tap `schowave/homebrew-tap` unter `Formula/`.
+  - Sie baut aus dem Release-Tarball und ruft `.mise/tasks/install` direkt auf, also ohne mise, mit `PREFIX`, `VERSION` und `SWIFT_BUILD_FLAGS=--disable-sandbox`.
+  - Die Vorlage `packaging/homebrew/doorman.rb` nutzt `@VERSION@` und `@SHA256@`. `render-formula` setzt die Werte ein, `check-formula` prüft das Ergebnis.
+- **CI** (`ci.yml`, macOS-Runner): `mise run ci` mit lint, test, App-Bundle und Formula-Check.
+- **Release** (`release.yml`): läuft bei einem Tag `v*` oder wenn ein anderer Workflow es aufruft (`workflow_call`). Ablauf: testen, App bauen, GitHub-Release anlegen (falls noch keines existiert), dann die Formula im Tap aktualisieren. Dafür braucht es das Secret `TAP_GITHUB_TOKEN`. Der Workflow lässt sich erneut ausführen.
+- **Renovate** (GitHub App, `renovate.json`):
+  - Einmal pro Woche (Montag vor 6 Uhr) kommen alle Updates, Majors eingeschlossen, in einen PR. Das betrifft GitHub Actions (auf Digests gepinnt) und die mise-Tools.
+  - Renovate merged den PR selbst, sobald die CI grün ist.
+- **Auto-Release** (`auto-release.yml`):
+  - Ein Merge von `renovate[bot]` auf `main` legt den nächsten Patch-Tag an (`next-patch-version`) und ruft `release.yml` auf.
+  - Mit dem `GITHUB_TOKEN` gepushte Tags starten selbst keine Workflows, deshalb der direkte Aufruf.
+  - Ohne vorhandenen `v*`-Tag passiert nichts; das erste Release entsteht von Hand.
 
 ## 10. Tests
 

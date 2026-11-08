@@ -1,6 +1,6 @@
+@testable import DoormanCore
 import Foundation
 import Testing
-@testable import DoormanCore
 
 let sessionJSON = """
 {
@@ -128,7 +128,8 @@ struct WeblocParserTests {
 
     @Test func readsBinaryWebloc() throws {
         let data = try PropertyListSerialization.data(
-            fromPropertyList: ["URL": "https://zen-browser.app"], format: .binary, options: 0)
+            fromPropertyList: ["URL": "https://zen-browser.app"], format: .binary, options: 0
+        )
         #expect(WeblocParser.url(fromWebloc: data)?.host == "zen-browser.app")
     }
 

@@ -1,0 +1,8 @@
+#!/bin/sh
+#MISE description="Everything CI checks: lint, test, app bundle, formula"
+#MISE depends=["lint", "test", "check-formula"]
+# shellcheck source=_lib.sh
+. "$(dirname "$0")/_lib.sh"
+"$(dirname "$0")/app"
+test -x "$APP/Contents/MacOS/$APP_NAME"
+codesign --verify "$APP"

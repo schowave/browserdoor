@@ -1,6 +1,6 @@
+@testable import DoormanCore
 import Foundation
 import Testing
-@testable import DoormanCore
 
 struct InstallLocationTests {
     @Test func mapsCellarToOpt() {

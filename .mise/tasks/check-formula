@@ -1,0 +1,13 @@
+#!/bin/sh
+#MISE description="Render the formula with dummy values and sanity-check it"
+# shellcheck source=_lib.sh
+. "$(dirname "$0")/_lib.sh"
+out="$(.mise/tasks/render-formula 9.8.7 0123abcd)"
+fail() { echo "check-formula: $1" >&2; exit 1; }
+if echo "$out" | grep -q '@'; then fail "unreplaced placeholder"; fi
+echo "$out" | grep -q 'refs/tags/v9.8.7.tar.gz' || fail "url not rendered"
+echo "$out" | grep -q 'sha256 "0123abcd"' || fail "sha256 not rendered"
+echo "$out" | grep -q 'ENV\["VERSION"\] = version.to_s' || fail "VERSION passed to the build damaged"
+echo "$out" | grep -q '\.mise/tasks/install' || fail "install task not called"
+echo "$out" | ruby -c >/dev/null || fail "not valid Ruby"
+echo "check-formula: ok"

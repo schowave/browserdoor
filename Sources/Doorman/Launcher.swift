@@ -1,6 +1,6 @@
 import AppKit
-import OSLog
 import DoormanCore
+import OSLog
 
 let log = Logger(subsystem: AppIdentity.bundleId, category: "app")
 
@@ -12,7 +12,7 @@ enum Launcher {
 
         for command in target.launchCommands(for: urls, appIsRunning: running) {
             switch command {
-            case .run(let executable, let arguments):
+            case let .run(executable, arguments):
                 let process = Process()
                 process.executableURL = executable
                 process.arguments = arguments
@@ -23,7 +23,7 @@ enum Launcher {
                 } catch {
                     log.error("launch failed: \(executable.path, privacy: .public) \(error.localizedDescription, privacy: .public)")
                 }
-            case .open(let urls, let app):
+            case let .open(urls, app):
                 let configuration = NSWorkspace.OpenConfiguration()
                 configuration.activates = true
                 NSWorkspace.shared.open(urls, withApplicationAt: app, configuration: configuration)

@@ -16,7 +16,8 @@ public enum ZenProfile {
         let sections = INI.parse(profilesIni)
 
         if let install = sections.first(where: { $0.name.hasPrefix("Install") }),
-           let path = install.values["Default"], !path.isEmpty {
+           let path = install.values["Default"], !path.isEmpty
+        {
             // Install sections always use paths relative to the root.
             return resolve(path, isRelative: !path.hasPrefix("/"), root: root)
         }
@@ -45,7 +46,9 @@ enum INI {
         var sections: [Section] = []
         for rawLine in text.split(whereSeparator: \.isNewline) {
             let line = rawLine.trimmingCharacters(in: .whitespaces)
-            if line.isEmpty || line.hasPrefix(";") || line.hasPrefix("#") { continue }
+            if line.isEmpty || line.hasPrefix(";") || line.hasPrefix("#") {
+                continue
+            }
             if line.hasPrefix("["), line.hasSuffix("]") {
                 sections.append(Section(name: String(line.dropFirst().dropLast()), values: [:]))
             } else if let eq = line.firstIndex(of: "="), !sections.isEmpty {

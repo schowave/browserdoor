@@ -1,0 +1,52 @@
+name: Auto release
+
+# When Renovate's dependency update lands on main, tag the next patch version and release it.
+# Tags pushed with GITHUB_TOKEN don't trigger other workflows, so the release workflow is
+# called directly. Does nothing until a first v* tag exists.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    if: github.event.head_commit.author.name == 'renovate[bot]'
+    runs-on: macos-15
+    outputs:
+      tag: ${{ steps.next.outputs.tag }}
+    env:
+      MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Next patch version
+        id: next
+        run: |
+          tag="$(.mise/tasks/next-patch-version)"
+          if [ -z "$tag" ]; then
+            echo "No v* tag yet; create the first release by hand."
+            exit 0
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Push tag
+        if: steps.next.outputs.tag != ''
+        env:
+          TAG: ${{ steps.next.outputs.tag }}
+        run: |
+          git tag "$TAG" "$GITHUB_SHA"
+          git push origin "$TAG"
+
+  release:
+    needs: tag
+    if: needs.tag.outputs.tag != ''
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.tag.outputs.tag }}
+    secrets:
+      TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}

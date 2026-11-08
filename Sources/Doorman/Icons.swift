@@ -1,6 +1,6 @@
 import AppKit
-import SwiftUI
 import DoormanCore
+import SwiftUI
 
 enum EntryIcon {
     case image(NSImage)
@@ -27,9 +27,9 @@ final class IconProvider {
 
     func icon(for target: Target) -> EntryIcon {
         switch target.kind {
-        case .app(let app), .chromium(let app, _):
+        case let .app(app), let .chromium(app, _):
             return .image(appIcon(app))
-        case .zenSpace(let app, _, let space, _):
+        case let .zenSpace(app, _, space, _):
             let color = space.color.map { Color(red: Double($0.r) / 255, green: Double($0.g) / 255, blue: Double($0.b) / 255) }
                 ?? Color.secondary.opacity(0.35)
             if let emoji = space.emojiIcon {
@@ -43,7 +43,9 @@ final class IconProvider {
     }
 
     private func appIcon(_ app: URL) -> NSImage {
-        if let cached = appIcons[app] { return cached }
+        if let cached = appIcons[app] {
+            return cached
+        }
         let icon = NSWorkspace.shared.icon(forFile: app.path)
         appIcons[app] = icon
         return icon
@@ -52,7 +54,9 @@ final class IconProvider {
     private func zenSVG(_ name: String, zenApp: URL) -> NSImage? {
         guard let dir = zenIconDirectory(zenApp: zenApp) else { return nil }
         let key = dir.appendingPathComponent(name).path
-        if let cached = svgs[key] { return cached }
+        if let cached = svgs[key] {
+            return cached
+        }
         guard let image = NSImage(contentsOfFile: key) else { return nil }
         image.isTemplate = true
         svgs[key] = image
@@ -83,17 +87,21 @@ final class IconProvider {
             // Only Sendable values cross into the detached task; the result comes back here.
             let ok = await Task.detached(priority: .utility) {
                 let ok = IconProvider.extract(omni: omni, to: dir)
-                if ok { FileManager.default.createFile(atPath: marker.path, contents: nil) }
+                if ok {
+                    FileManager.default.createFile(atPath: marker.path, contents: nil)
+                }
                 return ok
             }.value
             self?.extraction[version] = ok ? .done : .failed
-            if !ok { log.error("could not extract Zen icons from \(omni.path, privacy: .public)") }
+            if !ok {
+                log.error("could not extract Zen icons from \(omni.path, privacy: .public)")
+            }
         }
         return nil
     }
 
     /// `omni.ja` is a zip; `unzip` may warn about its optimized layout but extracts fine.
-    nonisolated private static func extract(omni: URL, to dir: URL) -> Bool {
+    private nonisolated static func extract(omni: URL, to dir: URL) -> Bool {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")

@@ -1,0 +1,6 @@
+#!/bin/sh
+#MISE description="Run the unit tests"
+# shellcheck source=_lib.sh
+. "$(dirname "$0")/_lib.sh"
+# shellcheck disable=SC2086 # flags are intentionally word-split
+swift test $SWIFT_BUILD_FLAGS

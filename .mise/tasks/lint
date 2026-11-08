@@ -1,0 +1,10 @@
+#!/bin/sh
+#MISE description="Lint workflows, shell scripts and Swift formatting"
+# shellcheck source=_lib.sh
+. "$(dirname "$0")/_lib.sh"
+actionlint
+# Tasks have no extension; list them explicitly (sourced helper first).
+shellcheck .mise/tasks/_lib.sh .mise/tasks/test .mise/tasks/app .mise/tasks/install .mise/tasks/run \
+  .mise/tasks/lint .mise/tasks/format .mise/tasks/render-formula .mise/tasks/check-formula \
+  .mise/tasks/next-patch-version .mise/tasks/ci .mise/tasks/clean
+swiftformat --lint .

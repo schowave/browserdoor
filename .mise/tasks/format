@@ -1,0 +1,5 @@
+#!/bin/sh
+#MISE description="Format Swift sources"
+# shellcheck source=_lib.sh
+. "$(dirname "$0")/_lib.sh"
+swiftformat .

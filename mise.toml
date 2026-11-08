@@ -1,0 +1,7 @@
+# Local and CI tooling. Swift itself comes from Xcode / the Command Line Tools
+# (Doorman needs the macOS SDK); mise pins the helper tools and runs the tasks
+# in .mise/tasks/ (`mise tasks` lists them). Renovate keeps these versions current.
+[tools]
+actionlint = "1.7.12"
+shellcheck = "0.11.0"
+swiftformat = "0.64.6"

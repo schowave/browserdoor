@@ -1,6 +1,6 @@
+@testable import DoormanCore
 import Foundation
 import Testing
-@testable import DoormanCore
 
 struct DiscoveryTests {
     func environment(zenVersion: String = "1.24.1b") -> FakeEnvironment {
@@ -62,7 +62,7 @@ struct DiscoveryTests {
 
     @Test func zenSpaceTargetUsesExecutable() throws {
         let zen = try #require(Discovery(environment: environment()).discover().first)
-        guard case .zenSpace(_, let executable, let space, let profile) = zen.kind else {
+        guard case let .zenSpace(_, executable, space, profile) = zen.kind else {
             Issue.record("expected zen space")
             return
         }
@@ -88,7 +88,7 @@ struct DiscoveryTests {
         env.files["/custom/zen-sessions.jsonlz4"] = mozLz4(json: #"{"spaces":[{"uuid":"{x}","name":"X"}]}"#)
         let targets = Discovery(environment: env, zenProfileOverride: URL(fileURLWithPath: "/custom")).discover()
         #expect(targets.first?.id == "zen:{x}")
-        guard case .zenSpace(_, _, _, let profile) = targets.first?.kind else {
+        guard case let .zenSpace(_, _, _, profile) = targets.first?.kind else {
             Issue.record("expected zen space")
             return
         }
@@ -165,15 +165,16 @@ struct LaunchCommandTests {
         let exe = URL(fileURLWithPath: "/Applications/Zen.app/Contents/MacOS/zen")
         let profile = URL(fileURLWithPath: "/p/work")
         let target = Target(id: "zen:{u}", name: "U", kind: .zenSpace(
-            app: app, executable: exe, space: ZenSpace(uuid: "{u}", name: "U"), profile: profile))
+            app: app, executable: exe, space: ZenSpace(uuid: "{u}", name: "U"), profile: profile
+        ))
         #expect(target.launchCommands(for: [urls[0]]) == [
             .run(executable: exe, arguments: ["--profile", "/p/work", "--space", "{u}", "https://a.example"]),
         ])
     }
 
-    @Test func dropsURLsThatWouldBecomeFlags() {
+    @Test func dropsURLsThatWouldBecomeFlags() throws {
         let target = Target(id: "c", name: "C", kind: .chromium(app: app, profileDirectory: "Default"))
-        let evil = [URL(string: "--load-extension=/tmp/x")!, URL(string: "javascript:alert(1)")!]
+        let evil = try [#require(URL(string: "--load-extension=/tmp/x")), #require(URL(string: "javascript:alert(1)"))]
         #expect(target.launchCommands(for: evil).isEmpty)
         #expect(target.launchCommands(for: evil + [urls[0]]) == [
             .run(executable: URL(fileURLWithPath: "/usr/bin/open"),

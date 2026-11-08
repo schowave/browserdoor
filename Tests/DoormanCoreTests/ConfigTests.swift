@@ -1,6 +1,6 @@
+@testable import DoormanCore
 import Foundation
 import Testing
-@testable import DoormanCore
 
 struct ConfigTests {
     let targets = ["a", "b", "c", "d"].map {
@@ -35,7 +35,7 @@ struct ConfigTests {
     }
 
     @Test func autoHotkeysRunOut() {
-        let many = (0..<12).map { Target(id: "t\($0)", name: "T", kind: .app(URL(fileURLWithPath: "/x"))) }
+        let many = (0 ..< 12).map { Target(id: "t\($0)", name: "T", kind: .app(URL(fileURLWithPath: "/x"))) }
         let keys = Config().entries(for: many).map(\.hotkey)
         #expect(keys.prefix(10).map { $0.map(String.init) } == ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"])
         #expect(keys.suffix(2) == [nil, nil])

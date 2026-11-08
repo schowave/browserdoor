@@ -13,7 +13,9 @@ public struct Config: Codable, Equatable, Sendable {
 
     public struct Zen: Codable, Equatable, Sendable {
         public var profilePath: String?
-        public init(profilePath: String? = nil) { self.profilePath = profilePath }
+        public init(profilePath: String? = nil) {
+            self.profilePath = profilePath
+        }
     }
 
     public var defaultTarget: String?
@@ -69,14 +71,16 @@ public struct PickerEntry: Equatable, Sendable, Identifiable {
     public var target: Target
     public var label: String
     public var hotkey: Character?
-    public var id: String { target.id }
+    public var id: String {
+        target.id
+    }
 }
 
-extension Config {
-    static let autoHotkeys: [Character] = Array("1234567890")
+public extension Config {
+    internal static let autoHotkeys: [Character] = Array("1234567890")
 
     /// Orders, filters, labels and assigns hotkeys.
-    public func entries(for discovered: [Target]) -> [PickerEntry] {
+    func entries(for discovered: [Target]) -> [PickerEntry] {
         let hiddenSet = Set(hidden ?? [])
         let visible = discovered.filter { !hiddenSet.contains($0.id) }
 
@@ -102,7 +106,11 @@ extension Config {
         var used = Set<Character>()
         for i in entries.indices {
             if let key = entries[i].hotkey {
-                if used.contains(key) { entries[i].hotkey = nil } else { used.insert(key) }
+                if used.contains(key) {
+                    entries[i].hotkey = nil
+                } else {
+                    used.insert(key)
+                }
             }
         }
         var free = Self.autoHotkeys.filter { !used.contains($0) }.makeIterator()
@@ -114,7 +122,7 @@ extension Config {
     }
 
     /// Index of the entry preselected for Enter.
-    public func defaultIndex(in entries: [PickerEntry]) -> Int? {
+    func defaultIndex(in entries: [PickerEntry]) -> Int? {
         guard !entries.isEmpty else { return nil }
         if let id = defaultTarget, let index = entries.firstIndex(where: { $0.id == id }) {
             return index

@@ -1,5 +1,5 @@
 # Template for schowave/homebrew-tap/Formula/doorman.rb.
-# The release workflow (scripts/render-formula.sh) replaces the @…@ placeholders.
+# The release workflow (`mise run render-formula`) replaces the @…@ placeholders.
 class Doorman < Formula
   desc "Pick the browser, Chrome profile or Zen workspace for every link you open"
   homepage "https://github.com/schowave/doorman"
@@ -13,11 +13,12 @@ class Doorman < Formula
   # Needs a Swift 6 toolchain (Xcode 16 or its Command Line Tools).
 
   def install
+    # The repo's mise task is a plain shell script; no mise needed here.
+    ENV["PREFIX"] = prefix.to_s
+    ENV["VERSION"] = version.to_s
     # Homebrew's sandbox forbids SwiftPM's own sandbox.
-    system "make", "install",
-           "PREFIX=#{prefix}",
-           "VERSION=#{version}",
-           "SWIFT_BUILD_FLAGS=--disable-sandbox"
+    ENV["SWIFT_BUILD_FLAGS"] = "--disable-sandbox"
+    system ".mise/tasks/install"
   end
 
   def caveats

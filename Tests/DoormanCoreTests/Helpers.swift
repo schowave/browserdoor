@@ -1,5 +1,5 @@
-import Foundation
 @testable import DoormanCore
+import Foundation
 
 /// Wraps `payload` in a mozLz4 container using a literal-only LZ4 block.
 /// Valid LZ4 (one sequence, no match) — good enough to produce fixtures.
@@ -22,7 +22,9 @@ func mozLz4(literalOnly payload: [UInt8]) -> Data {
     return Data(out)
 }
 
-func mozLz4(json: String) -> Data { mozLz4(literalOnly: Array(json.utf8)) }
+func mozLz4(json: String) -> Data {
+    mozLz4(literalOnly: Array(json.utf8))
+}
 
 struct FakeEnvironment: BrowserEnvironment {
     var home = URL(fileURLWithPath: "/Users/test")
@@ -37,12 +39,18 @@ struct FakeEnvironment: BrowserEnvironment {
         handlers.append(bundleId)
     }
 
-    func httpsHandlers() -> [URL] { extraHandlers + handlers.compactMap { apps[$0]?.url } }
+    func httpsHandlers() -> [URL] {
+        extraHandlers + handlers.compactMap { apps[$0]?.url }
+    }
+
     func appInfo(at app: URL) -> AppInfo? {
         apps.values.first(where: { $0.url == app })?.info ?? extraInfos[app]
     }
+
     /// Extra copies of an app registered under the same bundle ID at another path.
     var extraInfos: [URL: AppInfo] = [:]
     var extraHandlers: [URL] = []
-    func contents(of file: URL) -> Data? { files[file.path] }
+    func contents(of file: URL) -> Data? {
+        files[file.path]
+    }
 }

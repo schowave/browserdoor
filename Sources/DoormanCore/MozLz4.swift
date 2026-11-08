@@ -17,10 +17,10 @@ public enum MozLz4 {
 
     public static func decompress(_ data: Data) throws(DecodeError) -> Data {
         let bytes = [UInt8](data)
-        guard bytes.count >= 12, Array(bytes[0..<8]) == magic else { throw .badMagic }
+        guard bytes.count >= 12, Array(bytes[0 ..< 8]) == magic else { throw .badMagic }
         let size = Int(bytes[8]) | Int(bytes[9]) << 8 | Int(bytes[10]) << 16 | Int(bytes[11]) << 24
         guard size <= maxDecompressedSize else { throw .tooLarge }
-        return Data(try LZ4Block.decompress(bytes[12...], expectedSize: size))
+        return try Data(LZ4Block.decompress(bytes[12...], expectedSize: size))
     }
 }
 
@@ -39,7 +39,9 @@ enum LZ4Block {
                 let b = src[i]
                 i += 1
                 length += Int(b)
-                if b != 255 { return length }
+                if b != 255 {
+                    return length
+                }
             }
         }
 
@@ -50,11 +52,13 @@ enum LZ4Block {
             let literalLength = try readLength(Int(token >> 4))
             guard literalLength <= end - i else { throw .truncated }
             guard literalLength <= expectedSize - out.count else { throw .corrupt }
-            out.append(contentsOf: src[i..<(i + literalLength)])
+            out.append(contentsOf: src[i ..< (i + literalLength)])
             i += literalLength
 
             // The last sequence consists of literals only.
-            if i == end { break }
+            if i == end {
+                break
+            }
 
             guard end - i >= 2 else { throw .truncated }
             let offset = Int(src[i]) | Int(src[i + 1]) << 8
@@ -66,7 +70,7 @@ enum LZ4Block {
             guard matchLength <= expectedSize - out.count else { throw .corrupt }
             // Byte-wise copy: matches may overlap their own output.
             let start = out.count - offset
-            for k in 0..<matchLength {
+            for k in 0 ..< matchLength {
                 out.append(out[start + k])
             }
         }
