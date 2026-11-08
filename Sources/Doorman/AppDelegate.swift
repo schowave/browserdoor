@@ -1,5 +1,4 @@
 import AppKit
-import ServiceManagement
 import DoormanCore
 import UniformTypeIdentifiers
 
@@ -13,6 +12,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         setUpStatusItem()
         LSRegisterURL(Bundle.main.bundleURL as CFURL, true)
+        Installation.ensureUserApplicationsLink()
+        Installation.refreshLoginItem()
         picker.prewarm()
         if !defaults.bool(forKey: Self.onboardedKey) {
             defaults.set(true, forKey: Self.onboardedKey)
@@ -48,7 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             alert.addButton(withTitle: "Später")
             if alert.runModal() == .alertFirstButtonReturn { makeDefaultBrowser() }
         }
-        if SMAppService.mainApp.status != .enabled { setLaunchAtLogin(true) }
+        if !Installation.launchesAtLogin { Installation.setLaunchAtLogin(true) }
     }
 
     // MARK: Default browser
@@ -69,16 +70,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         NSWorkspace.shared.setDefaultApplication(at: app, toOpen: .html) { error in
             if let error { log.error("set html handler: \(error.localizedDescription, privacy: .public)") }
-        }
-    }
-
-    // MARK: Login item
-
-    private func setLaunchAtLogin(_ enabled: Bool) {
-        do {
-            if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
-        } catch {
-            log.error("login item: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -109,7 +100,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         let login = item("Beim Login starten", #selector(toggleLoginAction))
-        login.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        login.state = Installation.launchesAtLogin ? .on : .off
         menu.addItem(login)
 
         menu.addItem(.separator())
@@ -129,7 +120,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func setDefaultAction() { makeDefaultBrowser() }
 
     @objc private func toggleLoginAction() {
-        setLaunchAtLogin(SMAppService.mainApp.status != .enabled)
+        Installation.setLaunchAtLogin(!Installation.launchesAtLogin)
     }
 
     @objc private func openConfigAction() {

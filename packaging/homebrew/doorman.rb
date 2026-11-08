@@ -22,11 +22,12 @@ class Doorman < Formula
 
   def caveats
     <<~EOS
-      Start Doorman once; it then offers to become your default browser
-      and adds itself as a login item:
+      Start Doorman once; it then offers to become your default browser,
+      links itself to ~/Applications/Doorman.app and adds a login item:
         open #{opt_prefix}/Doorman.app
 
-      After `brew upgrade doorman`, quit Doorman from the menu bar and start it again.
+      After `brew upgrade doorman`, quit Doorman from the menu bar and run
+        open ~/Applications/Doorman.app
       Configuration: ~/.config/doorman/config.json (menu bar → Konfiguration öffnen…)
     EOS
   end

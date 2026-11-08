@@ -13,7 +13,7 @@ brew install schowave/tap/doorman
 open "$(brew --prefix)/opt/doorman/Doorman.app"
 ```
 
-On first start, Doorman offers to become the default browser and adds itself as a login item. The formula builds from source, so you need the Xcode Command Line Tools with Swift 6, on macOS 14 or newer.
+On first start, Doorman offers to become the default browser and adds a login item. It also links itself to `~/Applications/Doorman.app`, which keeps pointing at the current version after `brew upgrade`. After an upgrade, restart Doorman with `open ~/Applications/Doorman.app`. The formula builds from source, so you need the Xcode Command Line Tools with Swift 6, on macOS 14 or newer.
 
 ## Use
 

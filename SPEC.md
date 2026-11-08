@@ -28,7 +28,7 @@ Doorman ist ein macOS-Link-Picker in der Art von Browserosaurus. Er wird als Sta
 - Die App läuft dauerhaft im Hintergrund:
   - `LSUIElement`, also kein Dock-Icon
   - Menüleisten-Icon (`NSStatusItem`; das Menü wird bei jedem Öffnen neu aufgebaut, damit die Statuszeilen aktuell sind)
-  - Autostart über `SMAppService.mainApp`
+  - Autostart über einen LaunchAgent (siehe 7)
 - Lizenz: MIT. Das Repo liegt öffentlich auf GitHub.
 
 ## 3. Ziele (Targets)
@@ -138,7 +138,12 @@ Die Menüleiste enthält folgende Einträge:
 Beim ersten Start passiert Folgendes:
 1. Die App registriert sich bei LaunchServices (`LSRegisterURL`).
 2. Ist Doorman nicht Standardbrowser, erscheint ein Dialog. Bei Zustimmung ruft die App `NSWorkspace.setDefaultApplication(at:toOpenURLsWithScheme:)` für http auf. macOS zeigt dann den eigenen Bestätigungsdialog.
-3. Der Autostart wird per `SMAppService.mainApp.register()` aktiviert.
+3. Der Autostart wird aktiviert (LaunchAgent, siehe unten).
+
+**Stabil über `brew upgrade`:** Homebrew installiert in ein versioniertes Cellar-Verzeichnis, das `brew cleanup` nach einem Upgrade löscht. Deshalb:
+- Läuft Doorman aus einem Cellar, legt es bei jedem Start `~/Applications/Doorman.app` als Symlink auf `<brew prefix>/opt/doorman/Doorman.app` an (bzw. korrigiert einen veralteten eigenen Symlink). Eine echte App an dieser Stelle bleibt unangetastet.
+- Der Autostart ist ein LaunchAgent `~/Library/LaunchAgents/io.github.schowave.doorman.plist`, der `open -a ~/Applications/Doorman.app` ausführt. `SMAppService.mainApp` würde sich den versionierten Pfad merken; ein solches Login-Item aus früheren Builds wird beim Start entfernt und ersetzt.
+- Der Standardbrowser hängt an der Bundle-ID und ist damit pfadunabhängig; jeder Start registriert die laufende Kopie neu (`LSRegisterURL`).
 
 ## 8. Architektur
 
