@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         setUpMainMenu()
         LSRegisterURL(Bundle.main.bundleURL as CFURL, true)
         CurrentInstallation.shared.prepare()
+        LaunchServicesCleanup.run()
         picker.prewarm()
         UpdateChecker.shared.startAutomaticChecks()
         if !defaults.bool(forKey: Self.onboardedKey) {

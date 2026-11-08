@@ -99,6 +99,16 @@ public struct Installation {
         return homebrew.optApp
     }
 
+    /// The LaunchServices registration an update left behind: the bundle Doorman ran from last
+    /// time, if that was elsewhere and is gone now (e.g. a Cellar version `brew cleanup` removed).
+    /// A previous copy that still exists, such as a dev build, is not stale.
+    public func staleRegistration(previousBundlePath: String?) -> URL? {
+        guard let previous = previousBundlePath, !previous.isEmpty,
+              previous != bundleURL.path, !fm.fileExists(atPath: previous)
+        else { return nil }
+        return URL(fileURLWithPath: previous)
+    }
+
     public var launchesAtLogin: Bool {
         fm.fileExists(atPath: agentURL.path)
     }

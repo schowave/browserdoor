@@ -124,6 +124,27 @@ struct InstallationTests {
         #expect(try agentTarget(inst) == inst.linkURL.path)
     }
 
+    @Test func upgradeLeavesTheOldCellarVersionStale() throws {
+        let old = try installHomebrew("0.2.1")
+        let current = try installation(installHomebrew("0.2.2"))
+        try fm.removeItem(at: old.deletingLastPathComponent()) // brew cleanup
+        #expect(current.staleRegistration(previousBundlePath: old.path) == old)
+    }
+
+    @Test func nothingIsStaleWithoutAnUpdate() throws {
+        let inst = try installation(installHomebrew("0.2.2"))
+        #expect(inst.staleRegistration(previousBundlePath: nil) == nil)
+        #expect(inst.staleRegistration(previousBundlePath: "") == nil)
+        #expect(inst.staleRegistration(previousBundlePath: inst.bundleURL.path) == nil)
+    }
+
+    @Test func anExistingPreviousCopyIsNotStale() throws {
+        let dev = root.appendingPathComponent("repo/build/Doorman.app")
+        try fm.createDirectory(at: dev, withIntermediateDirectories: true)
+        let inst = try installation(installHomebrew("0.2.2"))
+        #expect(inst.staleRegistration(previousBundlePath: dev.path) == nil)
+    }
+
     @Test func detectsHomebrewPaths() {
         let brew = HomebrewInstall.detect(bundlePath: "/opt/homebrew/Cellar/doorman/0.1.0/Doorman.app")
         #expect(brew?.prefix.path == "/opt/homebrew")

@@ -152,6 +152,7 @@ Beim ersten Start passiert Folgendes:
 - Läuft Doorman aus einem Cellar, legt es bei jedem Start `~/Applications/Doorman.app` als Symlink auf `<brew prefix>/opt/doorman/Doorman.app` an (bzw. korrigiert einen veralteten eigenen Symlink). Eine echte App an dieser Stelle bleibt unangetastet.
 - Der Autostart ist ein LaunchAgent `~/Library/LaunchAgents/io.github.schowave.doorman.plist`, der `open -a ~/Applications/Doorman.app` ausführt. `SMAppService.mainApp` würde sich den versionierten Pfad merken; ein solches Login-Item aus früheren Builds wird beim Start entfernt und ersetzt.
 - Der Standardbrowser hängt an der Bundle-ID und ist damit pfadunabhängig; jeder Start registriert die laufende Kopie neu (`LSRegisterURL`).
+- Nach einem Update trägt Doorman den Pfad der Version, aus der es zuletzt lief, aus LaunchServices aus (`lsregister -u`), wenn er nicht mehr existiert (`brew cleanup` hat ihn gelöscht). Existiert er noch (z. B. ein Dev-Build), bleibt er.
 
 ## 8. Architektur
 
