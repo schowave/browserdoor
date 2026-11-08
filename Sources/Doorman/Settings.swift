@@ -47,7 +47,7 @@ final class SettingsModel {
         extraApps = (config.extraApps ?? []).map(Self.extraApp)
         zenProfilePath = config.zen?.profilePath
         isDefaultBrowser = DefaultBrowser.isDoorman
-        launchesAtLogin = Installation.launchesAtLogin
+        launchesAtLogin = CurrentInstallation.shared.launchesAtLogin
         updateEffectiveKeys()
     }
 
@@ -163,8 +163,12 @@ final class SettingsModel {
     }
 
     func setLaunchAtLogin(_ enabled: Bool) {
-        Installation.setLaunchAtLogin(enabled)
-        launchesAtLogin = Installation.launchesAtLogin
+        do {
+            try CurrentInstallation.shared.setLaunchAtLogin(enabled)
+        } catch {
+            log.error("login item: \(error.localizedDescription, privacy: .public)")
+        }
+        launchesAtLogin = CurrentInstallation.shared.launchesAtLogin
     }
 
     private static func extraApp(_ bundleId: String) -> ExtraApp {

@@ -12,8 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         setUpStatusItem()
         setUpMainMenu()
         LSRegisterURL(Bundle.main.bundleURL as CFURL, true)
-        Installation.ensureUserApplicationsLink()
-        Installation.refreshLoginItem()
+        CurrentInstallation.shared.prepare()
         picker.prewarm()
         UpdateChecker.shared.startAutomaticChecks()
         if !defaults.bool(forKey: Self.onboardedKey) {
@@ -60,8 +59,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 DefaultBrowser.makeDoorman()
             }
         }
-        if !Installation.launchesAtLogin {
-            Installation.setLaunchAtLogin(true)
+        if !CurrentInstallation.shared.launchesAtLogin {
+            try? CurrentInstallation.shared.setLaunchAtLogin(true)
         }
     }
 

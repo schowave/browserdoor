@@ -132,10 +132,9 @@ final class UpdateChecker {
 
     /// `<prefix>/bin/brew` when Doorman runs from a Homebrew Cellar.
     static var brewExecutable: URL? {
-        let path = Bundle.main.bundlePath
-        guard let range = path.range(of: "/Cellar/") else { return nil }
-        let brew = URL(fileURLWithPath: String(path[..<range.lowerBound])).appendingPathComponent("bin/brew")
-        return FileManager.default.isExecutableFile(atPath: brew.path) ? brew : nil
+        guard let brew = CurrentInstallation.shared.homebrew?.brew,
+              FileManager.default.isExecutableFile(atPath: brew.path) else { return nil }
+        return brew
     }
 
     /// Opens a `.command` script in Terminal: upgrade, quit this Doorman, start the new one.
