@@ -16,66 +16,44 @@ final class SettingsModel {
         }
     }
 
-    var rows: [TargetSetting] = []
-    var defaultTarget: String?
-    var extraApps: [ExtraApp] = []
-    var zenProfilePath: String?
+    /// Loaded targets plus the edits made here; saved on every change.
+    var state: CatalogState
     var isDefaultBrowser = false
     var launchesAtLogin = false
     var configError: String?
-    /// The key each visible target actually gets in the picker (custom or automatic).
-    var effectiveKeys: [String: String] = [:]
     var selection: String?
 
-    private var config = Config()
     private let environment = SystemEnvironment()
-    private var configURL: URL {
-        Config.fileURL(home: environment.home)
+    private var catalog: TargetCatalog {
+        TargetCatalog(environment: environment)
+    }
+
+    init() {
+        state = TargetCatalog(environment: SystemEnvironment()).load()
     }
 
     func reload() {
-        do {
-            config = try Config.load(from: configURL)
-            configError = nil
-        } catch {
-            config = Config()
-            configError = L("config.json can't be read; saving here will replace it.")
-        }
-        let targets = discovery().discover()
-        rows = config.settings(for: targets)
-        defaultTarget = config.defaultTarget
-        extraApps = (config.extraApps ?? []).map(Self.extraApp)
-        zenProfilePath = config.zen?.profilePath
+        state = catalog.load()
+        configError = state.configIsUnreadable ? L("config.json can't be read; saving here will replace it.") : nil
         isDefaultBrowser = DefaultBrowser.isDoorman
         launchesAtLogin = CurrentInstallation.shared.launchesAtLogin
-        updateEffectiveKeys()
     }
 
-    private func updateEffectiveKeys() {
-        var preview = config
-        preview.apply(rows)
-        let entries = preview.entries(for: rows.map(\.target))
-        effectiveKeys = Dictionary(entries.compactMap { entry in entry.hotkey.map { (entry.id, String($0)) } },
-                                   uniquingKeysWith: { first, _ in first })
+    /// Apps the user added, with name and icon for display.
+    var extraApps: [ExtraApp] {
+        state.extraApps.map(Self.extraApp)
     }
 
     /// The selected row is an app the user added (and can remove with −).
     var selectionIsExtraApp: Bool {
-        guard let id = selection, id.hasPrefix("app:") else { return false }
-        return extraApps.contains { id == "app:\($0.bundleId)" }
+        guard let id = selection else { return false }
+        return state.extraApps.contains { id == Target.appID($0) }
     }
 
     func removeSelectedExtraApp() {
         guard selectionIsExtraApp, let id = selection else { return }
         removeExtraApp(String(id.dropFirst("app:".count)))
         selection = nil
-    }
-
-    private func discovery() -> Discovery {
-        let profile = config.zen?.profilePath.map {
-            URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath, isDirectory: true)
-        }
-        return Discovery(environment: environment, zenProfileOverride: profile, extraApps: config.extraApps ?? [])
     }
 
     func icon(for target: Target) -> EntryIcon {
@@ -85,13 +63,8 @@ final class SettingsModel {
     // MARK: Edits
 
     func save() {
-        config.apply(rows)
-        config.defaultTarget = defaultTarget
-        config.extraApps = extraApps.map(\.bundleId)
-        config.zen = zenProfilePath.map { Config.Zen(profilePath: $0) }
-        updateEffectiveKeys()
         do {
-            try config.save(to: configURL)
+            state = try catalog.save(state)
             configError = nil
         } catch {
             configError = L("Couldn't save settings: %@", error.localizedDescription)
@@ -99,12 +72,12 @@ final class SettingsModel {
     }
 
     func move(from source: IndexSet, to destination: Int) {
-        rows.move(fromOffsets: source, toOffset: destination)
+        state.rows.move(fromOffsets: source, toOffset: destination)
         save()
     }
 
     func setDefault(_ id: String?) {
-        defaultTarget = id
+        state.defaultTarget = id
         save()
     }
 
@@ -117,19 +90,15 @@ final class SettingsModel {
         NSApp.activate()
         guard panel.runModal() == .OK else { return }
         for url in panel.urls {
-            guard let id = environment.appInfo(at: url)?.bundleId,
-                  !extraApps.contains(where: { $0.bundleId == id }) else { continue }
-            extraApps.append(Self.extraApp(id))
+            guard let id = environment.appInfo(at: url)?.bundleId, !state.extraApps.contains(id) else { continue }
+            state.extraApps.append(id)
         }
         save()
-        // New apps only show up as targets if they open web links; refresh the list.
-        rows = config.settings(for: discovery().discover())
     }
 
     func removeExtraApp(_ id: String) {
-        extraApps.removeAll { $0.bundleId == id }
+        state.extraApps.removeAll { $0 == id }
         save()
-        rows = config.settings(for: discovery().discover())
     }
 
     func chooseZenProfile() {
@@ -140,22 +109,21 @@ final class SettingsModel {
         panel.directoryURL = ZenProfile.defaultRoot(home: environment.home).appendingPathComponent("Profiles")
         NSApp.activate()
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        zenProfilePath = url.path
+        state.zenProfilePath = url.path
         save()
-        reload()
     }
 
     func resetZenProfile() {
-        zenProfilePath = nil
+        state.zenProfilePath = nil
         save()
-        reload()
     }
 
     func revealConfig() {
-        if !FileManager.default.fileExists(atPath: configURL.path) {
+        let url = catalog.configURL
+        if !FileManager.default.fileExists(atPath: url.path) {
             save()
         }
-        NSWorkspace.shared.activateFileViewerSelecting([configURL])
+        NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 
     func makeDefaultBrowser() {
@@ -283,7 +251,7 @@ private struct TargetsTab: View {
                 .fixedSize(horizontal: false, vertical: true)
             VStack(spacing: 0) {
                 List(selection: $model.selection) {
-                    ForEach($model.rows) { $row in
+                    ForEach($model.state.rows) { $row in
                         TargetRow(row: $row, model: model).tag(row.id as String?)
                     }
                     .onMove { model.move(from: $0, to: $1) }
@@ -319,7 +287,7 @@ private struct TargetRow: View {
     let model: SettingsModel
 
     private var isDefault: Bool {
-        model.defaultTarget == row.id
+        model.state.defaultTarget == row.id
     }
 
     var body: some View {
@@ -341,7 +309,7 @@ private struct TargetRow: View {
             .opacity(row.hidden ? 0.5 : 1)
             .help(row.label == nil ? L("Click to rename") : L("Renamed from “%@”", row.target.name))
             Spacer(minLength: 8)
-            TextField(row.hidden ? "–" : (model.effectiveKeys[row.id]?.uppercased() ?? "–"), text: Binding(
+            TextField(row.hidden ? "–" : (model.state.effectiveKeys[row.id].map { String($0).uppercased() } ?? "–"), text: Binding(
                 get: { row.hotkey?.uppercased() ?? "" },
                 set: { row.hotkey = TargetSetting.normalizeHotkey($0); model.save() }
             ))
@@ -390,12 +358,12 @@ private struct AdvancedTab: View {
             Section {
                 LabeledContent(L("Profile")) {
                     HStack {
-                        Text(model.zenProfilePath.map { ($0 as NSString).lastPathComponent } ?? L("Automatic (default profile)"))
+                        Text(model.state.zenProfilePath.map { ($0 as NSString).lastPathComponent } ?? L("Automatic (default profile)"))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .truncationMode(.middle)
                         Button(L("Choose…")) { model.chooseZenProfile() }
-                        if model.zenProfilePath != nil {
+                        if model.state.zenProfilePath != nil {
                             Button(L("Reset")) { model.resetZenProfile() }
                         }
                     }

@@ -59,10 +59,4 @@ struct ConfigTests {
     @Test func missingFileIsEmptyConfig() throws {
         #expect(try Config.load(from: URL(fileURLWithPath: "/nonexistent/config.json")) == Config())
     }
-
-    @Test func templateRoundTrips() throws {
-        let config = try JSONDecoder().decode(Config.self, from: Config.template(for: targets))
-        #expect(config.order == ["a", "b", "c", "d"])
-        #expect(config.targets?["b"]?.label == "B")
-    }
 }

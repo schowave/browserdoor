@@ -31,7 +31,7 @@ public struct TargetSetting: Equatable, Sendable, Identifiable {
     }
 }
 
-public extension Config {
+extension Config {
     /// All discovered targets in config order, hidden ones included, for editing.
     func settings(for discovered: [Target]) -> [TargetSetting] {
         let hiddenSet = Set(hidden ?? [])
@@ -39,8 +39,8 @@ public extension Config {
             let override = targets?[target.id]
             return TargetSetting(
                 target: target,
-                label: override?.label.flatMap { $0.isEmpty || $0 == target.name ? nil : $0 },
-                hotkey: override?.hotkey.flatMap { $0.isEmpty ? nil : $0.lowercased() },
+                label: Config.customLabel(override?.label, detected: target.name),
+                hotkey: Config.customHotkey(override?.hotkey).map(String.init),
                 hidden: hiddenSet.contains(target.id)
             )
         }

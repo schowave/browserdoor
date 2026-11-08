@@ -59,19 +59,6 @@ public struct Config: Codable, Equatable, Sendable {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         try encoder.encode(self).write(to: url, options: .atomic)
     }
-
-    /// A starter config listing every currently discovered target with its name as label.
-    public static func template(for targets: [Target]) throws -> Data {
-        let config = Config(
-            order: targets.map(\.id),
-            hidden: [],
-            extraApps: [],
-            targets: Dictionary(targets.map { ($0.id, TargetOverride(label: $0.name)) }, uniquingKeysWith: { first, _ in first })
-        )
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        return try encoder.encode(config)
-    }
 }
 
 /// A target as shown in the picker, with config applied.
@@ -94,9 +81,8 @@ public extension Config {
 
         var entries = sorted.map { target in
             let override = targets?[target.id]
-            let label = override?.label.flatMap { $0.isEmpty ? nil : $0 } ?? target.name
-            let hotkey = override?.hotkey.flatMap { $0.count == 1 ? Character($0.lowercased()) : nil }
-            return PickerEntry(target: target, label: label, hotkey: hotkey)
+            let label = Self.customLabel(override?.label, detected: target.name) ?? target.name
+            return PickerEntry(target: target, label: label, hotkey: Self.customHotkey(override?.hotkey))
         }
 
         // Explicit hotkeys win; a duplicate explicit hotkey stays only on the first entry.
@@ -116,6 +102,18 @@ public extension Config {
             entries[i].hotkey = key
         }
         return entries
+    }
+
+    /// A label that differs from the detected name, or nil.
+    internal static func customLabel(_ label: String?, detected: String) -> String? {
+        guard let label, !label.isEmpty, label != detected else { return nil }
+        return label
+    }
+
+    /// A single-character hotkey, lowercased, or nil.
+    internal static func customHotkey(_ hotkey: String?) -> Character? {
+        guard let hotkey, hotkey.count == 1, let key = hotkey.lowercased().first else { return nil }
+        return key
     }
 
     /// `discovered` in config order: listed IDs first, the rest in discovery order.

@@ -72,24 +72,10 @@ final class PickerController: NSObject, NSWindowDelegate {
     }
 
     private func reload() {
-        let environment = SystemEnvironment()
-        var config = Config()
-        model.warning = nil
-        do {
-            config = try Config.load(from: Config.fileURL(home: environment.home))
-        } catch {
-            model.warning = L("config.json is invalid; using defaults")
-        }
-        let profileOverride = config.zen?.profilePath.map {
-            URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath, isDirectory: true)
-        }
-        let t0 = ContinuousClock.now
-        let targets = Discovery(environment: environment, zenProfileOverride: profileOverride, extraApps: config.extraApps ?? []).discover()
-        let t1 = ContinuousClock.now
-        let entries = config.entries(for: targets)
-        model.rows = entries.map { PickerModel.Row(entry: $0, icon: icons.icon(for: $0.target)) }
-        log.debug("timing: discover \(String(describing: t1 - t0), privacy: .public), icons \(String(describing: ContinuousClock.now - t1), privacy: .public)")
-        model.selection = config.defaultIndex(in: entries) ?? 0
+        let state = TargetCatalog(environment: SystemEnvironment()).load()
+        model.warning = state.configIsUnreadable ? L("config.json is invalid; using defaults") : nil
+        model.rows = state.pickerEntries.map { PickerModel.Row(entry: $0, icon: icons.icon(for: $0.target)) }
+        model.selection = state.defaultIndex ?? 0
     }
 
     private func makePanel() -> PickerPanel {

@@ -4,30 +4,7 @@ import Testing
 
 struct DiscoveryTests {
     func environment(zenVersion: String = "1.24.1b") -> FakeEnvironment {
-        var env = FakeEnvironment()
-        env.addApp("io.github.schowave.doorman", name: "Doorman")
-        env.addApp("com.apple.Safari", name: "Safari")
-        env.addApp("app.zen-browser.zen", name: "Zen", version: zenVersion, executable: "zen")
-        env.addApp("com.google.Chrome", name: "Google Chrome")
-        env.addApp("com.google.Chrome.beta", name: "Google Chrome Beta")
-        env.addApp("org.mozilla.firefox", name: "Firefox")
-        env.addApp("com.googlecode.iterm2", name: "iTerm")
-        env.addApp("se.johnste.finicky", name: "Finicky")
-        env.addApp("com.webcatalog.juli.gmail", name: "Gmail", folder: "/Users/test/Applications/WebCatalog Apps")
-        // A test browser in a cache dir, registered before the real Chrome.
-        let cached = URL(fileURLWithPath: "/Users/test/.cache/puppeteer/chrome/Google Chrome.app")
-        env.extraHandlers = [cached]
-        env.extraInfos[cached] = AppInfo(bundleId: "com.google.Chrome", name: "Cached Chrome")
-
-        let zenRoot = "/Users/test/Library/Application Support/zen"
-        env.files["\(zenRoot)/profiles.ini"] = Data("[Install1]\nDefault=Profiles/p1\n".utf8)
-        env.files["\(zenRoot)/Profiles/p1/zen-sessions.jsonlz4"] = mozLz4(json: sessionJSON)
-
-        let chrome = "/Users/test/Library/Application Support/Google/Chrome/Local State"
-        env.files[chrome] = Data(#"{"profile":{"info_cache":{"Default":{"name":"Work"},"Profile 2":{"name":"David"}}}}"#.utf8)
-        let beta = "/Users/test/Library/Application Support/Google/Chrome Beta/Local State"
-        env.files[beta] = Data(#"{"profile":{"info_cache":{"Default":{"name":"Person 1"}}}}"#.utf8)
-        return env
+        sampleEnvironment(zenVersion: zenVersion)
     }
 
     @Test func discoversInDefaultOrder() {
@@ -112,7 +89,7 @@ struct DiscoveryTests {
         let targets = Discovery(environment: env).discover()
         #expect(targets.filter { $0.id == "zen:{d}" }.map(\.name) == ["A"])
         #expect(Set(targets.map(\.id)).count == targets.count)
-        #expect((try? Config.template(for: targets + targets)) != nil) // must not trap
+        #expect(Config().entries(for: targets + targets).count > 0) // must not trap
     }
 
     @Test func dataVolumePathsAreNotSystem() {
