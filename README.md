@@ -1,42 +1,38 @@
 <div align="center">
 
-<img src="Resources/Icon/AppIcon.svg" width="128" alt="Doorman app icon: a door standing ajar with warm light">
+<img src="Resources/Icon/AppIcon.svg" width="112" alt="Doorman app icon: a door standing ajar with warm light">
 
 # Doorman
 
-**Every link, through the right door.**
-
-Doorman is a macOS link picker. When you click a link anywhere, it asks where the link should go: a specific **Zen workspace**, a **Chrome profile** or another browser.
+A link picker for macOS. Click a link anywhere, then choose the Zen space, Chrome profile or browser it opens in.
 
 [![CI](https://github.com/schowave/doorman/actions/workflows/ci.yml/badge.svg)](https://github.com/schowave/doorman/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/schowave/doorman?sort=semver)](https://github.com/schowave/doorman/releases)
-![macOS 14+](https://img.shields.io/badge/macOS-14%2B-black?logo=apple)
-![Swift 6](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 <img src="docs/demo.gif" width="720" alt="Animated demo: a link is clicked in a chat app, the Doorman picker appears at the pointer listing Zen spaces, Chrome profiles and Safari; the down arrow selects the Client space, Return opens it, and Zen shows the new tab in the Client space">
 
 </div>
 
-## Why
+## Why I built it
 
-[Browserosaurus](https://github.com/will-stone/browserosaurus) and [Finicky](https://github.com/johnste/finicky) pick a browser. With [Zen](https://zen-browser.app), you also want to pick **where inside the browser** a link goes, such as the work, client or personal workspace. Doorman lists every Zen workspace as its own target, next to Chromium profiles and your other browsers.
+I use [Zen](https://zen-browser.app) with one space per client, each with its own container. Links from Slack, Mail or Teams always opened in whatever space happened to be active, so I kept ending up in the wrong account and moving tabs around by hand.
 
-## Features
+[Browserosaurus](https://github.com/will-stone/browserosaurus) and [Finicky](https://github.com/johnste/finicky) solve this for browsers, but not for spaces inside a browser. Doorman shows each Zen space as its own entry, next to Chrome profiles and your other browsers. You pick one with a number key or a click.
 
-- **Zen workspaces as targets.** Doorman reads your workspaces with their names, icons and colors, and opens links with Zen's official `--space` flag (Zen 1.24 or later).
-- **Chromium profiles.** Chrome, Brave, Edge, Vivaldi and Chromium each list every profile as its own target.
-- **All your real browsers.** Doorman detects them from a built-in list, so terminals, web-app wrappers and test builds stay out of the list.
-- **Keyboard first.** Every target has a number key. `Enter` opens the default target.
-- **Several links at once.** When several links arrive at the same time, they share one panel, and a single choice opens them all.
-- **Small and native.** A menu bar app in Swift and SwiftUI, with no Electron. Its only network access is the optional update check against GitHub.
-- **Safe with odd input.** Only `http`, `https` and `file` URLs are passed on to a browser.
+What it does:
+
+- reads your Zen spaces (names, icons, colors) and opens links with Zen's `--space` flag (Zen 1.24 or later)
+- lists every profile of Chrome, Brave, Edge, Vivaldi and Chromium separately
+- only shows real browsers, so terminals, web-app wrappers and test builds stay out of the list
+- collects links that arrive at the same moment into one picker, so one choice opens them all
+- runs as a small menu bar app (Swift/SwiftUI). The only network request is the update check, which you can turn off.
 
 ## Requirements
 
 - macOS 14 (Sonoma) or later
-- Xcode or the Command Line Tools with Swift 6, because Homebrew builds Doorman from source
-- For workspace targets: [Zen](https://zen-browser.app) 1.24 or later. Older Zen versions show up as a single target.
+- Xcode 16, since Homebrew builds Doorman from source
+- For spaces: [Zen](https://zen-browser.app) 1.24 or later. Older versions show up as a single entry.
 
 ## Installation
 
@@ -45,19 +41,13 @@ brew install schowave/tap/doorman
 doorman
 ```
 
-`doorman` starts the app. It always points at the installed version, so it also works after an upgrade.
+`doorman` starts the app and always points at the installed version.
 
-On first launch, Doorman:
-
-1. offers to become your **default browser**. macOS then asks you to confirm.
-2. adds a **login item**, a LaunchAgent in `~/Library/LaunchAgents`.
-3. links itself to `~/Applications/Doorman.app`. That path keeps pointing at the current version after `brew upgrade`.
-
-**After `brew upgrade doorman`**, quit Doorman from the menu bar and start it again with `doorman`.
+On first launch Doorman asks whether it should become your default browser (macOS asks you to confirm), adds a login item and puts a link at `~/Applications/Doorman.app`. That link keeps working after `brew upgrade`. After an upgrade, quit Doorman from the menu bar and run `doorman` again.
 
 ## Usage
 
-Click a link in any app. The picker opens at the mouse pointer:
+Click a link in any app and the picker opens at the mouse pointer:
 
 | Key | Action |
 |---|---|
@@ -66,17 +56,13 @@ Click a link in any app. The picker opens at the mouse pointer:
 | `⌘C` | Copy the URL(s) |
 | `Esc`, or a click outside the panel | Cancel |
 
-The menu bar icon opens **Settings…** (⌘,) and **Check for Updates…**. If Doorman isn't your default browser, the menu says so and offers to fix it. Doorman follows your system language (English or German).
+The menu bar icon has **Settings…** (⌘,) and **Check for Updates…**. If Doorman isn't your default browser, the menu tells you and offers to fix it. The app is in English or German, depending on your system language.
 
 ## Configuration
 
-Open **Settings…** from the menu bar, or start Doorman again while it runs (`doorman`):
+Open **Settings…** from the menu bar, or run `doorman` while it's already running. Under *Targets* you can drag entries into a different order, hide them, rename them, give them a key and star the one `Enter` should open. **+** adds any app, **−** removes it again. *General* has the default browser, login item and update check, *Advanced* the Zen profile and the config file.
 
-- **General:** default browser, start at login, automatic update checks.
-- **Targets:** every detected Zen space, browser and profile. Drag to reorder, untick to hide, click a name to rename it, type a key to set a shortcut, and use the star to pick the default target for `Enter`. Use **+** to add any app, and **−** to remove one you added.
-- **Advanced:** additional apps, the Zen profile, and the configuration file in Finder.
-
-Settings are stored in `~/.config/doorman/config.json`, so you can also edit the file by hand or keep it in your dotfiles:
+Everything ends up in `~/.config/doorman/config.json`, so you can also edit that by hand or keep it in your dotfiles:
 
 ```json
 {
@@ -109,40 +95,40 @@ Target IDs come in three forms:
 | `chromium:<bundleId>:<profileDir>` | A Chromium profile, e.g. `chromium:com.google.Chrome:Profile 2` |
 | `app:<bundleId>` | Any other browser |
 
-Doorman reads the file every time the picker opens, so changes apply immediately. If the file is invalid, the picker shows a warning and uses the defaults.
+Doorman reads the file each time the picker opens, so changes apply right away. If the file is broken, the picker shows a warning and falls back to the defaults.
 
 ## How it works
 
-- **Zen workspaces.** Doorman reads them from the Zen profile, from `zen-sessions.jsonlz4` (Mozilla's LZ4 format). For a workspace, it runs `zen --space "{uuid}" <url>`. If Zen is already running, the command reaches that instance. If Zen is closed, Doorman starts it through LaunchServices, and Zen opens in the chosen workspace.
-- **Chromium profiles.** Doorman reads them from each browser's `Local State` file and opens links with `open -na <App> --args --profile-directory=<dir> <url>`.
-- **Workspace icons.** Doorman extracts Zen's SVG icons once per Zen version, in the background, into `~/Library/Caches/io.github.schowave.doorman`.
+Zen keeps its spaces in `zen-sessions.jsonlz4` in the profile folder (Mozilla's LZ4 format). Doorman reads that file and opens a link with `zen --space "{uuid}" <url>`. If Zen is already running, the command goes to that instance; if not, Doorman starts Zen through LaunchServices and it opens in the chosen space. The space icons come from Zen's `omni.ja` and are cached per Zen version.
 
-More details are in [SPEC.md](SPEC.md).
+Chromium profiles come from each browser's `Local State` file, and links open with `open -na <App> --args --profile-directory=<dir> <url>`.
+
+The details are in [SPEC.md](SPEC.md).
 
 ## Troubleshooting
 
 <details>
 <summary><b>A Zen workspace I just created is missing</b></summary>
 
-Zen saves its session file periodically, not after every change. The workspace appears once Zen has saved, usually within a short time.
+Zen doesn't write its session file after every change. The space shows up once Zen has saved, which usually doesn't take long.
 </details>
 
 <details>
 <summary><b>Zen shows up as one entry without workspaces</b></summary>
 
-Doorman needs Zen 1.24 or later, because that release added `--space`. It also needs to find the right profile. If you use another profile, set `zen.profilePath`.
+You need Zen 1.24 or later, since that's where `--space` came in. If you don't use Zen's default profile, pick yours under *Settings → Advanced*.
 </details>
 
 <details>
 <summary><b>A browser is missing from the list</b></summary>
 
-Only known browsers in `/Applications`, `~/Applications` or `/System` appear. Add other apps by bundle ID under `extraApps`. To find an app's bundle ID, run `osascript -e 'id of app "AppName"'`.
+Doorman only lists known browsers from `/Applications`, `~/Applications` and `/System`. Add anything else with **+** under *Settings → Targets*.
 </details>
 
 <details>
 <summary><b>"Start at login" is on, but Doorman doesn't start at login</b></summary>
 
-The checkmark only shows that Doorman's LaunchAgent exists. macOS can still block it: check **System Settings → General → Login Items & Extensions** and allow Doorman under *Allow in the Background*.
+The checkmark only means the LaunchAgent exists. macOS can still block it, so check **System Settings → General → Login Items & Extensions** and allow Doorman under *Allow in the Background*.
 </details>
 
 <details>
@@ -153,7 +139,7 @@ Open the menu bar menu. If it says Doorman isn't your default browser, choose **
 
 ## Updates
 
-Doorman checks GitHub for a new release once a day; turn this off under **Settings → General**. When an update is available, **Update in Terminal** runs `brew upgrade doorman` and restarts Doorman. You can also update by hand:
+Doorman looks for a new release on GitHub once a day (you can switch that off in the settings). If there is one, **Update in Terminal** runs `brew upgrade doorman` and restarts the app. Or do it yourself:
 
 ```sh
 brew upgrade doorman && doorman
@@ -167,11 +153,11 @@ rm -f ~/Applications/Doorman.app ~/Library/LaunchAgents/io.github.schowave.doorm
 rm -rf ~/.config/doorman ~/Library/Caches/io.github.schowave.doorman
 ```
 
-Then pick a new default browser in **System Settings → Desktop & Dock → Default web browser**.
+Then pick another default browser in **System Settings → Desktop & Dock → Default web browser**.
 
 ## Development
 
-[mise](https://mise.jdx.dev) provides the tooling and the tasks. Swift comes from Xcode or the Command Line Tools.
+Tooling and tasks run through [mise](https://mise.jdx.dev); Swift comes from Xcode.
 
 ```sh
 mise install        # actionlint, shellcheck, swiftformat (pinned in mise.toml)
@@ -184,20 +170,17 @@ mise run demo-gif   # re-render docs/demo.gif from docs/demo/frames.py
 mise run social-preview  # re-render docs/social/preview.png (GitHub social preview)
 ```
 
-- `Sources/DoormanCore` contains the logic: parsers, discovery, config and launch commands. Its unit tests run without the UI.
-- `Sources/Doorman` contains the app: the AppKit and SwiftUI code, the panel and the menu bar.
-- The tasks in `.mise/tasks/` are plain shell scripts. The Homebrew formula runs `.mise/tasks/install` directly, so you don't need mise to install Doorman.
+The logic lives in `Sources/DoormanCore` and is tested without the UI; `Sources/Doorman` is the app itself. [GLOSSARY.md](GLOSSARY.md) explains the terms used in the code. The tasks in `.mise/tasks/` are plain shell scripts, and the Homebrew formula calls `.mise/tasks/install` directly, so installing doesn't need mise.
 
 ### Releases and dependencies
 
-- **Manual release:** push a tag such as `v0.2.0`. [`release.yml`](.github/workflows/release.yml) then tests and builds Doorman, creates the GitHub release and updates `Formula/doorman.rb` in [schowave/homebrew-tap](https://github.com/schowave/homebrew-tap).
-- **Renovate** opens one pull request for GitHub Actions and one for the mise tools every Monday. It takes only versions that have been out for 7 days, and waits for your approval on the Dependency Dashboard before a major update. It merges each pull request once CI passes.
-- **Patch releases:** when a Renovate merge changes the app itself (`Sources/`, `Resources/`, `Package.swift`), [`auto-release.yml`](.github/workflows/auto-release.yml) tags the next patch version and releases it. Updates that only affect CI or tooling don't produce a release.
-- **CI** also builds the Homebrew formula from a source tarball with `brew install --build-from-source`, `brew test` and `brew audit --strict`.
+Pushing a tag like `v0.2.0` runs [`release.yml`](.github/workflows/release.yml): tests, build, GitHub release, and an updated `Formula/doorman.rb` in [schowave/homebrew-tap](https://github.com/schowave/homebrew-tap). CI also installs the formula from a source tarball with `brew install --build-from-source` and runs `brew test` and `brew audit --strict`.
+
+Renovate opens a weekly pull request for GitHub Actions and one for the mise tools, waits seven days after a release before picking it up, and asks before major updates. It merges once CI is green. If a merge changes the app itself, [`auto-release.yml`](.github/workflows/auto-release.yml) tags and releases the next patch version.
 
 ## Acknowledgements
 
-Doorman is inspired by [Browserosaurus](https://github.com/will-stone/browserosaurus) and [Finicky](https://github.com/johnste/finicky). It relies on [Zen](https://github.com/zen-browser/desktop)'s `--space` command-line flag.
+Thanks to [Browserosaurus](https://github.com/will-stone/browserosaurus) and [Finicky](https://github.com/johnste/finicky) for the idea, and to the [Zen](https://github.com/zen-browser/desktop) team for the `--space` flag that makes this possible.
 
 ## License
 
