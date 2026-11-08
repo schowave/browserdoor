@@ -3,8 +3,9 @@ import Foundation
 /// Everything opening links needs from the system. The app's adapter uses LaunchServices,
 /// `Process` and `NSRunningApplication`; tests record the calls.
 public protocol LaunchPort {
-    func bundleIdentifier(of app: URL) -> String?
-    func isRunning(bundleId: String) -> Bool
+    /// Whether the app at this path runs right now. Must not err towards false: a running Zen
+    /// that is taken for closed gets a cold-start command, which drops the link.
+    func isRunning(app: URL) -> Bool
     func contents(of file: URL) -> Data?
     /// Starts an executable without waiting for it.
     func run(_ executable: URL, arguments: [String])
@@ -41,7 +42,7 @@ public struct LinkOpener {
     /// Opens `links` in `target`. A running Zen gets the command via its remote service and is
     /// then brought forward; a closed Zen starts through LaunchServices.
     public func open(_ links: [URL], in target: Target) {
-        let running = port.bundleIdentifier(of: target.appURL).map(port.isRunning(bundleId:)) ?? false
+        let running = port.isRunning(app: target.appURL)
         let commands = target.launchCommands(for: links, appIsRunning: running)
         for command in commands {
             switch command {

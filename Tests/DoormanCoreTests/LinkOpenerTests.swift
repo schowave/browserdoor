@@ -12,15 +12,10 @@ final class RecordingPort: LaunchPort {
 
     var running: Set<String> = []
     var files: [String: Data] = [:]
-    var bundleIds: [String: String] = [:]
     private(set) var calls: [Call] = []
 
-    func bundleIdentifier(of app: URL) -> String? {
-        bundleIds[app.path]
-    }
-
-    func isRunning(bundleId: String) -> Bool {
-        running.contains(bundleId)
+    func isRunning(app: URL) -> Bool {
+        running.contains(app.path)
     }
 
     func contents(of file: URL) -> Data? {
@@ -49,9 +44,7 @@ struct LinkOpenerTests {
     let b = URL(string: "https://b.example/x?y=1")!
 
     func port() -> RecordingPort {
-        let port = RecordingPort()
-        port.bundleIds = [zenApp.path: "app.zen-browser.zen", chrome.path: "com.google.Chrome", safari.path: "com.apple.Safari"]
-        return port
+        RecordingPort()
     }
 
     func zenSpace(profile: URL? = nil) -> Target {
@@ -89,7 +82,7 @@ struct LinkOpenerTests {
 
     @Test func runningZenGetsOneRemoteCommandPerLinkThenActivates() {
         let port = port()
-        port.running = ["app.zen-browser.zen"]
+        port.running = [zenApp.path]
         LinkOpener(port: port).open([a, b], in: zenSpace())
         #expect(port.calls == [
             .run(zenExe.path, ["--space", "{u}", a.absoluteString]),
@@ -108,7 +101,7 @@ struct LinkOpenerTests {
 
     @Test func zenProfileOverrideIsPassed() {
         let port = port()
-        port.running = ["app.zen-browser.zen"]
+        port.running = [zenApp.path]
         LinkOpener(port: port).open([a], in: zenSpace(profile: URL(fileURLWithPath: "/p/work")))
         #expect(port.calls.first == .run(zenExe.path, ["--profile", "/p/work", "--space", "{u}", a.absoluteString]))
     }
@@ -130,7 +123,7 @@ struct LinkOpenerTests {
 
     @Test func disallowedLinksNeverReachACommandLine() throws {
         let port = port()
-        port.running = ["app.zen-browser.zen"]
+        port.running = [zenApp.path]
         let evil = try [#require(URL(string: "--load-extension=/tmp/x")), #require(URL(string: "javascript:alert(1)"))]
         LinkOpener(port: port).open(evil, in: zenSpace())
         LinkOpener(port: port).open(evil, in: Target(id: "c", name: "C", kind: .chromium(app: chrome, profileDirectory: "Default")))
