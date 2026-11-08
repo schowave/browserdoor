@@ -8,14 +8,18 @@ public enum MozLz4 {
         case badMagic
         case truncated
         case corrupt
+        case tooLarge
     }
 
     static let magic: [UInt8] = Array("mozLz40\0".utf8)
+    /// Upper bound for the decompressed size. Real session files are a few MB.
+    public static let maxDecompressedSize = 64 * 1024 * 1024
 
     public static func decompress(_ data: Data) throws(DecodeError) -> Data {
         let bytes = [UInt8](data)
         guard bytes.count >= 12, Array(bytes[0..<8]) == magic else { throw .badMagic }
         let size = Int(bytes[8]) | Int(bytes[9]) << 8 | Int(bytes[10]) << 16 | Int(bytes[11]) << 24
+        guard size <= maxDecompressedSize else { throw .tooLarge }
         return Data(try LZ4Block.decompress(bytes[12...], expectedSize: size))
     }
 }
@@ -45,6 +49,7 @@ enum LZ4Block {
 
             let literalLength = try readLength(Int(token >> 4))
             guard literalLength <= end - i else { throw .truncated }
+            guard literalLength <= expectedSize - out.count else { throw .corrupt }
             out.append(contentsOf: src[i..<(i + literalLength)])
             i += literalLength
 
@@ -57,6 +62,8 @@ enum LZ4Block {
             guard offset > 0, offset <= out.count else { throw .corrupt }
 
             let matchLength = try readLength(Int(token & 0x0F)) + 4
+            // Never grow past the declared size: a tiny crafted block could otherwise expand to GBs.
+            guard matchLength <= expectedSize - out.count else { throw .corrupt }
             // Byte-wise copy: matches may overlap their own output.
             let start = out.count - offset
             for k in 0..<matchLength {

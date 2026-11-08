@@ -95,6 +95,25 @@ struct DiscoveryTests {
         #expect(profile?.path == "/custom")
     }
 
+    @Test func duplicateSpaceIDsAreDropped() {
+        var env = environment()
+        let zenRoot = "/Users/test/Library/Application Support/zen"
+        env.files["\(zenRoot)/Profiles/p1/zen-sessions.jsonlz4"] =
+            mozLz4(json: #"{"spaces":[{"uuid":"{d}","name":"A"},{"uuid":"{d}","name":"B"}]}"#)
+        let targets = Discovery(environment: env).discover()
+        #expect(targets.filter { $0.id == "zen:{d}" }.map(\.name) == ["A"])
+        #expect(Set(targets.map(\.id)).count == targets.count)
+        #expect((try? Config.template(for: targets + targets)) != nil) // must not trap
+    }
+
+    @Test func dataVolumePathsAreNotSystem() {
+        let discovery = Discovery(environment: FakeEnvironment())
+        #expect(discovery.isInApplicationFolder(URL(fileURLWithPath: "/System/Applications/Safari.app")))
+        #expect(discovery.isInApplicationFolder(URL(fileURLWithPath: "/Users/test/Applications/X.app")))
+        #expect(!discovery.isInApplicationFolder(URL(fileURLWithPath: "/System/Volumes/Data/Users/test/Library/Caches/x/Chrome.app")))
+        #expect(!discovery.isInApplicationFolder(URL(fileURLWithPath: "/Users/test/.cache/Chrome.app")))
+    }
+
     @Test func versionComparison() {
         #expect(Discovery.versionAtLeast("1.24.1b", [1, 24]))
         #expect(Discovery.versionAtLeast("1.24", [1, 24]))

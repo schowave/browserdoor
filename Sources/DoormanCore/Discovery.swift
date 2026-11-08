@@ -63,7 +63,10 @@ public struct Discovery {
             .filter { wanted.contains($0.info.bundleId) && !covered.contains($0.info.bundleId) }
             .map { Target(id: Target.appID($0.info.bundleId), name: $0.info.name, kind: .app($0.url)) }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-        return result + others
+
+        // IDs must be unique (config keys, SwiftUI identity); keep the first occurrence.
+        var seen = Set<String>()
+        return (result + others).filter { seen.insert($0.id).inserted }
     }
 
     /// One app per bundle ID among the `https` handlers, ignoring copies outside the
@@ -79,6 +82,8 @@ public struct Discovery {
 
     func isInApplicationFolder(_ app: URL) -> Bool {
         let path = app.standardizedFileURL.path
+        // /System/Volumes/Data is the firmlinked user volume (home dirs, caches), not the system.
+        if path.hasPrefix("/System/Volumes/Data/") { return false }
         let roots = ["/Applications/", "/System/", environment.home.appendingPathComponent("Applications").path + "/"]
         return roots.contains { path.hasPrefix($0) }
     }

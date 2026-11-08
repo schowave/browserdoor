@@ -72,6 +72,21 @@ struct ZenProfileTests {
         #expect(ZenProfile.defaultProfile(profilesIni: ini, root: root)?.path == "/elsewhere/p")
     }
 
+    @Test func usesFirstInstallSection() {
+        let ini = "[Install1]\nDefault=Profiles/first\n[Install2]\nDefault=Profiles/second\n"
+        #expect(ZenProfile.defaultProfile(profilesIni: ini, root: root)?.path == "/z/Profiles/first")
+    }
+
+    @Test func installWithAbsolutePath() {
+        let ini = "[Install1]\nDefault=/Volumes/ext/zen-profile\n"
+        #expect(ZenProfile.defaultProfile(profilesIni: ini, root: root)?.path == "/Volumes/ext/zen-profile")
+    }
+
+    @Test func toleratesCommentsAndCRLF() {
+        let ini = "; comment\r\n[Profile0]\r\nPath=Profiles/x\r\nDefault=1\r\n"
+        #expect(ZenProfile.defaultProfile(profilesIni: ini, root: root)?.path == "/z/Profiles/x")
+    }
+
     @Test func ambiguousWithoutDefault() {
         let ini = "[Profile0]\nPath=a\n[Profile1]\nPath=b\n"
         #expect(ZenProfile.defaultProfile(profilesIni: ini, root: root) == nil)

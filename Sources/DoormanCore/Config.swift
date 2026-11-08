@@ -56,7 +56,7 @@ public struct Config: Codable, Equatable, Sendable {
             order: targets.map(\.id),
             hidden: [],
             extraApps: [],
-            targets: Dictionary(uniqueKeysWithValues: targets.map { ($0.id, TargetOverride(label: $0.name)) })
+            targets: Dictionary(targets.map { ($0.id, TargetOverride(label: $0.name)) }, uniquingKeysWith: { first, _ in first })
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
