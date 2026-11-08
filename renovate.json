@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Weekly: all dependency updates in one PR, merged automatically when CI is green. The merge triggers a patch release (auto-release.yml).",
+  "description": "Weekly grouped updates, auto-merged on green CI after a 7-day cooldown. Majors need approval on the Dependency Dashboard. A merge that changes the app triggers a patch release (auto-release.yml).",
   "extends": [
     "config:recommended",
     "helpers:pinGitHubActionDigests"
@@ -8,18 +8,30 @@
   "timezone": "Europe/Berlin",
   "schedule": ["before 6am on monday"],
   "dependencyDashboard": true,
+  "minimumReleaseAge": "7 days",
+  "internalChecksFilter": "strict",
   "prHourlyLimit": 0,
   "prConcurrentLimit": 0,
+  "automerge": true,
+  "automergeType": "pr",
+  "platformAutomerge": false,
   "packageRules": [
     {
-      "description": "One weekly PR for everything, majors included",
-      "matchPackageNames": ["*"],
-      "groupName": "all dependencies",
-      "groupSlug": "all",
-      "separateMajorMinor": false,
-      "automerge": true,
-      "automergeType": "pr",
-      "platformAutomerge": false
+      "description": "GitHub Actions in one PR",
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "groupSlug": "github-actions"
+    },
+    {
+      "description": "mise tools (lint/format) in their own PR, so a new lint rule can't block the actions",
+      "matchManagers": ["mise"],
+      "groupName": "mise tools",
+      "groupSlug": "mise-tools"
+    },
+    {
+      "description": "Majors only after approval on the Dependency Dashboard",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
     }
   ]
 }

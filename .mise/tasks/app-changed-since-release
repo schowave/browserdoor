@@ -1,0 +1,10 @@
+#!/bin/sh
+#MISE description="Exit 0 if the app changed since the latest release tag (or there is none), 1 otherwise"
+# shellcheck source=_lib.sh
+. "$(dirname "$0")/_lib.sh"
+latest="$(git tag --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1 || true)"
+[ -n "$latest" ] || exit 0
+if git diff --quiet "$latest" HEAD -- Sources Resources Package.swift Package.resolved; then
+  exit 1
+fi
+exit 0

@@ -6,5 +6,6 @@ actionlint
 # Tasks have no extension; list them explicitly (sourced helper first).
 shellcheck .mise/tasks/_lib.sh .mise/tasks/test .mise/tasks/app .mise/tasks/install .mise/tasks/run \
   .mise/tasks/lint .mise/tasks/format .mise/tasks/render-formula .mise/tasks/check-formula \
-  .mise/tasks/next-patch-version .mise/tasks/ci .mise/tasks/clean
+  .mise/tasks/next-patch-version .mise/tasks/ci .mise/tasks/clean \
+  .mise/tasks/app-changed-since-release .mise/tasks/test-scripts
 swiftformat --lint .

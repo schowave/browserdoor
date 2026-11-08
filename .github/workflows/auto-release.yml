@@ -1,8 +1,10 @@
 name: Auto release
 
-# When Renovate's dependency update lands on main, tag the next patch version and release it.
-# Tags pushed with GITHUB_TOKEN don't trigger other workflows, so the release workflow is
-# called directly. Does nothing until a first v* tag exists.
+# When a Renovate update lands on main and the app itself changed since the last release
+# (Sources/, Resources/, Package.swift/.resolved), tag the next patch version and release it.
+# Updates that only touch CI or lint tooling are not released.
+# The tag is created through the API, and tags made with GITHUB_TOKEN don't trigger other
+# workflows, so the release workflow is called directly. Does nothing until a v* tag exists.
 
 on:
   push:
@@ -11,22 +13,32 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   tag:
     if: github.event.head_commit.author.name == 'renovate[bot]'
-    runs-on: macos-15
+    runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.next.outputs.tag }}
-    env:
-      MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Next patch version
+      - name: Decide on a release
         id: next
         run: |
+          if [ -n "$(git tag --points-at HEAD --list 'v*')" ]; then
+            echo "HEAD is already tagged."
+            exit 0
+          fi
+          if ! .mise/tasks/app-changed-since-release; then
+            echo "No app changes since the last release; nothing to release."
+            exit 0
+          fi
           tag="$(.mise/tasks/next-patch-version)"
           if [ -z "$tag" ]; then
             echo "No v* tag yet; create the first release by hand."
@@ -34,13 +46,12 @@ jobs:
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
-      - name: Push tag
+      - name: Create tag
         if: steps.next.outputs.tag != ''
         env:
+          GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.next.outputs.tag }}
-        run: |
-          git tag "$TAG" "$GITHUB_SHA"
-          git push origin "$TAG"
+        run: gh api "repos/${GITHUB_REPOSITORY}/git/refs" -f ref="refs/tags/${TAG}" -f sha="${GITHUB_SHA}"
 
   release:
     needs: tag

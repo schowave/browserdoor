@@ -1,0 +1,37 @@
+#!/bin/sh
+#MISE description="Test the release helper scripts against a throwaway git repo"
+# shellcheck source=_lib.sh
+. "$(dirname "$0")/_lib.sh"
+tasks="$(pwd)/.mise/tasks"
+repo="$(mktemp -d)"
+trap 'rm -rf "$repo"' EXIT
+fail() { echo "test-scripts: $1" >&2; exit 1; }
+
+git -C "$repo" init -q
+git -C "$repo" config user.email test@example.invalid
+git -C "$repo" config user.name test
+git -C "$repo" config tag.gpgSign false
+mkdir -p "$repo/.mise/tasks" "$repo/Sources" "$repo/.github"
+cp "$tasks/_lib.sh" "$tasks/next-patch-version" "$tasks/app-changed-since-release" "$repo/.mise/tasks/"
+echo a > "$repo/Sources/a.swift"
+git -C "$repo" add -A && git -C "$repo" commit -qm init
+
+run() { (cd "$repo" && ".mise/tasks/$1"); }
+
+[ -z "$(run next-patch-version)" ] || fail "next-patch-version without tags should print nothing"
+run app-changed-since-release || fail "without tags everything counts as changed"
+
+for t in v0.1.0 v0.1.9 v0.1.10 v0.2.0-rc.1 v-junk; do git -C "$repo" tag "$t"; done
+[ "$(run next-patch-version)" = "v0.1.11" ] || fail "expected v0.1.11, got $(run next-patch-version)"
+git -C "$repo" tag v1.0.0
+[ "$(run next-patch-version)" = "v1.0.1" ] || fail "expected v1.0.1"
+
+if run app-changed-since-release; then fail "no change since v1.0.0 must not count"; fi
+echo ci > "$repo/.github/x.yml" && git -C "$repo" add -A && git -C "$repo" commit -qm ci
+if run app-changed-since-release; then fail "CI-only change must not count"; fi
+echo b > "$repo/Sources/a.swift" && git -C "$repo" add -A && git -C "$repo" commit -qm src
+run app-changed-since-release || fail "a Sources change must count"
+
+rendered="$("$tasks/render-formula" 1.2.3 abc file:///tmp/x.tar.gz)"
+echo "$rendered" | grep -q 'url "file:///tmp/x.tar.gz"' || fail "render-formula ignores the url argument"
+echo "test-scripts: ok"

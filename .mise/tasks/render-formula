@@ -1,7 +1,8 @@
 #!/bin/sh
-#MISE description="Render the Homebrew formula: render-formula <version> <sha256>"
+#MISE description="Render the Homebrew formula: render-formula <version> <sha256> [<tarball url>]"
 # shellcheck source=_lib.sh
 . "$(dirname "$0")/_lib.sh"
 version="${1:?usage: render-formula <version> <sha256>}"
 sha="${2:?usage: render-formula <version> <sha256>}"
-sed -e "s/@VERSION@/${version}/g" -e "s/@SHA256@/${sha}/g" -e '/^# /d' packaging/homebrew/doorman.rb
+url="${3:-https://github.com/schowave/doorman/archive/refs/tags/v${version}.tar.gz}"
+sed -e "s|@URL@|${url}|g" -e "s/@VERSION@/${version}/g" -e "s/@SHA256@/${sha}/g" -e '/^# /d' packaging/homebrew/doorman.rb
