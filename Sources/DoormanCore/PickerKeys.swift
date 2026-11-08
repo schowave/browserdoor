@@ -13,7 +13,7 @@ public struct KeyModifiers: OptionSet, Sendable {
     public static let ignorable = KeyModifiers(rawValue: 1 << 4)
 }
 
-public enum PickerKeyAction: Equatable, Sendable {
+enum PickerKeyAction: Equatable, Sendable {
     case cancel
     case confirm
     case moveUp
@@ -24,7 +24,7 @@ public enum PickerKeyAction: Equatable, Sendable {
 }
 
 /// Maps a key press in the picker to what it should do.
-public enum PickerKeys {
+enum PickerKeys {
     static let escape: UInt16 = 53
     static let returnKey: UInt16 = 36
     static let enter: UInt16 = 76
@@ -34,7 +34,7 @@ public enum PickerKeys {
     /// - Parameters:
     ///   - characters: the key's characters ignoring modifiers (`NSEvent.charactersIgnoringModifiers`).
     ///   - hotkeys: the hotkey of each row, in row order.
-    public static func action(
+    static func action(
         keyCode: UInt16, characters: String?, modifiers: KeyModifiers, hotkeys: [Character?]
     ) -> PickerKeyAction {
         switch keyCode {

@@ -40,42 +40,64 @@ final class PickerController: NSObject, NSWindowDelegate {
     private let model = PickerModel()
     private let icons = IconProvider.shared
     private var panel: PickerPanel?
+    private var session: PickerSession?
 
     /// Resolves all icons once so slow work (extracting Zen's icons) starts before the first link.
     func prewarm() {
-        reload()
-        model.rows = []
+        for entry in TargetCatalog(environment: SystemEnvironment()).load().pickerEntries {
+            _ = icons.icon(for: entry.target)
+        }
     }
 
     /// Shows the picker for `urls`, or adds them to the picker that is already open.
     func show(urls: [URL]) {
         guard !urls.isEmpty else { return }
-        log.debug("show \(urls.count) url(s)")
-        if let panel, panel.isVisible {
-            model.urls += urls.filter { !model.urls.contains($0) }
+        if var session, let panel, panel.isVisible {
+            session.add(urls)
+            self.session = session
+            render()
             resize(panel)
             return
         }
 
-        let start = ContinuousClock.now
-        model.urls = urls
-        model.copied = false
-        reload()
-        let loaded = ContinuousClock.now
+        let catalog = TargetCatalog(environment: SystemEnvironment()).load()
+        session = PickerSession(links: urls, catalog: catalog)
+        model.warning = catalog.configIsUnreadable ? L("config.json is invalid; using defaults") : nil
+        model.rows = catalog.pickerEntries.map { PickerModel.Row(entry: $0, icon: icons.icon(for: $0.target)) }
+        render()
 
         let panel = panel ?? makePanel()
         self.panel = panel
         resize(panel)
         position(panel)
         panel.makeKeyAndOrderFront(nil)
-        log.debug("timing: reload \(String(describing: loaded - start), privacy: .public), panel \(String(describing: ContinuousClock.now - loaded), privacy: .public)")
     }
 
-    private func reload() {
-        let state = TargetCatalog(environment: SystemEnvironment()).load()
-        model.warning = state.configIsUnreadable ? L("config.json is invalid; using defaults") : nil
-        model.rows = state.pickerEntries.map { PickerModel.Row(entry: $0, icon: icons.icon(for: $0.target)) }
-        model.selection = state.defaultIndex ?? 0
+    /// Feeds input to the session and performs the resulting effects. False: not the picker's.
+    @discardableResult
+    private func handle(_ input: PickerInput) -> Bool {
+        guard var session, let effects = session.handle(input) else { return false }
+        self.session = session
+        render()
+        for effect in effects {
+            switch effect {
+            case .close:
+                close()
+            case let .open(links, target):
+                Links.opener.open(links, in: target)
+            case let .copy(text):
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(text, forType: .string)
+            }
+        }
+        return true
+    }
+
+    private func render() {
+        guard let session else { return }
+        model.urls = session.links
+        model.selection = session.selection
+        model.copied = session.copied
     }
 
     private func makePanel() -> PickerPanel {
@@ -93,11 +115,16 @@ final class PickerController: NSObject, NSWindowDelegate {
         panel.isReleasedWhenClosed = false
         panel.hidesOnDeactivate = false
         panel.delegate = self
-        panel.keyHandler = { [weak self] event in self?.handleKey(event) ?? false }
+        panel.keyHandler = { [weak self] event in
+            self?.handle(.key(
+                keyCode: event.keyCode,
+                characters: event.charactersIgnoringModifiers,
+                modifiers: Self.modifiers(event.modifierFlags)
+            )) ?? false
+        }
         panel.contentView = NSHostingView(rootView: PickerView(
             model: model,
-            onPick: { [weak self] index in self?.pick(index) },
-            onCopy: { [weak self] in self?.copyURLs() }
+            onInput: { [weak self] input in self?.handle(input) }
         ))
         return panel
     }
@@ -124,25 +151,6 @@ final class PickerController: NSObject, NSWindowDelegate {
         panel.setFrameOrigin(origin)
     }
 
-    private func handleKey(_ event: NSEvent) -> Bool {
-        let action = PickerKeys.action(
-            keyCode: event.keyCode,
-            characters: event.charactersIgnoringModifiers,
-            modifiers: Self.modifiers(event.modifierFlags),
-            hotkeys: model.rows.map(\.entry.hotkey)
-        )
-        switch action {
-        case .cancel: close()
-        case .confirm: pick(model.selection)
-        case .moveUp: moveSelection(-1)
-        case .moveDown: moveSelection(1)
-        case .copy: copyURLs()
-        case let .pick(index): pick(index)
-        case .ignore: return false
-        }
-        return true
-    }
-
     private static func modifiers(_ flags: NSEvent.ModifierFlags) -> KeyModifiers {
         var result: KeyModifiers = []
         if flags.contains(.command) {
@@ -163,28 +171,9 @@ final class PickerController: NSObject, NSWindowDelegate {
         return result
     }
 
-    private func moveSelection(_ delta: Int) {
-        guard !model.rows.isEmpty else { return }
-        model.selection = (model.selection + delta + model.rows.count) % model.rows.count
-    }
-
-    private func pick(_ index: Int) {
-        guard model.rows.indices.contains(index) else { return }
-        let urls = model.urls
-        let target = model.rows[index].entry.target
-        close()
-        Links.opener.open(urls, in: target)
-    }
-
-    private func copyURLs() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(model.urls.map(\.absoluteString).joined(separator: "\n"), forType: .string)
-        model.copied = true
-    }
-
     private func close() {
         panel?.orderOut(nil)
-        model.urls = []
+        session = nil
         // Hand focus back to wherever the click came from.
         if NSApp.isActive {
             NSApp.hide(nil)
@@ -192,17 +181,15 @@ final class PickerController: NSObject, NSWindowDelegate {
     }
 
     func windowDidResignKey(_: Notification) {
-        log.debug("panel resigned key")
         if panel?.isVisible == true {
-            close()
+            handle(.lostFocus)
         }
     }
 }
 
 struct PickerView: View {
     @Bindable var model: PickerModel
-    var onPick: (Int) -> Void
-    var onCopy: () -> Void
+    var onInput: (PickerInput) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -212,10 +199,10 @@ struct PickerView: View {
                 ForEach(Array(model.rows.enumerated()), id: \.element.id) { index, row in
                     RowView(row: row, selected: index == model.selection)
                         .contentShape(Rectangle())
-                        .onTapGesture { onPick(index) }
-                        .onHover {
-                            if $0 {
-                                model.selection = index
+                        .onTapGesture { onInput(.click(row: index)) }
+                        .onHover { inside in
+                            if inside {
+                                onInput(.hover(row: index))
                             }
                         }
                 }
@@ -245,7 +232,7 @@ struct PickerView: View {
             .truncationMode(.middle)
             .help(model.urls.map(\.absoluteString).joined(separator: "\n"))
             Spacer(minLength: 4)
-            Button(action: onCopy) {
+            Button { onInput(.copyButton) } label: {
                 Image(systemName: model.copied ? "checkmark" : "doc.on.doc")
             }
             .buttonStyle(.borderless)
