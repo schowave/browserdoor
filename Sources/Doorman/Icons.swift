@@ -19,9 +19,11 @@ enum EntryIcon {
 final class IconProvider {
     private var appIcons: [URL: NSImage] = [:]
     private var svgs: [String: NSImage] = [:]
-    private var extractedZenVersions: Set<String> = []
+    /// Extraction state per Zen version. A failure is remembered so `unzip` never runs twice.
+    private enum Extraction { case running, done, failed }
+    private var extraction: [String: Extraction] = [:]
 
-    static let omniPrefix = "chrome/browser/skin/classic/browser/zen-icons/selectable"
+    nonisolated static let omniPrefix = "chrome/browser/skin/classic/browser/zen-icons/selectable"
 
     func icon(for target: Target) -> EntryIcon {
         switch target.kind {
@@ -57,25 +59,37 @@ final class IconProvider {
         return image
     }
 
+    /// The extracted icon directory, or nil while extraction is pending or after it failed.
+    /// Extraction runs in the background; until then the picker shows the letter fallback.
     private func zenIconDirectory(zenApp: URL) -> URL? {
         let version = Bundle(url: zenApp)?.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
         guard let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return nil }
         let dir = caches.appendingPathComponent("\(AppIdentity.bundleId)/zen-icons/\(version)", isDirectory: true)
-
-        if extractedZenVersions.contains(version) { return dir }
         let marker = dir.appendingPathComponent(".complete")
-        if !FileManager.default.fileExists(atPath: marker.path) {
-            guard Self.extract(omni: zenApp.appendingPathComponent("Contents/Resources/browser/omni.ja"), to: dir) else {
-                return nil
-            }
-            FileManager.default.createFile(atPath: marker.path, contents: nil)
+
+        switch extraction[version] {
+        case .done: return dir
+        case .running, .failed: return nil
+        case nil: break
         }
-        extractedZenVersions.insert(version)
-        return dir
+        if FileManager.default.fileExists(atPath: marker.path) {
+            extraction[version] = .done
+            return dir
+        }
+
+        extraction[version] = .running
+        let omni = zenApp.appendingPathComponent("Contents/Resources/browser/omni.ja")
+        Task.detached(priority: .utility) { [weak self] in
+            let ok = Self.extract(omni: omni, to: dir)
+            if ok { FileManager.default.createFile(atPath: marker.path, contents: nil) }
+            await MainActor.run { self?.extraction[version] = ok ? .done : .failed }
+            if !ok { log.error("could not extract Zen icons from \(omni.path, privacy: .public)") }
+        }
+        return nil
     }
 
     /// `omni.ja` is a zip; `unzip` may warn about its optimized layout but extracts fine.
-    private static func extract(omni: URL, to dir: URL) -> Bool {
+    nonisolated private static func extract(omni: URL, to dir: URL) -> Bool {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")

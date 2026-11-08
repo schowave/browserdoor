@@ -35,6 +35,12 @@ final class PickerController: NSObject, NSWindowDelegate {
     private let icons = IconProvider()
     private var panel: PickerPanel?
 
+    /// Resolves all icons once so slow work (extracting Zen's icons) starts before the first link.
+    func prewarm() {
+        reload()
+        model.rows = []
+    }
+
     /// Shows the picker for `urls`, or adds them to the picker that is already open.
     func show(urls: [URL]) {
         guard !urls.isEmpty else { return }

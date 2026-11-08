@@ -31,8 +31,12 @@ enum Launcher {
         }
 
         // A remote command to a running Zen opens the tab but may leave Zen in the background.
-        if running, let bundleId {
-            NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first?.activate()
+        // `NSRunningApplication.activate()` from a non-active app is ignored under macOS 14's
+        // cooperative activation; asking LaunchServices to open the running app is not.
+        if running, case .zenSpace = target.kind {
+            let configuration = NSWorkspace.OpenConfiguration()
+            configuration.activates = true
+            NSWorkspace.shared.openApplication(at: target.appURL, configuration: configuration)
         }
     }
 }

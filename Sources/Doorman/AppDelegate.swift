@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         setUpStatusItem()
         LSRegisterURL(Bundle.main.bundleURL as CFURL, true)
+        picker.prewarm()
         if !defaults.bool(forKey: Self.onboardedKey) {
             defaults.set(true, forKey: Self.onboardedKey)
             onboard()
