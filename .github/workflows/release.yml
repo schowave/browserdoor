@@ -28,7 +28,7 @@ permissions:
 
 jobs:
   release:
-    runs-on: macos-15
+    runs-on: macos-26
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
       MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
@@ -133,7 +133,7 @@ jobs:
   tap:
     needs: [release, bottle]
     if: ${{ !cancelled() && needs.release.result == 'success' }}
-    runs-on: macos-15
+    runs-on: macos-26
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
       HOMEBREW_NO_AUTO_UPDATE: "1"
