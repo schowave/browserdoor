@@ -89,11 +89,12 @@ struct UpdatePolicyTests {
         #expect(try #require(AppVersion("1.0")) == #require(AppVersion("1.0.0")))
     }
 
-    @Test func parsesGitHubLatestRelease() throws {
-        let json = #"{"tag_name":"v0.2.0","html_url":"https://github.com/schowave/doorman/releases/tag/v0.2.0","draft":false,"prerelease":false}"#
-        #expect(try GitHubReleaseSource.parse(Data(json.utf8)) == release("v0.2.0"))
-        let pre = #"{"tag_name":"v0.3.0-rc.1","html_url":"https://x.invalid","prerelease":true}"#
-        #expect(throws: (any Error).self) { try GitHubReleaseSource.parse(Data(pre.utf8)) }
-        #expect(throws: (any Error).self) { try GitHubReleaseSource.parse(Data("{}".utf8)) }
+    @Test func parsesGitHubLatestReleaseRedirect() throws {
+        let tagPage = try #require(URL(string: "https://github.com/schowave/doorman/releases/tag/v0.2.0"))
+        #expect(try GitHubReleaseSource.parse(releaseURL: tagPage) == release("v0.2.0"))
+        let noRelease = try #require(URL(string: "https://github.com/schowave/doorman/releases"))
+        #expect(throws: (any Error).self) { try GitHubReleaseSource.parse(releaseURL: noRelease) }
+        let junkTag = try #require(URL(string: "https://github.com/schowave/doorman/releases/tag/nightly"))
+        #expect(throws: (any Error).self) { try GitHubReleaseSource.parse(releaseURL: junkTag) }
     }
 }

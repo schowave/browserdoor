@@ -134,9 +134,11 @@ public final class UpdatePolicy {
     }
 }
 
-/// Production `ReleaseSource`: GitHub's `releases/latest`.
+/// Production `ReleaseSource`: github.com's `releases/latest`, which redirects to the newest
+/// release's tag page (drafts and pre-releases excluded). Unlike api.github.com it has no
+/// per-IP rate limit (60 requests an hour without a token, often used up behind shared IPs).
 public struct GitHubReleaseSource: ReleaseSource {
-    public static let doorman = URL(string: "https://api.github.com/repos/schowave/doorman/releases/latest")!
+    public static let doorman = URL(string: "https://github.com/schowave/doorman/releases/latest")!
 
     public var url: URL
     public var userAgent: String
@@ -148,26 +150,22 @@ public struct GitHubReleaseSource: ReleaseSource {
 
     public func latestRelease() async throws -> ReleaseInfo {
         var request = URLRequest(url: url, timeoutInterval: 15)
-        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        request.httpMethod = "HEAD"
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
-        return try Self.parse(data)
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200, let final = http.url
+        else { throw URLError(.badServerResponse) }
+        return try Self.parse(releaseURL: final)
     }
 
-    /// Parses `releases/latest`. Drafts and pre-releases are not "latest".
-    static func parse(_ data: Data) throws -> ReleaseInfo {
-        struct Response: Decodable {
-            var tag_name: String
-            var html_url: URL
-            var draft: Bool?
-            var prerelease: Bool?
-        }
-        let response = try JSONDecoder().decode(Response.self, from: data)
-        guard response.draft != true, response.prerelease != true,
-              let version = AppVersion(response.tag_name)
-        else { throw CocoaError(.coderInvalidValue) }
-        return ReleaseInfo(version: version, tag: response.tag_name, url: response.html_url)
+    /// Reads the release from the URL `releases/latest` redirected to: `…/releases/tag/<tag>`.
+    /// Without any release GitHub stays on `…/releases`, which is not a release.
+    static func parse(releaseURL url: URL) throws -> ReleaseInfo {
+        let parts = url.pathComponents
+        guard parts.count >= 2, parts[parts.count - 2] == "tag",
+              let version = AppVersion(url.lastPathComponent)
+        else { throw URLError(.cannotParseResponse) }
+        return ReleaseInfo(version: version, tag: url.lastPathComponent, url: url)
     }
 }
 
