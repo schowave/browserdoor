@@ -1,8 +1,8 @@
 name: Release
 
 # Runs for a pushed tag like v0.1.0, or when auto-release calls it with a tag it just created.
-# → test and build, create the GitHub release, build bottles (Apple Silicon from macOS 14,
-#   Intel from macOS 15) and attach them to the release, update the Homebrew tap.
+# → test and build, create the GitHub release, build bottles (macOS 15 or later, Apple Silicon
+#   and Intel; GitHub has no macOS 14 runners any more) and attach them to the release, update the Homebrew tap.
 # A failed bottle build does not block the tap update: the formula then simply carries fewer
 # bottles, and those Macs build from source. If no bottle was built at all, the tap is left alone.
 # Bottles already attached to the release (tarball plus JSON) are reused on a re-run, so the
@@ -75,8 +75,8 @@ jobs:
       matrix:
         # Homebrew pours a bottle on its own macOS version and newer ones.
         include:
-          - os: macos-14
-            bottle_tag: arm64_sonoma
+          - os: macos-15
+            bottle_tag: arm64_sequoia
           - os: macos-15-intel
             bottle_tag: sequoia
     runs-on: ${{ matrix.os }}
@@ -106,19 +106,6 @@ jobs:
             echo "Reusing $json from the release"
             echo "found=true" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Select Xcode 16
-        # macos-14 defaults to Xcode 15; Package.swift needs Swift 6.
-        if: matrix.os == 'macos-14' && steps.existing.outputs.found != 'true'
-        run: |
-          xcode=$(find /Applications -maxdepth 1 -name 'Xcode_16*.app' \
-            | grep -E '/Xcode_16(\.[0-9]+)*\.app$' | sort -V | tail -n 1 || true)
-          if [ -z "$xcode" ]; then
-            echo "::error::No Xcode 16 on this runner"
-            exit 1
-          fi
-          sudo xcode-select -s "$xcode"
-          xcodebuild -version
 
       - name: Build bottle
         if: steps.existing.outputs.found != 'true'
@@ -180,6 +167,8 @@ jobs:
           git clone "https://x-access-token:${TAP_TOKEN}@github.com/schowave/homebrew-tap.git" "$tap"
           mkdir -p "$tap/Formula"
           cp doorman.rb "$tap/Formula/doorman.rb"
+          # Homebrew only loads formulae from a hand-cloned tap once it is trusted.
+          brew trust --formula schowave/tap/doorman
           brew bottle --merge --write --no-commit bottles/*.json
           cat "$tap/Formula/doorman.rb"
           cd "$tap"
