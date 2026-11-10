@@ -43,7 +43,14 @@ browserdoor
 
 `browserdoor` starts the app and always points at the installed version.
 
-Browserdoor was called Doorman up to version 0.2.6. `brew upgrade` moves an existing `doorman` install over by itself. Your default browser setting, your settings and `~/.config/doorman` (now `~/.config/browserdoor`) carry over, and the old command `doorman` keeps working.
+Browserdoor was called Doorman up to version 0.2.6. Homebrew only loads formulae you trust, and that trust is tied to the formula name, so trust the new name once before upgrading:
+
+```sh
+brew trust --formula schowave/tap/browserdoor
+brew upgrade doorman && browserdoor
+```
+
+`brew upgrade` moves the `doorman` install over by itself. Your default browser setting, your settings and `~/.config/doorman` (now `~/.config/browserdoor`) carry over, and the old command `doorman` keeps working.
 
 On first launch Browserdoor asks whether it should become your default browser (macOS asks you to confirm), adds a login item and puts a link at `~/Applications/Browserdoor.app`. That link keeps working after `brew upgrade`. After an upgrade, quit Browserdoor from the menu bar and run `browserdoor` again.
 
