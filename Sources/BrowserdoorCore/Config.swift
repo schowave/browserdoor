@@ -1,6 +1,6 @@
 import Foundation
 
-/// User configuration, `~/.config/doorman/config.json`. Every field is optional.
+/// User configuration, `~/.config/browserdoor/config.json`. Every field is optional.
 public struct Config: Codable, Equatable, Sendable {
     public struct TargetOverride: Codable, Equatable, Sendable {
         public var label: String?
@@ -43,7 +43,17 @@ public struct Config: Codable, Equatable, Sendable {
     }
 
     public static func fileURL(home: URL) -> URL {
-        home.appendingPathComponent(".config/doorman/config.json")
+        home.appendingPathComponent(".config/browserdoor/config.json")
+    }
+
+    /// Up to 0.2.x the app was called Doorman and kept its config in `~/.config/doorman`.
+    /// Moves that folder to the new place once, unless a new config already exists.
+    public static func migrateLegacyLocation(home: URL) {
+        let fm = FileManager.default
+        let new = fileURL(home: home).deletingLastPathComponent()
+        let old = home.appendingPathComponent(".config/doorman", isDirectory: true)
+        guard !fm.fileExists(atPath: new.path), fm.fileExists(atPath: old.path) else { return }
+        try? fm.moveItem(at: old, to: new)
     }
 
     /// Missing file → empty config. Malformed file → throws, so the user gets told.

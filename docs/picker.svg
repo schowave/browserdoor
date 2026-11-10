@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="400" height="336" viewBox="0 0 400 336" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
-  <title>Doorman picker panel (illustration)</title>
+  <title>Browserdoor picker panel (illustration)</title>
   <defs>
     <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
       <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000" flood-opacity="0.18"/>
@@ -10,7 +10,7 @@
   <rect x="40" y="24" width="320" height="284" rx="14" fill="#f7f7f8" stroke="#d9d9de" filter="url(#shadow)"/>
 
   <!-- url row -->
-  <text x="58" y="52" font-size="13" fill="#6e6e73">https://github.com/schowave/doorman</text>
+  <text x="58" y="52" font-size="13" fill="#6e6e73">https://github.com/schowave/browserdoor</text>
   <rect x="326" y="38" width="18" height="18" rx="4" fill="none" stroke="#8e8e93" stroke-width="1.4"/>
   <rect x="330" y="34" width="18" height="18" rx="4" fill="#f7f7f8" stroke="#8e8e93" stroke-width="1.4"/>
   <line x1="50" y1="66" x2="350" y2="66" stroke="#e1e1e6"/>

@@ -1,5 +1,5 @@
 import AppKit
-import DoormanCore
+import BrowserdoorCore
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         setUpStatusItem()
         setUpMainMenu()
         LSRegisterURL(Bundle.main.bundleURL as CFURL, true)
+        Config.migrateLegacyLocation(home: FileManager.default.homeDirectoryForCurrentUser)
         CurrentInstallation.shared.prepare()
         LaunchServicesCleanup.run()
         picker.prewarm()
@@ -22,7 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    /// Opening Doorman again (Finder, Spotlight, `doorman`) while it runs shows the settings.
+    /// Opening Browserdoor again (Finder, Spotlight, `browserdoor`) while it runs shows the settings.
     func applicationShouldHandleReopen(_: NSApplication, hasVisibleWindows _: Bool) -> Bool {
         SettingsWindowController.shared.show()
         return false
@@ -40,15 +41,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: Onboarding
 
     private func onboard() {
-        if !DefaultBrowser.isDoorman {
+        if !DefaultBrowser.isBrowserdoor {
             NSApp.activate()
             let alert = NSAlert()
-            alert.messageText = L("Use Doorman as your default browser?")
-            alert.informativeText = L("Doorman then asks for every link which browser, profile or Zen space should open it.")
+            alert.messageText = L("Use Browserdoor as your default browser?")
+            alert.informativeText = L("Browserdoor then asks for every link which browser, profile or Zen space should open it.")
             alert.addButton(withTitle: L("Make Default"))
             alert.addButton(withTitle: L("Later"))
             if alert.runModal() == .alertFirstButtonReturn {
-                DefaultBrowser.makeDoorman()
+                DefaultBrowser.makeBrowserdoor()
             }
         }
         if !CurrentInstallation.shared.launchesAtLogin {
@@ -58,7 +59,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: Main menu
 
-    /// Doorman shows no menu bar of its own, but key equivalents in the settings window
+    /// Browserdoor shows no menu bar of its own, but key equivalents in the settings window
     /// (⌘C/⌘V in text fields, ⌘W, ⌘,) come from the main menu.
     private func setUpMainMenu() {
         let main = NSMenu()
@@ -66,7 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let appMenu = NSMenu()
         appMenu.addItem(item(L("Settings…"), #selector(settingsAction), key: ","))
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: L("Quit Doorman"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: L("Quit Browserdoor"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         main.addItem(withTitle: AppIdentity.name, action: nil, keyEquivalent: "").submenu = appMenu
 
         let edit = NSMenu(title: L("Edit"))
@@ -116,11 +117,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.removeAllItems()
 
         if case let .available(release) = UpdateChecker.shared.status {
-            menu.addItem(item(L("Update to Doorman %@…", release.version.description), #selector(checkForUpdatesAction)))
+            menu.addItem(item(L("Update to Browserdoor %@…", release.version.description), #selector(checkForUpdatesAction)))
             menu.addItem(.separator())
         }
-        if !DefaultBrowser.isDoorman {
-            menu.addItem(withTitle: L("Doorman isn't your default browser"), action: nil, keyEquivalent: "").isEnabled = false
+        if !DefaultBrowser.isBrowserdoor {
+            menu.addItem(withTitle: L("Browserdoor isn't your default browser"), action: nil, keyEquivalent: "").isEnabled = false
             menu.addItem(item(L("Make Default Browser"), #selector(setDefaultAction)))
             menu.addItem(.separator())
         }
@@ -128,7 +129,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(item(L("Check for Updates…"), #selector(checkForUpdatesAction)))
         menu.addItem(.separator())
         menu.addItem(withTitle: "\(AppIdentity.name) \(RunningApp.version)", action: nil, keyEquivalent: "").isEnabled = false
-        menu.addItem(item(L("Quit Doorman"), #selector(quitAction), key: "q"))
+        menu.addItem(item(L("Quit Browserdoor"), #selector(quitAction), key: "q"))
     }
 
     private func item(_ title: String, _ action: Selector, key: String = "") -> NSMenuItem {
@@ -138,7 +139,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func setDefaultAction() {
-        DefaultBrowser.makeDoorman()
+        DefaultBrowser.makeBrowserdoor()
     }
 
     @objc private func settingsAction() {

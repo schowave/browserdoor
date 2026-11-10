@@ -1,4 +1,4 @@
-@testable import DoormanCore
+@testable import BrowserdoorCore
 import Foundation
 import Testing
 
@@ -17,7 +17,7 @@ final class MemoryPreferences: UpdatePreferences {
 }
 
 func release(_ tag: String) -> ReleaseInfo {
-    ReleaseInfo(version: AppVersion(tag)!, tag: tag, url: URL(string: "https://github.com/schowave/doorman/releases/tag/\(tag)")!)
+    ReleaseInfo(version: AppVersion(tag)!, tag: tag, url: URL(string: "https://github.com/schowave/browserdoor/releases/tag/\(tag)")!)
 }
 
 @MainActor
@@ -90,11 +90,11 @@ struct UpdatePolicyTests {
     }
 
     @Test func parsesGitHubLatestReleaseRedirect() throws {
-        let tagPage = try #require(URL(string: "https://github.com/schowave/doorman/releases/tag/v0.2.0"))
+        let tagPage = try #require(URL(string: "https://github.com/schowave/browserdoor/releases/tag/v0.2.0"))
         #expect(try GitHubReleaseSource.parse(releaseURL: tagPage) == release("v0.2.0"))
-        let noRelease = try #require(URL(string: "https://github.com/schowave/doorman/releases"))
+        let noRelease = try #require(URL(string: "https://github.com/schowave/browserdoor/releases"))
         #expect(throws: (any Error).self) { try GitHubReleaseSource.parse(releaseURL: noRelease) }
-        let junkTag = try #require(URL(string: "https://github.com/schowave/doorman/releases/tag/nightly"))
+        let junkTag = try #require(URL(string: "https://github.com/schowave/browserdoor/releases/tag/nightly"))
         #expect(throws: (any Error).self) { try GitHubReleaseSource.parse(releaseURL: junkTag) }
     }
 }

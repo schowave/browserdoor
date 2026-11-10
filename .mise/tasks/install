@@ -1,5 +1,5 @@
 #!/bin/sh
-#MISE description="Install Doorman.app and bin/doorman into $PREFIX (used by the Homebrew formula)"
+#MISE description="Install Browserdoor.app and bin/browserdoor into $PREFIX (used by the Homebrew formula)"
 # shellcheck source=_lib.sh
 . "$(dirname "$0")/_lib.sh"
 : "${PREFIX:?set PREFIX, e.g. PREFIX=/usr/local}"
@@ -7,7 +7,7 @@
 mkdir -p "$PREFIX/bin"
 rm -rf "${PREFIX:?}/$APP_NAME.app"
 cp -R "$APP" "$PREFIX/$APP_NAME.app"
-# -a: extra arguments are files/URLs for Doorman, not for their default apps.
+# -a: extra arguments are files/URLs for Browserdoor, not for their default apps.
 bin_app="${BIN_APP_PATH:-$PREFIX/$APP_NAME.app}"
-printf '#!/bin/sh\nexec open -a "%s" "$@"\n' "$bin_app" > "$PREFIX/bin/doorman"
-chmod +x "$PREFIX/bin/doorman"
+printf '#!/bin/sh\nexec open -a "%s" "$@"\n' "$bin_app" > "$PREFIX/bin/browserdoor"
+chmod +x "$PREFIX/bin/browserdoor"

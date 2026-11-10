@@ -1,5 +1,5 @@
 import AppKit
-import DoormanCore
+import BrowserdoorCore
 import OSLog
 
 let log = Logger(subsystem: AppIdentity.bundleId, category: "app")

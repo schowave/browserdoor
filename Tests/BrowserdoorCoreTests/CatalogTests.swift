@@ -1,11 +1,11 @@
-@testable import DoormanCore
+@testable import BrowserdoorCore
 import Foundation
 import Testing
 
 /// The target catalog against a temporary config file and the sample machine.
 struct CatalogTests {
     let configURL = FileManager.default.temporaryDirectory
-        .appendingPathComponent("doorman-catalog-\(UUID().uuidString)/config.json")
+        .appendingPathComponent("browserdoor-catalog-\(UUID().uuidString)/config.json")
 
     func catalog(_ env: FakeEnvironment = sampleEnvironment()) -> TargetCatalog {
         TargetCatalog(environment: env, configURL: configURL)

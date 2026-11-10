@@ -1,4 +1,4 @@
-@testable import DoormanCore
+@testable import BrowserdoorCore
 import Foundation
 import Testing
 

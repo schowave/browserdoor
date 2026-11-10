@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <!-- Doorman app icon "Ajar": a door standing ajar with warm light. macOS 824/1024 squircle grid. -->
+  <!-- Browserdoor app icon "Ajar": a door standing ajar with warm light. macOS 824/1024 squircle grid. -->
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#16697b"/>

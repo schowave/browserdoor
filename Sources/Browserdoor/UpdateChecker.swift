@@ -1,7 +1,7 @@
 import AppKit
-import DoormanCore
+import BrowserdoorCore
 
-/// Asks GitHub for the latest release, once a day (if enabled) and on request. Doorman can't
+/// Asks GitHub for the latest release, once a day (if enabled) and on request. Browserdoor can't
 /// replace itself (Homebrew install, unsigned), so an update runs `brew upgrade` in Terminal.
 @MainActor @Observable
 final class UpdateChecker {
@@ -28,7 +28,7 @@ final class UpdateChecker {
     private init() {
         policy = UpdatePolicy(
             currentVersion: RunningApp.version,
-            source: GitHubReleaseSource(userAgent: "Doorman/\(RunningApp.version)"),
+            source: GitHubReleaseSource(userAgent: "Browserdoor/\(RunningApp.version)"),
             preferences: preferences
         )
         automatic = preferences.checksAutomatically
@@ -72,7 +72,7 @@ final class UpdateChecker {
     private func showUpToDate() {
         NSApp.activate()
         let alert = NSAlert()
-        alert.messageText = L("Doorman is up to date")
+        alert.messageText = L("Browserdoor is up to date")
         alert.informativeText = L("Version %@ is the latest version.", RunningApp.version)
         alert.runModal()
     }
@@ -89,10 +89,10 @@ final class UpdateChecker {
     private func showAvailable(_ release: ReleaseInfo) {
         NSApp.activate()
         let alert = NSAlert()
-        alert.messageText = L("Doorman %@ is available", release.version.description)
+        alert.messageText = L("Browserdoor %@ is available", release.version.description)
         let canUpgrade = Self.brewExecutable != nil
         alert.informativeText = canUpgrade
-            ? L("You have version %@. The update runs “brew upgrade doorman” in Terminal and restarts Doorman.", RunningApp.version)
+            ? L("You have version %@. The update runs “brew upgrade browserdoor” in Terminal and restarts Browserdoor.", RunningApp.version)
             : L("You have version %@.", RunningApp.version)
         alert.addButton(withTitle: canUpgrade ? L("Update in Terminal") : L("Open Release Page"))
         alert.addButton(withTitle: L("Release Notes"))
@@ -113,27 +113,27 @@ final class UpdateChecker {
 
     // MARK: Upgrade
 
-    /// `<prefix>/bin/brew` when Doorman runs from a Homebrew Cellar.
+    /// `<prefix>/bin/brew` when Browserdoor runs from a Homebrew Cellar.
     static var brewExecutable: URL? {
         guard let brew = CurrentInstallation.shared.homebrew?.brew,
               FileManager.default.isExecutableFile(atPath: brew.path) else { return nil }
         return brew
     }
 
-    /// Opens a `.command` script in Terminal: upgrade, quit this Doorman, start the new one.
+    /// Opens a `.command` script in Terminal: upgrade, quit this Browserdoor, start the new one.
     private func upgradeInTerminal() {
         guard let brew = Self.brewExecutable else { return }
-        let doorman = brew.deletingLastPathComponent().appendingPathComponent("doorman").path
+        let browserdoor = brew.deletingLastPathComponent().appendingPathComponent("browserdoor").path
         let script = """
         #!/bin/sh
-        echo "Updating Doorman…"
-        "\(brew.path)" update --quiet && "\(brew.path)" upgrade doorman || { echo; echo "Update failed."; exit 1; }
-        pkill -x Doorman
+        echo "Updating Browserdoor…"
+        "\(brew.path)" update --quiet && "\(brew.path)" upgrade browserdoor || { echo; echo "Update failed."; exit 1; }
+        pkill -x Browserdoor
         sleep 1
-        "\(doorman)"
-        echo; echo "Doorman updated and restarted. You can close this window."
+        "\(browserdoor)"
+        echo; echo "Browserdoor updated and restarted. You can close this window."
         """
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("doorman-update.command")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("browserdoor-update.command")
         do {
             try script.write(to: url, atomically: true, encoding: .utf8)
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)

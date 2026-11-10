@@ -1,5 +1,5 @@
 import AppKit
-import DoormanCore
+import BrowserdoorCore
 
 /// Localized string from the app bundle's `Localizable.strings`. Keys are the English text,
 /// so a missing translation falls back to English.
@@ -21,7 +21,7 @@ enum RunningApp {
 /// Default-browser status and registration.
 @MainActor
 enum DefaultBrowser {
-    static var isDoorman: Bool {
+    static var isBrowserdoor: Bool {
         guard
             let probe = URL(string: "https://example.com"),
             let handler = NSWorkspace.shared.urlForApplication(toOpen: probe)
@@ -30,7 +30,7 @@ enum DefaultBrowser {
     }
 
     /// macOS asks the user to confirm; `completion` runs on the main actor afterwards.
-    static func makeDoorman(completion: (@MainActor () -> Void)? = nil) {
+    static func makeBrowserdoor(completion: (@MainActor () -> Void)? = nil) {
         let app = Bundle.main.bundleURL
         NSWorkspace.shared.setDefaultApplication(at: app, toOpenURLsWithScheme: "http") { error in
             if let error {

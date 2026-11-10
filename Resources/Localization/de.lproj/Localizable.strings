@@ -1,12 +1,12 @@
-/* Doorman – German. Keys are the English text; see Sources/Doorman/System.swift (L). */
+/* Browserdoor – German. Keys are the English text; see Sources/Browserdoor/System.swift (L). */
 
 /* Menu bar menu and main menu */
-"Update to Doorman %@…" = "Auf Doorman %@ aktualisieren…";
-"Doorman isn't your default browser" = "Doorman ist nicht Standardbrowser";
+"Update to Browserdoor %@…" = "Auf Browserdoor %@ aktualisieren…";
+"Browserdoor isn't your default browser" = "Browserdoor ist nicht Standardbrowser";
 "Make Default Browser" = "Als Standardbrowser festlegen";
 "Settings…" = "Einstellungen…";
 "Check for Updates…" = "Nach Updates suchen…";
-"Quit Doorman" = "Doorman beenden";
+"Quit Browserdoor" = "Browserdoor beenden";
 "Edit" = "Bearbeiten";
 "Undo" = "Widerrufen";
 "Redo" = "Wiederholen";
@@ -18,8 +18,8 @@
 "Close" = "Schließen";
 
 /* Onboarding */
-"Use Doorman as your default browser?" = "Doorman als Standardbrowser verwenden?";
-"Doorman then asks for every link which browser, profile or Zen space should open it." = "Doorman fragt dann bei jedem Link, welcher Browser, welches Profil oder welcher Zen-Space ihn öffnen soll.";
+"Use Browserdoor as your default browser?" = "Browserdoor als Standardbrowser verwenden?";
+"Browserdoor then asks for every link which browser, profile or Zen space should open it." = "Browserdoor fragt dann bei jedem Link, welcher Browser, welches Profil oder welcher Zen-Space ihn öffnen soll.";
 "Make Default" = "Als Standard festlegen";
 "Later" = "Später";
 
@@ -29,13 +29,13 @@
 "config.json is invalid; using defaults" = "config.json ist fehlerhaft – Standardwerte aktiv";
 
 /* Settings window */
-"Doorman Settings" = "Doorman-Einstellungen";
+"Browserdoor Settings" = "Browserdoor-Einstellungen";
 "General" = "Allgemein";
 "Targets" = "Ziele";
 "Advanced" = "Erweitert";
 "Default browser" = "Standardbrowser";
-"Doorman handles links" = "Doorman öffnet Links";
-"Make Doorman the Default Browser" = "Doorman als Standardbrowser festlegen";
+"Browserdoor handles links" = "Browserdoor öffnet Links";
+"Make Browserdoor the Default Browser" = "Browserdoor als Standardbrowser festlegen";
 "Start at login" = "Beim Anmelden starten";
 "Updates" = "Updates";
 "Check for updates automatically" = "Automatisch nach Updates suchen";
@@ -67,11 +67,11 @@
 "Couldn't save settings: %@" = "Einstellungen konnten nicht gespeichert werden: %@";
 
 /* Updates */
-"Doorman is up to date" = "Doorman ist aktuell";
+"Browserdoor is up to date" = "Browserdoor ist aktuell";
 "Version %@ is the latest version." = "Version %@ ist die neueste Version.";
 "Couldn't check for updates" = "Suche nach Updates fehlgeschlagen";
-"Doorman %@ is available" = "Doorman %@ ist verfügbar";
-"You have version %@. The update runs “brew upgrade doorman” in Terminal and restarts Doorman." = "Installiert ist Version %@. Das Update führt „brew upgrade doorman“ im Terminal aus und startet Doorman neu.";
+"Browserdoor %@ is available" = "Browserdoor %@ ist verfügbar";
+"You have version %@. The update runs “brew upgrade browserdoor” in Terminal and restarts Browserdoor." = "Installiert ist Version %@. Das Update führt „brew upgrade browserdoor“ im Terminal aus und startet Browserdoor neu.";
 "You have version %@." = "Installiert ist Version %@.";
 "Update in Terminal" = "Im Terminal aktualisieren";
 "Open Release Page" = "Release-Seite öffnen";

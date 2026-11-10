@@ -1,4 +1,4 @@
-@testable import DoormanCore
+@testable import BrowserdoorCore
 import Foundation
 
 /// Wraps `payload` in a mozLz4 container using a literal-only LZ4 block.
@@ -66,7 +66,7 @@ struct FakeEnvironment: BrowserEnvironment {
 /// non-browsers, used by discovery and catalog tests.
 func sampleEnvironment(zenVersion: String = "1.24.1b") -> FakeEnvironment {
     var env = FakeEnvironment()
-    env.addApp("io.github.schowave.doorman", name: "Doorman")
+    env.addApp("io.github.schowave.doorman", name: "Browserdoor")
     env.addApp("com.apple.Safari", name: "Safari")
     env.addApp("app.zen-browser.zen", name: "Zen", version: zenVersion, executable: "zen")
     env.addApp("com.google.Chrome", name: "Google Chrome")

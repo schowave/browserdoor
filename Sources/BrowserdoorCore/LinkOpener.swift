@@ -15,7 +15,7 @@ public protocol LaunchPort {
     func activate(_ app: URL)
 }
 
-/// Turns what macOS hands Doorman into links, and opens links in a target.
+/// Turns what macOS hands Browserdoor into links, and opens links in a target.
 ///
 /// Links end up as command-line arguments for browsers, so only `http`, `https` and `file`
 /// URLs get through, and `.webloc` files may only point to `http`/`https` (a downloaded

@@ -1,5 +1,5 @@
 #!/bin/sh
-#MISE description="Build build/Doorman.app (release, ad-hoc signed)"
+#MISE description="Build build/Browserdoor.app (release, ad-hoc signed)"
 # shellcheck source=_lib.sh
 . "$(dirname "$0")/_lib.sh"
 # shellcheck disable=SC2086

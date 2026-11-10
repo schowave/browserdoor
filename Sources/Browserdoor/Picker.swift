@@ -1,5 +1,5 @@
 import AppKit
-import DoormanCore
+import BrowserdoorCore
 import SwiftUI
 
 @MainActor @Observable

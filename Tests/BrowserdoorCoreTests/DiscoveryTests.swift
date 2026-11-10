@@ -1,4 +1,4 @@
-@testable import DoormanCore
+@testable import BrowserdoorCore
 import Foundation
 import Testing
 
@@ -29,7 +29,7 @@ struct DiscoveryTests {
         #expect(ids.contains("app:com.googlecode.iterm2"))
         #expect(ids.contains("app:com.webcatalog.juli.gmail")) // ~/Applications counts
         #expect(!ids.contains("app:se.johnste.finicky"))
-        #expect(!ids.contains { $0.contains("doorman") })
+        #expect(!ids.contains { $0.contains("browserdoor") })
     }
 
     @Test func extraAppWithoutHttpsHandlerStillAppears() {

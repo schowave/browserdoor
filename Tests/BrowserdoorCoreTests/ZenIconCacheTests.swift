@@ -1,9 +1,9 @@
-@testable import DoormanCore
+@testable import BrowserdoorCore
 import Foundation
 import Testing
 
 struct ZenIconCacheTests {
-    let root = FileManager.default.temporaryDirectory.appendingPathComponent("doorman-icons-\(UUID().uuidString)")
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("browserdoor-icons-\(UUID().uuidString)")
     let zen = URL(fileURLWithPath: "/Applications/Zen.app")
 
     /// Counts extractor calls (the extractor runs as a @Sendable closure).

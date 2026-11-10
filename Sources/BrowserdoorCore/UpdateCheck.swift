@@ -138,12 +138,12 @@ public final class UpdatePolicy {
 /// release's tag page (drafts and pre-releases excluded). Unlike api.github.com it has no
 /// per-IP rate limit (60 requests an hour without a token, often used up behind shared IPs).
 public struct GitHubReleaseSource: ReleaseSource {
-    public static let doorman = URL(string: "https://github.com/schowave/doorman/releases/latest")!
+    public static let browserdoor = URL(string: "https://github.com/schowave/browserdoor/releases/latest")!
 
     public var url: URL
     public var userAgent: String
 
-    public init(url: URL = GitHubReleaseSource.doorman, userAgent: String) {
+    public init(url: URL = GitHubReleaseSource.browserdoor, userAgent: String) {
         self.url = url
         self.userAgent = userAgent
     }

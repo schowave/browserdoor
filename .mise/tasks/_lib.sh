@@ -3,7 +3,7 @@
 # formula calls .mise/tasks/install directly), so they find the repo root themselves.
 set -eu
 cd "$(dirname "$0")/../.."
-APP_NAME=Doorman
+APP_NAME=Browserdoor
 BUILD_DIR=build
 APP="$BUILD_DIR/$APP_NAME.app"
 # Homebrew passes --disable-sandbox: its own sandbox forbids SwiftPM's.

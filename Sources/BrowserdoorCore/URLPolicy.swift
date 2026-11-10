@@ -1,6 +1,6 @@
 import Foundation
 
-/// Which URLs Doorman hands to browsers.
+/// Which URLs Browserdoor hands to browsers.
 ///
 /// URLs end up as command-line arguments (`zen --space … <url>`, `open --args … <url>`),
 /// so anything that is not a plain web or file URL — e.g. a `.webloc` containing

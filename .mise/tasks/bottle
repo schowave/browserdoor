@@ -3,7 +3,7 @@
 # Installs the formula from a throwaway local schowave/tap with --build-bottle, then writes
 # the bottle tarball (under the name its URL will use) and its JSON into <out dir>.
 # Merge the JSONs into the formula with `brew bottle --merge --write --no-commit`.
-# Replaces the local doorman installation: meant for CI runners.
+# Replaces the local browserdoor installation: meant for CI runners.
 set -eu
 usage="usage: bottle <formula.rb> <root url> <out dir>"
 formula="$(realpath "${1:?$usage}")"
@@ -17,14 +17,14 @@ if [ -d "$tap" ]; then
   exit 1
 fi
 brew tap-new --no-git schowave/tap
-cp "$formula" "$tap/Formula/doorman.rb"
+cp "$formula" "$tap/Formula/browserdoor.rb"
 
-brew install --build-bottle --verbose schowave/tap/doorman
+brew install --build-bottle --verbose schowave/tap/browserdoor
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 cd "$work"
-brew bottle --json --root-url="$root_url" schowave/tap/doorman
-for json in doorman--*.bottle.json; do
+brew bottle --json --root-url="$root_url" schowave/tap/browserdoor
+for json in browserdoor--*.bottle.json; do
   # local_filename has a double dash, the URL (filename) a single one.
   local_name="$(jq -r '.[].bottle.tags[].local_filename' "$json")"
   url_name="$(jq -r '.[].bottle.tags[].filename' "$json")"

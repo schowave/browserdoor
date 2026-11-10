@@ -1,4 +1,4 @@
-import DoormanCore
+import BrowserdoorCore
 import Foundation
 import ServiceManagement
 
@@ -13,7 +13,7 @@ enum CurrentInstallation {
     )
 }
 
-/// After an update, removes the LaunchServices entry of the version Doorman ran from before
+/// After an update, removes the LaunchServices entry of the version Browserdoor ran from before
 /// (macOS keeps it after `brew cleanup` deletes the bundle), then remembers the current path.
 @MainActor
 enum LaunchServicesCleanup {

@@ -7,7 +7,7 @@ public struct HomebrewInstall: Equatable, Sendable {
     /// e.g. `/opt/homebrew`
     public var prefix: URL
     public var formula: String
-    /// e.g. `/opt/homebrew/opt/doorman/Doorman.app`
+    /// e.g. `/opt/homebrew/opt/browserdoor/Browserdoor.app`
     public var optApp: URL
 
     public var brew: URL {
@@ -18,7 +18,7 @@ public struct HomebrewInstall: Equatable, Sendable {
         prefix.appendingPathComponent("bin")
     }
 
-    /// `/opt/homebrew/Cellar/doorman/0.1.0/Doorman.app` → prefix `/opt/homebrew`, formula `doorman`.
+    /// `/opt/homebrew/Cellar/browserdoor/0.1.0/Browserdoor.app` → prefix `/opt/homebrew`, formula `browserdoor`.
     /// Nil if the bundle is not inside a Cellar.
     public static func detect(bundlePath: String) -> HomebrewInstall? {
         let parts = bundlePath.split(separator: "/", omittingEmptySubsequences: false).map(String.init)
@@ -45,17 +45,17 @@ public struct HomebrewInstall: Equatable, Sendable {
     }
 }
 
-/// The login item Doorman used before (`SMAppService.mainApp`), which remembers the versioned
+/// The login item Browserdoor used before (`SMAppService.mainApp`), which remembers the versioned
 /// Cellar path. Only here to migrate away from it.
 public protocol LegacyLoginItem {
     var isEnabled: Bool { get }
     func unregister()
 }
 
-/// Keeps Doorman reachable under a path that survives `brew upgrade`, and manages the login item
+/// Keeps Browserdoor reachable under a path that survives `brew upgrade`, and manages the login item
 /// (a LaunchAgent running `open -a <app>`) on top of that path.
 ///
-/// - For a Homebrew install, `~/Applications/<App>.app` is a symlink to the `opt` path. Doorman
+/// - For a Homebrew install, `~/Applications/<App>.app` is a symlink to the `opt` path. Browserdoor
 ///   only creates or replaces its *own* links; a real app or someone else's link stays untouched.
 /// - The login item is only repointed when the app it starts is gone, so a second copy (e.g. a
 ///   dev build) never takes it over.
@@ -99,7 +99,7 @@ public struct Installation {
         return homebrew.optApp
     }
 
-    /// The LaunchServices registration an update left behind: the bundle Doorman ran from last
+    /// The LaunchServices registration an update left behind: the bundle Browserdoor ran from last
     /// time, if that was elsewhere and is gone now (e.g. a Cellar version `brew cleanup` removed).
     /// A previous copy that still exists, such as a dev build, is not stale.
     public func staleRegistration(previousBundlePath: String?) -> URL? {
@@ -116,6 +116,7 @@ public struct Installation {
     /// Run at every launch: maintain the link, migrate the legacy login item, repoint an agent
     /// whose app disappeared.
     public func prepare() {
+        removeLegacyLink()
         ensureLink()
         if let legacy = legacyLoginItem, legacy.isEnabled {
             legacy.unregister()
@@ -146,6 +147,22 @@ public struct Installation {
     }
 
     // MARK: Internals
+
+    /// The app was called Doorman (formula `doorman`) up to 0.2.x. Removes its
+    /// `~/Applications/Doorman.app` link if it still points into that formula, so only one entry
+    /// remains; a login item that started it is then repointed by `prepare()`.
+    static let legacyName = (app: "Doorman.app", formula: "doorman")
+
+    private func removeLegacyLink() {
+        let legacy = linkURL.deletingLastPathComponent().appendingPathComponent(Self.legacyName.app)
+        guard legacy != linkURL,
+              let destination = try? fm.destinationOfSymbolicLink(atPath: legacy.path),
+              destination.hasSuffix("/\(Self.legacyName.app)"),
+              destination.contains("/Cellar/\(Self.legacyName.formula)/")
+              || destination.hasSuffix("/opt/\(Self.legacyName.formula)/\(Self.legacyName.app)")
+        else { return }
+        try? fm.removeItem(at: legacy)
+    }
 
     private func ensureLink() {
         guard let homebrew, fm.fileExists(atPath: homebrew.optApp.path) else { return }

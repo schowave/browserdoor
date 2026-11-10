@@ -1,6 +1,6 @@
-# Doorman — Spezifikation v1
+# Browserdoor — Spezifikation v1
 
-Doorman ist ein macOS-Link-Picker in der Art von Browserosaurus. Er wird als Standardbrowser registriert. Beim Klick auf einen Link erscheint an der Mausposition ein Panel. Darin wählt man das Ziel: einen **Zen-Workspace**, ein **Chromium-Profil** oder einen anderen installierten Browser.
+Browserdoor ist ein macOS-Link-Picker in der Art von Browserosaurus. Er wird als Standardbrowser registriert. Beim Klick auf einen Link erscheint an der Mausposition ein Panel. Darin wählt man das Ziel: einen **Zen-Workspace**, ein **Chromium-Profil** oder einen anderen installierten Browser.
 
 ## 1. Ziele und Nicht-Ziele
 
@@ -24,7 +24,7 @@ Doorman ist ein macOS-Link-Picker in der Art von Browserosaurus. Er wird als Sta
 ## 2. Plattform und Technik
 
 - Swift 6, SwiftUI und AppKit, **macOS 14+**.
-- Build mit Swift Package Manager. `mise run app` baut daraus `Doorman.app` (siehe 9). Gebaut wird mit Xcode 16 (Swift 6).
+- Build mit Swift Package Manager. `mise run app` baut daraus `Browserdoor.app` (siehe 9). Gebaut wird mit Xcode 16 (Swift 6).
 - Die App läuft dauerhaft im Hintergrund:
   - `LSUIElement`, also kein Dock-Icon
   - Menüleisten-Icon (eine angelehnte Tür als Template-Bild, `NSStatusItem`; das Menü wird bei jedem Öffnen neu aufgebaut, damit die Statuszeilen aktuell sind)
@@ -55,8 +55,8 @@ Ein **Ziel** ist ein Eintrag im Panel. Jedes Ziel hat eine stabile `id`, einen A
   - Sie werden einmalig pro Zen-Version nach `~/Library/Caches/io.github.schowave.doorman/zen-icons/<version>/` extrahiert.
   - Fallback: Ist das Icon ein Emoji, wird es direkt angezeigt. Sonst erscheint der Anfangsbuchstabe auf der Theme-Farbe.
 - **Versionsprüfung**: `--space` gibt es ab Zen 1.24 (PR zen-browser/desktop#15074). Ist die Version älter (`CFBundleShortVersionString`) oder kann die Datei nicht gelesen werden, erscheint Zen als ein einzelnes `app:`-Ziel.
-- **Zen läuft nicht**: Doorman startet Zen über LaunchServices (`open -a … --args --space …`), damit Zen kein Kindprozess von Doorman wird. Zen merkt sich den Space für den Start (`zen.workspaces.cmdline-initial-workspace`).
-- **Zen läuft**: Der direkte Aufruf übergibt an die laufende Instanz und kehrt sofort zurück (getestet mit 1.24.1b). Danach aktiviert Doorman Zen.
+- **Zen läuft nicht**: Browserdoor startet Zen über LaunchServices (`open -a … --args --space …`), damit Zen kein Kindprozess von Browserdoor wird. Zen merkt sich den Space für den Start (`zen.workspaces.cmdline-initial-workspace`).
+- **Zen läuft**: Der direkte Aufruf übergibt an die laufende Instanz und kehrt sofort zurück (getestet mit 1.24.1b). Danach aktiviert Browserdoor Zen.
 
 ### 3.2 Chromium-Browser
 
@@ -76,11 +76,11 @@ Ein **Ziel** ist ein Eintrag im Panel. Jedes Ziel hat eine stabile `id`, einen A
 - Grundlage sind alle Apps, die `https` öffnen können (`NSWorkspace.urlsForApplications(toOpen:)`).
 - **Pfadfilter**: Es zählen nur Apps unter `/Applications`, `~/Applications` oder `/System`. Kopien in Caches oder Snapshots (Playwright, Puppeteer, …) fliegen raus. Gibt es eine Bundle-ID mehrfach, gewinnt die erste erlaubte Kopie.
 - **Allowlist**: Gezeigt werden nur bekannte Browser (`KnownBrowsers`, analog zu Browserosaurus), plus die Bundle-IDs aus `extraApps` in der Konfiguration. LaunchServices listet sonst auch Terminals, Web-App-Wrapper, Finicky/Browserosaurus usw.
-- Ausgenommen sind Doorman selbst sowie Zen und die Chromium-Browser, wenn sie schon über 3.1 oder 3.2 abgedeckt sind.
+- Ausgenommen sind Browserdoor selbst sowie Zen und die Chromium-Browser, wenn sie schon über 3.1 oder 3.2 abgedeckt sind.
 
 ### 3.4 Erlaubte URLs
 
-URLs landen als Kommandozeilen-Argumente bei den Browsern. Deshalb lässt Doorman nur `http`, `https` und `file` durch (`URLPolicy`); alles andere, etwa `--remote-debugging-port=…` oder `javascript:`, wird verworfen. Aus `.webloc`-Dateien kommen nur `http` und `https`, damit eine heruntergeladene Datei keine lokale Datei öffnen kann. Die Prüfung greift beim Empfang und noch einmal beim Bauen der Launch-Kommandos.
+URLs landen als Kommandozeilen-Argumente bei den Browsern. Deshalb lässt Browserdoor nur `http`, `https` und `file` durch (`URLPolicy`); alles andere, etwa `--remote-debugging-port=…` oder `javascript:`, wird verworfen. Aus `.webloc`-Dateien kommen nur `http` und `https`, damit eine heruntergeladene Datei keine lokale Datei öffnen kann. Die Prüfung greift beim Empfang und noch einmal beim Bauen der Launch-Kommandos.
 
 Ist `zen.profilePath` gesetzt, bekommt jeder Zen-Aufruf zusätzlich `--profile <pfad>`, damit `--space` die Instanz mit diesem Profil erreicht.
 
@@ -101,7 +101,7 @@ Ist `zen.profilePath` gesetzt, bekommt jeder Zen-Aufruf zusätzlich `--profile <
 
 ## 5. Konfiguration
 
-Die Datei liegt unter `~/.config/doorman/config.json`. Sie ist optional; fehlt sie, gelten die Defaults. Unbekannte Felder werden ignoriert.
+Die Datei liegt unter `~/.config/browserdoor/config.json`. Sie ist optional; fehlt sie, gelten die Defaults. Unbekannte Felder werden ignoriert.
 
 ```json
 {
@@ -127,17 +127,17 @@ Die Datei liegt unter `~/.config/doorman/config.json`. Sie ist optional; fehlt s
 ## 6. Menüleiste, Einstellungen, Updates
 
 **Menüleisten-Menü** (wird bei jedem Öffnen neu aufgebaut, nur billige Abfragen):
-- „Auf Doorman X aktualisieren…“, falls ein Update bekannt ist
-- Hinweis „Doorman ist nicht Standardbrowser“ plus „Als Standardbrowser festlegen“, nur wenn nötig
-- „Einstellungen…“ (⌘,), „Nach Updates suchen…“, Versionszeile, „Doorman beenden“
+- „Auf Browserdoor X aktualisieren…“, falls ein Update bekannt ist
+- Hinweis „Browserdoor ist nicht Standardbrowser“ plus „Als Standardbrowser festlegen“, nur wenn nötig
+- „Einstellungen…“ (⌘,), „Nach Updates suchen…“, Versionszeile, „Browserdoor beenden“
 
-**Einstellungsfenster** (SwiftUI in einem `NSWindow`; öffnet sich auch, wenn Doorman bei laufender App erneut gestartet wird, z. B. per `doorman`):
+**Einstellungsfenster** (SwiftUI in einem `NSWindow`; öffnet sich auch, wenn Browserdoor bei laufender App erneut gestartet wird, z. B. per `browserdoor`):
 - *Allgemein:* Standardbrowser-Status und -Button, „Beim Anmelden starten“ (LaunchAgent; der Haken zeigt nur, ob er existiert, nicht ob er in den Systemeinstellungen blockiert ist), Updates.
 - *Ziele:* alle erkannten Ziele mit Icon, per Ziehen sortierbar, ein-/ausblendbar, umbenennbar, eigene Taste (die tatsächlich vergebene Taste steht grau als Platzhalter), Stern für das Standardziel. **+** fügt Apps über einen Auswahldialog hinzu (`extraApps`; sie erscheinen auch ohne https-Registrierung), **−** entfernt eine solche App.
 - *Erweitert:* weitere Apps, Zen-Profil, Konfigurationsdatei im Finder zeigen.
 - Ein unsichtbares Hauptmenü liefert ⌘C/⌘V/⌘A, ⌘W und ⌘, für das Fenster.
 
-**Updates:** `HEAD https://github.com/schowave/doorman/releases/latest`; die Weiterleitung auf `…/releases/tag/<tag>` nennt das neueste Release (ohne Entwürfe und Pre-Releases). Die API (`api.github.com`) wird bewusst nicht genutzt, weil sie ohne Token nur 60 Anfragen pro Stunde und IP erlaubt. Geprüft wird automatisch höchstens einmal pro 24 h (abschaltbar) und auf Anfrage. Ist die Version neuer (`AppVersion`-Vergleich; Dev-Builds `0.0.0` nie), erscheint ein Dialog. „Im Terminal aktualisieren“ öffnet ein `.command`-Skript: `brew update && brew upgrade doorman`, altes Doorman beenden, neues per `doorman` starten. Ohne Homebrew-Installation gibt es stattdessen die Release-Seite. „Später“ unterdrückt die automatische Meldung für diese Version. Das ist der einzige Netzwerkzugriff von Doorman.
+**Updates:** `HEAD https://github.com/schowave/browserdoor/releases/latest`; die Weiterleitung auf `…/releases/tag/<tag>` nennt das neueste Release (ohne Entwürfe und Pre-Releases). Die API (`api.github.com`) wird bewusst nicht genutzt, weil sie ohne Token nur 60 Anfragen pro Stunde und IP erlaubt. Geprüft wird automatisch höchstens einmal pro 24 h (abschaltbar) und auf Anfrage. Ist die Version neuer (`AppVersion`-Vergleich; Dev-Builds `0.0.0` nie), erscheint ein Dialog. „Im Terminal aktualisieren“ öffnet ein `.command`-Skript: `brew update && brew upgrade browserdoor`, altes Browserdoor beenden, neues per `browserdoor` starten. Ohne Homebrew-Installation gibt es stattdessen die Release-Seite. „Später“ unterdrückt die automatische Meldung für diese Version. Das ist der einzige Netzwerkzugriff von Browserdoor.
 
 **Sprache:** Englisch und Deutsch nach Systemsprache (`Resources/Localization/*.lproj/Localizable.strings`, Schlüssel = englischer Text). `mise run check-strings` prüft, dass jeder Schlüssel übersetzt ist.
 
@@ -145,20 +145,20 @@ Die Datei liegt unter `~/.config/doorman/config.json`. Sie ist optional; fehlt s
 
 Beim ersten Start passiert Folgendes:
 1. Die App registriert sich bei LaunchServices (`LSRegisterURL`).
-2. Ist Doorman nicht Standardbrowser, erscheint ein Dialog. Bei Zustimmung ruft die App `NSWorkspace.setDefaultApplication(at:toOpenURLsWithScheme:)` für http auf. macOS zeigt dann den eigenen Bestätigungsdialog.
+2. Ist Browserdoor nicht Standardbrowser, erscheint ein Dialog. Bei Zustimmung ruft die App `NSWorkspace.setDefaultApplication(at:toOpenURLsWithScheme:)` für http auf. macOS zeigt dann den eigenen Bestätigungsdialog.
 3. Der Autostart wird aktiviert (LaunchAgent, siehe unten).
 
 **Stabil über `brew upgrade`:** Homebrew installiert in ein versioniertes Cellar-Verzeichnis, das `brew cleanup` nach einem Upgrade löscht. Deshalb:
-- Läuft Doorman aus einem Cellar, legt es bei jedem Start `~/Applications/Doorman.app` als Symlink auf `<brew prefix>/opt/doorman/Doorman.app` an (bzw. korrigiert einen veralteten eigenen Symlink). Eine echte App an dieser Stelle bleibt unangetastet.
-- Der Autostart ist ein LaunchAgent `~/Library/LaunchAgents/io.github.schowave.doorman.plist`, der `open -a ~/Applications/Doorman.app` ausführt. `SMAppService.mainApp` würde sich den versionierten Pfad merken; ein solches Login-Item aus früheren Builds wird beim Start entfernt und ersetzt.
+- Läuft Browserdoor aus einem Cellar, legt es bei jedem Start `~/Applications/Browserdoor.app` als Symlink auf `<brew prefix>/opt/browserdoor/Browserdoor.app` an (bzw. korrigiert einen veralteten eigenen Symlink). Eine echte App an dieser Stelle bleibt unangetastet.
+- Der Autostart ist ein LaunchAgent `~/Library/LaunchAgents/io.github.schowave.doorman.plist`, der `open -a ~/Applications/Browserdoor.app` ausführt. `SMAppService.mainApp` würde sich den versionierten Pfad merken; ein solches Login-Item aus früheren Builds wird beim Start entfernt und ersetzt.
 - Der Standardbrowser hängt an der Bundle-ID und ist damit pfadunabhängig; jeder Start registriert die laufende Kopie neu (`LSRegisterURL`).
-- Nach einem Update trägt Doorman den Pfad der Version, aus der es zuletzt lief, aus LaunchServices aus (`lsregister -u`), wenn er nicht mehr existiert (`brew cleanup` hat ihn gelöscht). Existiert er noch (z. B. ein Dev-Build), bleibt er.
+- Nach einem Update trägt Browserdoor den Pfad der Version, aus der es zuletzt lief, aus LaunchServices aus (`lsregister -u`), wenn er nicht mehr existiert (`brew cleanup` hat ihn gelöscht). Existiert er noch (z. B. ein Dev-Build), bleibt er.
 
 ## 8. Architektur
 
-Begriffe: siehe [GLOSSARY.md](GLOSSARY.md). Die Logik steckt in wenigen tiefen Modulen in `DoormanCore`, getestet über ihr Interface; die App (`Sources/Doorman`) rendert und stellt die Adapter für die Seams.
+Begriffe: siehe [GLOSSARY.md](GLOSSARY.md). Die Logik steckt in wenigen tiefen Modulen in `BrowserdoorCore`, getestet über ihr Interface; die App (`Sources/Browserdoor`) rendert und stellt die Adapter für die Seams.
 
-| Modul (DoormanCore) | Besitzt | Seam / Adapter |
+| Modul (BrowserdoorCore) | Besitzt | Seam / Adapter |
 |---|---|---|
 | `TargetCatalog` | Config-Datei (inkl. unlesbar), Zen-Profilpfad, Discovery, Picker-Einträge, Edit-Zeilen, effektive Tasten, Speichern | `BrowserEnvironment`: `SystemEnvironment` · `FakeEnvironment` |
 | `Discovery` | Ziele finden (Allowlist, Pfadfilter, Zen-Versionsprüfung, Chromium-Profile, Extra-Apps) | `BrowserEnvironment` |
@@ -173,13 +173,13 @@ App: `AppDelegate` (Menüleiste, Onboarding), `PickerController` (rendert die Se
 
 ## 9. Build, Distribution, CI
 
-- **Tooling:** mise. `mise.toml` pinnt `actionlint`, `shellcheck` und `swiftformat`. Swift selbst kommt aus Xcode bzw. den Command Line Tools, weil Doorman das macOS-SDK braucht.
+- **Tooling:** mise. `mise.toml` pinnt `actionlint`, `shellcheck` und `swiftformat`. Swift selbst kommt aus Xcode bzw. den Command Line Tools, weil Browserdoor das macOS-SDK braucht.
 - **Tasks:** Sie liegen in `.mise/tasks/` als ausführbare Shell-Skripte mit `#MISE`-Kopfzeilen und ersetzen das frühere Makefile: `test`, `app`, `install`, `run`, `lint`, `format`, `render-formula`, `check-formula`, `next-patch-version`, `app-changed-since-release`, `test-scripts`, `bottle`, `ci`, `clean`. Gemeinsame Einstellungen kommen aus `_lib.sh`. Die Skripte laufen auch ohne mise.
-- `mise run app` erzeugt `build/Doorman.app`. Info.plist, App-Icon (`Resources/Icon/AppIcon.icns`) und Menüleisten-Glyph (`MenuBarIcon.svg`, Template-Bild) kommen aus `Resources/`. Das `.icns` wird mit `mise run icons` aus `AppIcon.svg` erzeugt und eingecheckt. Signiert wird ad hoc. Die Version kommt aus `VERSION` oder dem letzten `v*`-Tag.
+- `mise run app` erzeugt `build/Browserdoor.app`. Info.plist, App-Icon (`Resources/Icon/AppIcon.icns`) und Menüleisten-Glyph (`MenuBarIcon.svg`, Template-Bild) kommen aus `Resources/`. Das `.icns` wird mit `mise run icons` aus `AppIcon.svg` erzeugt und eingecheckt. Signiert wird ad hoc. Die Version kommt aus `VERSION` oder dem letzten `v*`-Tag.
 - **Homebrew:**
-  - Die Formula `doorman` liegt im Tap `schowave/homebrew-tap` unter `Formula/`.
-  - Nutzer ab macOS 15 bekommen eine Bottle (Apple Silicon und Intel) und brauchen dann kein Xcode. Ohne passende Bottle baut die Formula aus dem Release-Tarball (`depends_on xcode: 16` zum Bauen) und ruft `.mise/tasks/install` direkt auf, also ohne mise, mit `PREFIX`, `VERSION`, `SWIFT_BUILD_FLAGS=--disable-sandbox` und `BIN_APP_PATH` (der stabile `opt`-Pfad für `bin/doorman`, das `open -a` nutzt).
-  - Die Vorlage `packaging/homebrew/doorman.rb` nutzt `@URL@`, `@VERSION@` und `@SHA256@`. `render-formula` setzt die Werte ein, `check-formula` prüft das Ergebnis. Den `bottle do`-Block schreibt erst der Release-Workflow hinein. Der Formula-Test prüft auch die Code-Signatur der App, damit eine Bottle sie beim Verschieben nicht beschädigt.
+  - Die Formula `browserdoor` liegt im Tap `schowave/homebrew-tap` unter `Formula/`.
+  - Nutzer ab macOS 15 bekommen eine Bottle (Apple Silicon und Intel) und brauchen dann kein Xcode. Ohne passende Bottle baut die Formula aus dem Release-Tarball (`depends_on xcode: 16` zum Bauen) und ruft `.mise/tasks/install` direkt auf, also ohne mise, mit `PREFIX`, `VERSION`, `SWIFT_BUILD_FLAGS=--disable-sandbox` und `BIN_APP_PATH` (der stabile `opt`-Pfad für `bin/browserdoor`, das `open -a` nutzt).
+  - Die Vorlage `packaging/homebrew/browserdoor.rb` nutzt `@URL@`, `@VERSION@` und `@SHA256@`. `render-formula` setzt die Werte ein, `check-formula` prüft das Ergebnis. Den `bottle do`-Block schreibt erst der Release-Workflow hinein. Der Formula-Test prüft auch die Code-Signatur der App, damit eine Bottle sie beim Verschieben nicht beschädigt.
 - **CI** (`ci.yml`, macOS-Runner):
   - Job `test`: `mise run ci` mit lint, Unit-Tests, Tests der Release-Skripte, App-Bundle und Formula-Check.
   - Job `formula`: rendert die Formula für einen lokalen Tarball, baut sie mit `.mise/tasks/bottle` als Bottle, führt `brew audit --strict` aus, installiert die Bottle neu (prüft `poured_from_bottle`) und führt `brew test` aus, also den Weg, den Nutzer gehen.

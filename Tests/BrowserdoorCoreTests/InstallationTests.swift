@@ -1,4 +1,4 @@
-@testable import DoormanCore
+@testable import BrowserdoorCore
 import Foundation
 import Testing
 
@@ -10,17 +10,17 @@ struct InstallationTests {
     let fm = FileManager.default
 
     init() throws {
-        root = fm.temporaryDirectory.appendingPathComponent("doorman-install-\(UUID().uuidString)")
+        root = fm.temporaryDirectory.appendingPathComponent("browserdoor-install-\(UUID().uuidString)")
         home = root.appendingPathComponent("home")
         prefix = root.appendingPathComponent("brew")
         try fm.createDirectory(at: home, withIntermediateDirectories: true)
     }
 
-    /// Creates `<prefix>/Cellar/doorman/<version>/Doorman.app` and points opt at it.
+    /// Creates `<prefix>/Cellar/browserdoor/<version>/Browserdoor.app` and points opt at it.
     func installHomebrew(_ version: String) throws -> URL {
-        let cellarApp = prefix.appendingPathComponent("Cellar/doorman/\(version)/Doorman.app")
+        let cellarApp = prefix.appendingPathComponent("Cellar/browserdoor/\(version)/Browserdoor.app")
         try fm.createDirectory(at: cellarApp, withIntermediateDirectories: true)
-        let opt = prefix.appendingPathComponent("opt/doorman")
+        let opt = prefix.appendingPathComponent("opt/browserdoor")
         try? fm.removeItem(at: opt)
         try fm.createDirectory(at: opt.deletingLastPathComponent(), withIntermediateDirectories: true)
         try fm.createSymbolicLink(at: opt, withDestinationURL: cellarApp.deletingLastPathComponent())
@@ -28,11 +28,11 @@ struct InstallationTests {
     }
 
     func installation(_ bundle: URL, legacy: LegacyLoginItem? = nil) -> Installation {
-        Installation(home: home, bundleURL: bundle, label: "test.doorman", legacyLoginItem: legacy)
+        Installation(home: home, bundleURL: bundle, label: "test.browserdoor", legacyLoginItem: legacy)
     }
 
     var optApp: String {
-        prefix.appendingPathComponent("opt/doorman/Doorman.app").path
+        prefix.appendingPathComponent("opt/browserdoor/Browserdoor.app").path
     }
 
     func agentTarget(_ inst: Installation) throws -> String? {
@@ -67,7 +67,7 @@ struct InstallationTests {
         let inst = try installation(installHomebrew("0.2.0"))
         try fm.createDirectory(at: inst.linkURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try fm.createSymbolicLink(atPath: inst.linkURL.path,
-                                  withDestinationPath: prefix.appendingPathComponent("Cellar/doorman/0.1.0/Doorman.app").path)
+                                  withDestinationPath: prefix.appendingPathComponent("Cellar/browserdoor/0.1.0/Browserdoor.app").path)
         inst.prepare()
         #expect(try fm.destinationOfSymbolicLink(atPath: inst.linkURL.path) == optApp)
     }
@@ -75,9 +75,9 @@ struct InstallationTests {
     @Test func foreignLinkAndRealAppStayUntouched() throws {
         let inst = try installation(installHomebrew("0.1.0"))
         try fm.createDirectory(at: inst.linkURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try fm.createSymbolicLink(atPath: inst.linkURL.path, withDestinationPath: "/repo/build/Doorman.app")
+        try fm.createSymbolicLink(atPath: inst.linkURL.path, withDestinationPath: "/repo/build/Browserdoor.app")
         inst.prepare()
-        #expect(try fm.destinationOfSymbolicLink(atPath: inst.linkURL.path) == "/repo/build/Doorman.app")
+        #expect(try fm.destinationOfSymbolicLink(atPath: inst.linkURL.path) == "/repo/build/Browserdoor.app")
         #expect(inst.stableAppURL.path == optApp)
 
         try fm.removeItem(at: inst.linkURL)
@@ -91,17 +91,17 @@ struct InstallationTests {
         installed.prepare()
         try installed.setLaunchAtLogin(true)
 
-        let dev = installation(root.appendingPathComponent("repo/build/Doorman.app"))
+        let dev = installation(root.appendingPathComponent("repo/build/Browserdoor.app"))
         dev.prepare()
         #expect(dev.stableAppURL == dev.bundleURL)
         #expect(try agentTarget(dev) == installed.linkURL.path)
     }
 
     @Test func agentIsRepointedWhenItsAppIsGone() throws {
-        let inst = installation(root.appendingPathComponent("Applications/Doorman.app"))
+        let inst = installation(root.appendingPathComponent("Applications/Browserdoor.app"))
         try fm.createDirectory(at: inst.agentURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         let gone = try PropertyListSerialization.data(
-            fromPropertyList: ["Label": "x", "ProgramArguments": ["/usr/bin/open", "-a", "/nowhere/Doorman.app"]],
+            fromPropertyList: ["Label": "x", "ProgramArguments": ["/usr/bin/open", "-a", "/nowhere/Browserdoor.app"]],
             format: .xml, options: 0
         )
         try gone.write(to: inst.agentURL)
@@ -139,20 +139,62 @@ struct InstallationTests {
     }
 
     @Test func anExistingPreviousCopyIsNotStale() throws {
-        let dev = root.appendingPathComponent("repo/build/Doorman.app")
+        let dev = root.appendingPathComponent("repo/build/Browserdoor.app")
         try fm.createDirectory(at: dev, withIntermediateDirectories: true)
         let inst = try installation(installHomebrew("0.2.2"))
         #expect(inst.staleRegistration(previousBundlePath: dev.path) == nil)
     }
 
     @Test func detectsHomebrewPaths() {
-        let brew = HomebrewInstall.detect(bundlePath: "/opt/homebrew/Cellar/doorman/0.1.0/Doorman.app")
+        let brew = HomebrewInstall.detect(bundlePath: "/opt/homebrew/Cellar/browserdoor/0.1.0/Browserdoor.app")
         #expect(brew?.prefix.path == "/opt/homebrew")
         #expect(brew?.brew.path == "/opt/homebrew/bin/brew")
-        #expect(brew?.optApp.path == "/opt/homebrew/opt/doorman/Doorman.app")
-        #expect(HomebrewInstall.detect(bundlePath: "/usr/local/Cellar/doorman/1.2.3_1/Doorman.app")?.optApp.path
-            == "/usr/local/opt/doorman/Doorman.app")
-        #expect(HomebrewInstall.detect(bundlePath: "/Applications/Doorman.app") == nil)
-        #expect(HomebrewInstall.detect(bundlePath: "/opt/homebrew/Cellar/doorman/Doorman.app") == nil)
+        #expect(brew?.optApp.path == "/opt/homebrew/opt/browserdoor/Browserdoor.app")
+        #expect(HomebrewInstall.detect(bundlePath: "/usr/local/Cellar/browserdoor/1.2.3_1/Browserdoor.app")?.optApp.path
+            == "/usr/local/opt/browserdoor/Browserdoor.app")
+        #expect(HomebrewInstall.detect(bundlePath: "/Applications/Browserdoor.app") == nil)
+        #expect(HomebrewInstall.detect(bundlePath: "/opt/homebrew/Cellar/browserdoor/Browserdoor.app") == nil)
+    }
+
+    @Test func legacyDoormanLinkIsRemovedAndAgentRepointed() throws {
+        let inst = try installation(installHomebrew("0.3.0"))
+        let apps = inst.linkURL.deletingLastPathComponent()
+        let legacy = apps.appendingPathComponent("Doorman.app")
+        try fm.createDirectory(at: apps, withIntermediateDirectories: true)
+        try fm.createSymbolicLink(atPath: legacy.path,
+                                  withDestinationPath: prefix.appendingPathComponent("opt/doorman/Doorman.app").path)
+        try fm.createDirectory(at: inst.agentURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try PropertyListSerialization.data(
+            fromPropertyList: ["Label": "x", "ProgramArguments": ["/usr/bin/open", "-a", legacy.path]],
+            format: .xml, options: 0
+        ).write(to: inst.agentURL)
+        inst.prepare()
+        #expect((try? fm.destinationOfSymbolicLink(atPath: legacy.path)) == nil)
+        #expect(try agentTarget(inst) == inst.linkURL.path)
+    }
+
+    @Test func foreignDoormanAppStaysUntouched() throws {
+        let inst = try installation(installHomebrew("0.3.0"))
+        let apps = inst.linkURL.deletingLastPathComponent()
+        let other = apps.appendingPathComponent("Doorman.app")
+        try fm.createDirectory(at: apps, withIntermediateDirectories: true)
+        try fm.createSymbolicLink(atPath: other.path, withDestinationPath: "/Applications/Doorman.app")
+        inst.prepare()
+        #expect(try fm.destinationOfSymbolicLink(atPath: other.path) == "/Applications/Doorman.app")
+    }
+
+    @Test func legacyConfigFolderMovesOnce() throws {
+        let old = home.appendingPathComponent(".config/doorman/config.json")
+        try fm.createDirectory(at: old.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("{}".utf8).write(to: old)
+        Config.migrateLegacyLocation(home: home)
+        #expect(fm.fileExists(atPath: Config.fileURL(home: home).path))
+        #expect(!fm.fileExists(atPath: old.path))
+
+        try fm.createDirectory(at: old.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("{\"old\":1}".utf8).write(to: old)
+        Config.migrateLegacyLocation(home: home) // a new config exists: leave both alone
+        #expect(try String(contentsOf: Config.fileURL(home: home), encoding: .utf8) == "{}")
+        #expect(fm.fileExists(atPath: old.path))
     }
 }

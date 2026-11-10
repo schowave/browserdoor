@@ -12,13 +12,13 @@
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleExecutable</key>
-	<string>Doorman</string>
+	<string>Browserdoor</string>
 	<key>CFBundleIdentifier</key>
 	<string>io.github.schowave.doorman</string>
 	<key>CFBundleName</key>
-	<string>Doorman</string>
+	<string>Browserdoor</string>
 	<key>CFBundleDisplayName</key>
-	<string>Doorman</string>
+	<string>Browserdoor</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

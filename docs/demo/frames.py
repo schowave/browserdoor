@@ -1,6 +1,6 @@
 """Writes the SVG frames of the README demo animation (docs/demo.gif).
 
-The scene: a link is clicked in a chat app, the Doorman picker appears at the pointer,
+The scene: a link is clicked in a chat app, the Browserdoor picker appears at the pointer,
 ↓ selects the "Client" Zen space, ↩ opens it, and Zen shows the new tab in that space.
 Generic names only. Usage: python3 frames.py <output-dir>; prints "<file> <delay>" per frame.
 """

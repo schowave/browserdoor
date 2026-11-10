@@ -3,7 +3,7 @@ import Foundation
 /// Which targets exist, what they're called, which key opens them, and how edits are saved.
 /// The one place the picker and the settings window get their target list from.
 ///
-/// Reads `~/.config/doorman/config.json` (missing = defaults; unreadable = defaults, flagged),
+/// Reads `~/.config/browserdoor/config.json` (missing = defaults; unreadable = defaults, flagged),
 /// resolves the Zen profile override, discovers targets and applies the config.
 public struct TargetCatalog {
     public var environment: BrowserEnvironment

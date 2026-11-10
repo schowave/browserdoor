@@ -1,5 +1,5 @@
 import AppKit
-import DoormanCore
+import BrowserdoorCore
 
 /// `BrowserEnvironment` backed by LaunchServices and the real file system.
 struct SystemEnvironment: BrowserEnvironment {
@@ -31,7 +31,7 @@ struct SystemEnvironment: BrowserEnvironment {
     }
 
     /// Reads Info.plist from disk every time. `Bundle(url:)` caches per path, so after an app
-    /// updates itself (Zen does) it would keep reporting the old version until Doorman restarts.
+    /// updates itself (Zen does) it would keep reporting the old version until Browserdoor restarts.
     static func infoPlist(of app: URL) -> [String: Any]? {
         NSDictionary(contentsOf: app.appendingPathComponent("Contents/Info.plist")) as? [String: Any]
     }
@@ -47,5 +47,5 @@ struct SystemEnvironment: BrowserEnvironment {
 
 enum AppIdentity {
     static let bundleId = "io.github.schowave.doorman"
-    static let name = "Doorman"
+    static let name = "Browserdoor"
 }

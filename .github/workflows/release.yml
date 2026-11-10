@@ -59,13 +59,13 @@ jobs:
         run: |
           url="https://github.com/${GITHUB_REPOSITORY}/archive/refs/tags/${TAG}.tar.gz"
           sha=$(curl -sSfL "$url" | shasum -a 256 | cut -d' ' -f1)
-          .mise/tasks/render-formula "${TAG#v}" "$sha" > doorman.rb
-          cat doorman.rb
+          .mise/tasks/render-formula "${TAG#v}" "$sha" > browserdoor.rb
+          cat browserdoor.rb
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: formula
-          path: doorman.rb
+          path: browserdoor.rb
           overwrite: true
 
   bottle:
@@ -101,7 +101,7 @@ jobs:
           BOTTLE_TAG: ${{ matrix.bottle_tag }}
         run: |
           # The JSON is uploaded after the tarball, so its presence means the bottle is complete.
-          json="doorman--${TAG#v}.${BOTTLE_TAG}.bottle.json"
+          json="browserdoor--${TAG#v}.${BOTTLE_TAG}.bottle.json"
           if gh release download "$TAG" --pattern "$json" --dir bottles 2>/dev/null; then
             echo "Reusing $json from the release"
             echo "found=true" >> "$GITHUB_OUTPUT"
@@ -109,11 +109,11 @@ jobs:
 
       - name: Build bottle
         if: steps.existing.outputs.found != 'true'
-        run: .mise/tasks/bottle doorman.rb "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}" bottles
+        run: .mise/tasks/bottle browserdoor.rb "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}" bottles
 
       - name: brew test
         if: steps.existing.outputs.found != 'true'
-        run: brew test schowave/tap/doorman
+        run: brew test schowave/tap/browserdoor
 
       - name: Attach bottle to the release
         if: steps.existing.outputs.found != 'true'
@@ -166,18 +166,24 @@ jobs:
           fi
           git clone "https://x-access-token:${TAP_TOKEN}@github.com/schowave/homebrew-tap.git" "$tap"
           mkdir -p "$tap/Formula"
-          cp doorman.rb "$tap/Formula/doorman.rb"
+          cp browserdoor.rb "$tap/Formula/browserdoor.rb"
+          # Up to 0.2.x the formula was `doorman`: drop it and record the rename, so
+          # `brew upgrade` moves existing installs over to `browserdoor`.
+          git -C "$tap" rm -q --ignore-unmatch Formula/doorman.rb
+          renames="$tap/formula_renames.json"
+          [ -f "$renames" ] || echo '{}' > "$renames"
+          jq '. + {"doorman": "browserdoor"}' "$renames" > "$renames.new" && mv "$renames.new" "$renames"
           # Homebrew only loads formulae from a hand-cloned tap once it is trusted.
-          brew trust --formula schowave/tap/doorman
+          brew trust --formula schowave/tap/browserdoor
           brew bottle --merge --write --no-commit bottles/*.json
-          cat "$tap/Formula/doorman.rb"
+          cat "$tap/Formula/browserdoor.rb"
           cd "$tap"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Formula/doorman.rb
+          git add Formula/browserdoor.rb formula_renames.json
           if git diff --cached --quiet; then
             echo "Formula unchanged"
             exit 0
           fi
-          git commit -m "doorman ${TAG#v}"
+          git commit -m "browserdoor ${TAG#v}"
           git push

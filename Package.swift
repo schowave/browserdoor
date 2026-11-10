@@ -2,14 +2,14 @@
 import PackageDescription
 
 let package = Package(
-    name: "Doorman",
+    name: "Browserdoor",
     platforms: [.macOS(.v14)],
     targets: [
-        .target(name: "DoormanCore"),
-        .executableTarget(name: "Doorman", dependencies: ["DoormanCore"]),
+        .target(name: "BrowserdoorCore"),
+        .executableTarget(name: "Browserdoor", dependencies: ["BrowserdoorCore"]),
         .testTarget(
-            name: "DoormanCoreTests",
-            dependencies: ["DoormanCore"]
+            name: "BrowserdoorCoreTests",
+            dependencies: ["BrowserdoorCore"]
         ),
     ]
 )

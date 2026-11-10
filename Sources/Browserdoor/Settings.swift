@@ -1,5 +1,5 @@
 import AppKit
-import DoormanCore
+import BrowserdoorCore
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -35,7 +35,7 @@ final class SettingsModel {
     func reload() {
         state = catalog.load()
         configError = state.configIsUnreadable ? L("config.json can't be read; saving here will replace it.") : nil
-        isDefaultBrowser = DefaultBrowser.isDoorman
+        isDefaultBrowser = DefaultBrowser.isBrowserdoor
         launchesAtLogin = CurrentInstallation.shared.launchesAtLogin
     }
 
@@ -127,7 +127,7 @@ final class SettingsModel {
     }
 
     func makeDefaultBrowser() {
-        DefaultBrowser.makeDoorman { [weak self] in self?.isDefaultBrowser = DefaultBrowser.isDoorman }
+        DefaultBrowser.makeBrowserdoor { [weak self] in self?.isDefaultBrowser = DefaultBrowser.isBrowserdoor }
     }
 
     func setLaunchAtLogin(_ enabled: Bool) {
@@ -146,7 +146,7 @@ final class SettingsModel {
     }
 }
 
-/// Hosts the SwiftUI settings in a regular window (Doorman has no Dock icon or main menu).
+/// Hosts the SwiftUI settings in a regular window (Browserdoor has no Dock icon or main menu).
 @MainActor
 final class SettingsWindowController {
     static let shared = SettingsWindowController()
@@ -162,10 +162,10 @@ final class SettingsWindowController {
                 backing: .buffered,
                 defer: false
             )
-            window.title = L("Doorman Settings")
+            window.title = L("Browserdoor Settings")
             window.contentView = NSHostingView(rootView: SettingsView(model: model, updates: UpdateChecker.shared))
             window.isReleasedWhenClosed = false
-            window.setFrameAutosaveName("DoormanSettings")
+            window.setFrameAutosaveName("BrowserdoorSettings")
             window.contentMinSize = NSSize(width: 560, height: 440)
             window.center()
             self.window = window
@@ -204,10 +204,10 @@ private struct GeneralTab: View {
             Section {
                 LabeledContent(L("Default browser")) {
                     if model.isDefaultBrowser {
-                        Label(L("Doorman handles links"), systemImage: "checkmark.circle.fill")
+                        Label(L("Browserdoor handles links"), systemImage: "checkmark.circle.fill")
                             .foregroundStyle(.green)
                     } else {
-                        Button(L("Make Doorman the Default Browser")) { model.makeDefaultBrowser() }
+                        Button(L("Make Browserdoor the Default Browser")) { model.makeDefaultBrowser() }
                     }
                 }
                 Toggle(L("Start at login"), isOn: Binding(
@@ -372,7 +372,7 @@ private struct AdvancedTab: View {
                 Text("Zen")
             }
             Section {
-                LabeledContent("~/.config/doorman/config.json") {
+                LabeledContent("~/.config/browserdoor/config.json") {
                     Button(L("Show in Finder")) { model.revealConfig() }
                 }
             } header: {

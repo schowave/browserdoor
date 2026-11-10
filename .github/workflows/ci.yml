@@ -31,22 +31,22 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Render formula for a local tarball
         run: |
-          tarball="$RUNNER_TEMP/doorman-0.0.1.tar.gz"
-          git archive --format=tar.gz --prefix=doorman-0.0.1/ -o "$tarball" HEAD
+          tarball="$RUNNER_TEMP/browserdoor-0.0.1.tar.gz"
+          git archive --format=tar.gz --prefix=browserdoor-0.0.1/ -o "$tarball" HEAD
           sha=$(shasum -a 256 "$tarball" | cut -d' ' -f1)
-          .mise/tasks/render-formula 0.0.1 "$sha" "file://$tarball" > "$RUNNER_TEMP/doorman.rb"
-          cat "$RUNNER_TEMP/doorman.rb"
+          .mise/tasks/render-formula 0.0.1 "$sha" "file://$tarball" > "$RUNNER_TEMP/browserdoor.rb"
+          cat "$RUNNER_TEMP/browserdoor.rb"
       - name: Build from source as a bottle
-        run: .mise/tasks/bottle "$RUNNER_TEMP/doorman.rb" "file://$RUNNER_TEMP/bottles" "$RUNNER_TEMP/bottles"
+        run: .mise/tasks/bottle "$RUNNER_TEMP/browserdoor.rb" "file://$RUNNER_TEMP/bottles" "$RUNNER_TEMP/bottles"
       - name: Pour the bottle
         run: |
           brew bottle --merge --write --no-commit "$RUNNER_TEMP"/bottles/*.json
-          cat "$(brew --repository)/Library/Taps/schowave/homebrew-tap/Formula/doorman.rb"
-          brew uninstall doorman
-          brew install schowave/tap/doorman
-          poured=$(brew info --json=v2 schowave/tap/doorman | jq '.formulae[0].installed[0].poured_from_bottle')
-          [ "$poured" = true ] || { echo "::error::doorman was not poured from the bottle"; exit 1; }
+          cat "$(brew --repository)/Library/Taps/schowave/homebrew-tap/Formula/browserdoor.rb"
+          brew uninstall browserdoor
+          brew install schowave/tap/browserdoor
+          poured=$(brew info --json=v2 schowave/tap/browserdoor | jq '.formulae[0].installed[0].poured_from_bottle')
+          [ "$poured" = true ] || { echo "::error::browserdoor was not poured from the bottle"; exit 1; }
       - name: brew test
-        run: brew test schowave/tap/doorman
+        run: brew test schowave/tap/browserdoor
       - name: brew audit (formula with bottle block, as in the tap)
-        run: brew audit --strict --formula schowave/tap/doorman
+        run: brew audit --strict --formula schowave/tap/browserdoor

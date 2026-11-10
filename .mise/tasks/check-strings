@@ -4,7 +4,7 @@
 . "$(dirname "$0")/_lib.sh"
 de=Resources/Localization/de.lproj/Localizable.strings
 plutil -lint Resources/Localization/*.lproj/Localizable.strings >/dev/null
-missing="$(grep -rhoE 'L\("([^"\\]|\\.)*"' Sources/Doorman | sed 's/^L(//' | sort -u | while IFS= read -r key; do
+missing="$(grep -rhoE 'L\("([^"\\]|\\.)*"' Sources/Browserdoor | sed 's/^L(//' | sort -u | while IFS= read -r key; do
   grep -qF "$key =" "$de" || echo "$key"
 done)"
 if [ -n "$missing" ]; then
