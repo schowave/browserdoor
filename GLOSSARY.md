@@ -17,6 +17,7 @@ Domain terms used in Browserdoor's code, docs and reviews. Module names in `code
 | **Default target** | The target `Enter` opens (star in the settings). |
 | **Hotkey** | The key that picks a target in the picker: custom, or an automatic number key. |
 | **Picker** | The floating panel that appears for a link. |
+| **Profile badge** | `ProfileBadge`: the lettered circle on the icon of a target whose app appears more than once (Chromium/Firefox profiles). |
 | **Picker session** | `PickerSession`: one appearance of the picker, its links, entries and selection; turns input into effects (close, open, copy). The picker view shows it as is. |
 | **Link opening** | `LinkOpener`: links + target → launch, including Zen's running/cold handling, behind the `LaunchPort` seam. |
 | **Installation** | `Installation`: where Browserdoor lives, the stable link and the login item. |

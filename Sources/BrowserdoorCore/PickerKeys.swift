@@ -18,7 +18,10 @@ enum PickerKeyAction: Equatable, Sendable {
     case confirm
     case moveUp
     case moveDown
+    case moveFirst
+    case moveLast
     case copy
+    case settings
     case pick(Int)
     case ignore
 }
@@ -30,6 +33,9 @@ enum PickerKeys {
     static let enter: UInt16 = 76
     static let upArrow: UInt16 = 126
     static let downArrow: UInt16 = 125
+    static let tab: UInt16 = 48
+    static let home: UInt16 = 115
+    static let end: UInt16 = 119
 
     /// - Parameters:
     ///   - characters: the key's characters ignoring modifiers (`NSEvent.charactersIgnoringModifiers`).
@@ -42,6 +48,14 @@ enum PickerKeys {
         case returnKey, enter: return .confirm
         case upArrow: return .moveUp
         case downArrow: return .moveDown
+        case home: return .moveFirst
+        case end: return .moveLast
+        case tab:
+            switch modifiers.subtracting(.ignorable) {
+            case []: return .moveDown
+            case .shift: return .moveUp
+            default: return .ignore
+            }
         default: break
         }
         guard let characters = characters?.lowercased(), characters.count == 1, let key = characters.first else {
@@ -50,6 +64,9 @@ enum PickerKeys {
         let relevant = modifiers.subtracting(.ignorable)
         if relevant == .command, key == "c" {
             return .copy
+        }
+        if relevant == .command, key == "," {
+            return .settings
         }
         guard relevant.isDisjoint(with: [.command, .control, .option]) else { return .ignore }
         if let index = hotkeys.firstIndex(where: { $0 == key }) {

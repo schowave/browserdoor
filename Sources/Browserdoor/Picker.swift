@@ -45,7 +45,8 @@ final class PickerController: NSObject, NSWindowDelegate {
             return
         }
 
-        model.session = PickerSession(links: urls, catalog: TargetCatalog(environment: SystemEnvironment()).load())
+        model.session = PickerSession(links: urls, catalog: TargetCatalog(environment: SystemEnvironment()).load(),
+                                      pointer: NSEvent.mouseLocation)
 
         let panel = panel ?? makePanel()
         self.panel = panel
@@ -58,11 +59,17 @@ final class PickerController: NSObject, NSWindowDelegate {
     @discardableResult
     private func handle(_ input: PickerInput) -> Bool {
         guard var session = model.session, let effects = session.handle(input) else { return false }
-        model.session = session
+        if session != model.session {
+            model.session = session
+        }
+        let opensSettings = effects.contains(.openSettings)
         for effect in effects {
             switch effect {
             case .close:
-                close()
+                // The settings window takes the focus; otherwise it goes back where the click came from.
+                close(returnFocus: !opensSettings)
+            case .openSettings:
+                SettingsWindowController.shared.show()
             case let .open(links, target):
                 Links.opener.open(links, in: target)
             case let .copy(text):
@@ -135,11 +142,10 @@ final class PickerController: NSObject, NSWindowDelegate {
         return result
     }
 
-    private func close() {
+    private func close(returnFocus: Bool = true) {
         panel?.orderOut(nil)
         model.session = nil
-        // Hand focus back to wherever the click came from.
-        if NSApp.isActive {
+        if returnFocus, NSApp.isActive {
             NSApp.hide(nil)
         }
     }
@@ -163,19 +169,12 @@ struct PickerView: View {
 
     private func content(_ session: PickerSession) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            header(session)
+            PickerHeader(session: session, onInput: onInput)
             Divider()
-            VStack(spacing: 2) {
-                ForEach(Array(session.entries.enumerated()), id: \.element.id) { index, entry in
-                    RowView(entry: entry, selected: index == session.selection)
-                        .contentShape(Rectangle())
-                        .onTapGesture { onInput(.click(row: index)) }
-                        .onHover { inside in
-                            if inside {
-                                onInput(.hover(row: index))
-                            }
-                        }
-                }
+            if session.entries.isEmpty {
+                EmptyPicker(onInput: onInput)
+            } else {
+                rows(session)
             }
             if session.configIsUnreadable {
                 Text(L("config.json is invalid; using defaults")).font(.caption).foregroundStyle(.orange)
@@ -187,54 +186,172 @@ struct PickerView: View {
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(.separator))
     }
 
-    private func header(_ session: PickerSession) -> some View {
+    private func rows(_ session: PickerSession) -> some View {
+        VStack(spacing: 2) {
+            ForEach(Array(session.entries.enumerated()), id: \.element.id) { index, entry in
+                RowView(
+                    entry: entry,
+                    badge: session.badges[entry.id],
+                    selected: index == session.selection,
+                    isDefault: index == session.defaultRow,
+                    onPick: { onInput(.click(row: index)) }
+                )
+                .onContinuousHover { phase in
+                    if case .active = phase {
+                        onInput(.hover(row: index, pointer: NSEvent.mouseLocation))
+                    }
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(L("Targets"))
+    }
+}
+
+/// The link(s) waiting: host in bold, the rest in gray; and the copy button.
+private struct PickerHeader: View {
+    var session: PickerSession
+    var onInput: (PickerInput) -> Void
+
+    private static let home = FileManager.default.homeDirectoryForCurrentUser
+
+    var body: some View {
+        let displays = session.links.map { LinkDisplay($0, home: Self.home) }
         HStack(spacing: 6) {
             Group {
-                if session.links.count == 1, let url = session.links.first {
-                    Text(url.absoluteString)
+                if displays.count == 1, let link = displays.first {
+                    (Text(link.primary).fontWeight(.semibold).foregroundStyle(.primary)
+                        + Text(link.secondary).foregroundStyle(.secondary))
+                        .accessibilityLabel(link.line)
                 } else {
-                    Text(L("%ld links", session.links.count))
+                    Text(L("%ld links", displays.count)).foregroundStyle(.secondary)
                 }
             }
             .font(.callout)
-            .foregroundStyle(.secondary)
             .lineLimit(1)
-            .truncationMode(.middle)
-            .help(session.links.map(\.absoluteString).joined(separator: "\n"))
+            .truncationMode(.tail)
+            .help(displays.map(\.line).joined(separator: "\n"))
             Spacer(minLength: 4)
             Button { onInput(.copyButton) } label: {
                 Image(systemName: session.copied ? "checkmark" : "doc.on.doc")
             }
             .buttonStyle(.borderless)
+            .focusable(false)
             .help(L("Copy URL (⌘C)"))
+            .accessibilityLabel(session.copied ? L("Copied") : L("Copy URL"))
         }
         .padding(.horizontal, 4)
     }
 }
 
+/// Shown when every target is hidden.
+private struct EmptyPicker: View {
+    var onInput: (PickerInput) -> Void
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Text(L("No visible targets")).foregroundStyle(.secondary)
+            Button(L("Settings…")) { onInput(.settingsButton) }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+    }
+}
+
 struct RowView: View {
     var entry: PickerEntry
+    var badge: ProfileBadge?
     var selected: Bool
+    var isDefault: Bool
+    var onPick: () -> Void
 
     var body: some View {
         HStack(spacing: 10) {
-            IconView(icon: IconProvider.shared.icon(for: entry.target)).frame(width: 24, height: 24)
-            Text(entry.label).lineLimit(1)
-            Spacer()
+            BadgedIcon(icon: IconProvider.shared.icon(for: entry.target), badge: badge, size: 24)
+            Text(entry.label).lineLimit(1).truncationMode(.tail)
+            Spacer(minLength: 4)
+            if isDefault {
+                KeyCap(text: "↩", selected: selected)
+            }
             if let key = entry.hotkey {
-                Text(String(key).uppercased())
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 1)
-                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 4))
+                KeyCap(text: String(key).uppercased(), selected: selected)
             }
         }
+        .foregroundStyle(selected ? Color.white : Color.primary)
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
         .background(
-            RoundedRectangle(cornerRadius: 6).fill(selected ? Color.accentColor.opacity(0.25) : .clear)
+            RoundedRectangle(cornerRadius: 6)
+                .fill(selected ? Color(nsColor: .selectedContentBackgroundColor) : .clear)
         )
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onPick)
+        .help(entry.label)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(entry.label)
+        .accessibilityHint(accessibilityHint)
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityAction(.default, onPick)
+    }
+
+    private var accessibilityHint: String {
+        var parts: [String] = []
+        if let key = entry.hotkey {
+            parts.append(L("Key %@", String(key).uppercased()))
+        }
+        if isDefault {
+            parts.append(L("Opens with Return"))
+        }
+        return parts.joined(separator: ", ")
+    }
+}
+
+/// A key shown as a small cap, e.g. the hotkey or ↩.
+private struct KeyCap: View {
+    var text: String
+    var selected: Bool
+
+    var body: some View {
+        Text(text)
+            .font(.system(.caption, design: .monospaced))
+            .foregroundStyle(selected ? AnyShapeStyle(Color.white) : AnyShapeStyle(.secondary))
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(selected ? AnyShapeStyle(Color.white.opacity(0.25)) : AnyShapeStyle(.quaternary))
+            )
+    }
+}
+
+/// A target's icon with its profile badge, if it has one, in the bottom-right corner.
+struct BadgedIcon: View {
+    var icon: EntryIcon
+    var badge: ProfileBadge?
+    var size: CGFloat
+
+    var body: some View {
+        IconView(icon: icon)
+            .frame(width: size, height: size)
+            .overlay(alignment: .bottomTrailing) {
+                if let badge {
+                    let diameter = (size * 0.55).rounded()
+                    Text(badge.letter)
+                        .font(.system(size: diameter * 0.62, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .frame(width: diameter, height: diameter)
+                        .background(Circle().fill(Color(rgb: badge.color)))
+                        .overlay(Circle().strokeBorder(.background, lineWidth: 1))
+                        .offset(x: diameter * 0.25, y: diameter * 0.2)
+                        .accessibilityHidden(true)
+                }
+            }
+    }
+}
+
+extension Color {
+    init(rgb: RGB) {
+        self.init(red: Double(rgb.r) / 255, green: Double(rgb.g) / 255, blue: Double(rgb.b) / 255)
     }
 }
 

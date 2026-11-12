@@ -26,6 +26,11 @@
 /* Picker */
 "%ld links" = "%ld Links";
 "Copy URL (⌘C)" = "URL kopieren (⌘C)";
+"Copy URL" = "URL kopieren";
+"Copied" = "Kopiert";
+"No visible targets" = "Keine sichtbaren Ziele";
+"Key %@" = "Taste %@";
+"Opens with Return" = "Öffnet mit Return";
 "config.json is invalid; using defaults" = "config.json ist fehlerhaft – Standardwerte aktiv";
 
 /* Settings window */

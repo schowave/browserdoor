@@ -67,9 +67,9 @@ struct PickerSessionTests {
 
     @Test func clickAndHover() {
         var s = session()
-        #expect(s.handle(.hover(row: 3)) == [])
+        #expect(s.handle(.hover(row: 3, pointer: .zero)) == [])
         #expect(s.selection == 3)
-        #expect(s.handle(.hover(row: 99)) == [])
+        #expect(s.handle(.hover(row: 99, pointer: .zero)) == [])
         #expect(s.selection == 3)
         #expect(s.handle(.click(row: 1)) == [.close, .open([a], in: entries[1].target)])
         #expect(s.handle(.click(row: 99)) == [])
@@ -97,5 +97,44 @@ struct PickerSessionTests {
         #expect(s.entries.map(\.id) == ["w", "p", "s"])
         #expect(s.selection == 1)
         #expect(s.configIsUnreadable)
+    }
+
+    @Test func hoverSelectsOnlyOnceTheMouseMoved() {
+        var s = PickerSession(links: [a], entries: entries, defaultIndex: 2, pointer: CGPoint(x: 100, y: 100))
+        _ = s.handle(.hover(row: 0, pointer: CGPoint(x: 100, y: 100)))
+        _ = s.handle(.hover(row: 0, pointer: CGPoint(x: 101, y: 100)))
+        #expect(s.selection == 2)
+        _ = s.handle(.hover(row: 0, pointer: CGPoint(x: 100, y: 103)))
+        #expect(s.selection == 0)
+        // Once it has moved, the pointer may come back to where it started.
+        _ = s.handle(.hover(row: 1, pointer: CGPoint(x: 100, y: 100)))
+        #expect(s.selection == 1)
+    }
+
+    @Test func tabHomeAndEndMoveTheSelection() {
+        var s = session(default: 1)
+        _ = s.handle(key(48, "\t"))
+        #expect(s.selection == 2)
+        _ = s.handle(key(48, "\t", .shift))
+        #expect(s.selection == 1)
+        #expect(s.handle(key(48, "\t", .option)) == nil)
+        _ = s.handle(key(119, nil, .ignorable))
+        #expect(s.selection == 3)
+        _ = s.handle(key(115, nil, .ignorable))
+        #expect(s.selection == 0)
+    }
+
+    @Test func commandCommaAndTheEmptyStateButtonOpenTheSettings() {
+        var s = session()
+        #expect(s.handle(key(43, ",", .command)) == [.close, .openSettings])
+        var empty = PickerSession(links: [a], entries: [], defaultIndex: nil)
+        #expect(empty.handle(.settingsButton) == [.close, .openSettings])
+        #expect(empty.handle(key(115, nil)) == [])
+    }
+
+    @Test func remembersTheDefaultRow() {
+        #expect(session(default: 2).defaultRow == 2)
+        #expect(session(default: 9).defaultRow == nil)
+        #expect(session().defaultRow == nil)
     }
 }

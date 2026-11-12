@@ -57,7 +57,7 @@ final class IconProvider {
         case let .app(app):
             return .image(image(app) { NSWorkspace.shared.icon(forFile: $0.path) })
         case let .zenSpace(glyph, rgb):
-            let color = rgb.map { Color(red: Double($0.r) / 255, green: Double($0.g) / 255, blue: Double($0.b) / 255) }
+            let color = rgb.map { Color(rgb: $0) }
                 ?? Color.secondary.opacity(0.35)
             switch glyph {
             case let .text(text):

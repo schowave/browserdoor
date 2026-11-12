@@ -100,14 +100,18 @@ If `zen.profilePath` is set, every Zen call additionally gets `--profile <path>`
 
 - A floating, borderless `NSPanel` at the mouse position. It is constrained to the visible screen area.
 - **Content**:
-  - at the top the URL, not editable and truncated; for multiple links "N links" with a tooltip
-  - below it the list of targets: icon, name, hotkey
+  - at the top the link (`LinkDisplay`): the host in bold, path, query and fragment in gray. The host is shown as Foundation parses it, so non-ASCII hosts appear in Punycode (`xn--…`) and look-alike domains stand out; user info (`https://bank.com@evil.io`) is not shown. A `file` link shows its file name in bold and its folder in gray (`~` for the home folder). For multiple links "N links", with every link in the tooltip.
+  - below it the list of targets: icon, name, hotkey. The default target carries a `↩` mark, even while another row is selected. The selected row is drawn like a selected menu item (system selection color, white text).
+  - Targets of the same app (Chromium and Firefox profiles, several installs) get a small lettered circle on the icon (`ProfileBadge`): the first letter of the name, in a color picked from a fixed palette by a stable hash of the target ID. Zen spaces and apps listed only once get none.
   - Button "Copy URL"
+  - If every target is hidden: "No visible targets" and a "Settings…" button.
 - **Controls**:
   - An entry's hotkey opens that target.
-  - ↑ and ↓ move the selection, Enter opens the selection. The default target is preselected, otherwise the first entry.
+  - ↑/↓ and Tab/⇧Tab move the selection, Home/End jump to the first/last entry, Enter opens the selection. The default target is preselected, otherwise the first entry.
+  - Hovering selects a row only once the mouse has moved (2 pt) from where it was when the panel opened, so a pointer that happens to rest on a row does not replace the default.
   - Esc or a click outside closes the panel.
-  - ⌘C copies the URL(s).
+  - ⌘C copies the URL(s). ⌘, closes the panel and opens the settings on the Targets tab.
+  - Every row is a button for VoiceOver, with its name as label, its key and the `↩` mark as hint, and the selected state.
 - **Hotkeys**: Without configuration, `1`–`9`, then `0` apply in list order. The configuration can override them per target.
 - **Multiple links**: If more URLs arrive while the panel is open, they are collected. A selection opens all of them.
 
@@ -183,7 +187,7 @@ Terms: see [GLOSSARY.md](GLOSSARY.md). The logic lives in a few deep modules in 
 |---|---|---|
 | `TargetCatalog` | Config file (incl. unreadable), Zen profile path, discovery, picker entries (derived from the rows: order, hiding, names, keys), edits (sort, rename, key, hide, default, extra apps, Zen profile; the state changes only through these), effective keys, saving. `Config` is only the file format with loading, merging on save and order | `BrowserEnvironment`: `SystemEnvironment` · `FakeEnvironment` |
 | `Discovery` | Finding targets (allowlist, path filter, Zen version check, Chromium and Firefox profiles, extra apps) | `BrowserEnvironment` |
-| `PickerSession` | Links, entries, selection, notice about an unreadable config; input → effects (close/open/copy). `PickerPlacement`: position at the mouse, kept within the visible screen | in-process |
+| `PickerSession` | Links, entries, selection, default row, profile badges, notice about an unreadable config, the hover rule; input → effects (close/open/copy/open settings). `PickerPlacement`: position at the mouse, kept within the visible screen. `LinkDisplay`: how the header names a link. `ProfileBadge`: which targets get a lettered circle, and its color | in-process |
 | `LinkOpener` | Incoming items → allowed links; link + target → run the family's commands, then activate if the family requires it | `LaunchPort`: `SystemLaunchPort` · `RecordingPort` |
 | `Startup` | Sequence of every launch: legacy (`Legacy`, ordered by version), registration, installation, cleanup after updates, onboarding or reclaiming the default browser; release build vs. dev build (`BundleIdentity`) | `StartupPort`: `SystemStartupPort` · Fake; `LegacyLoginItem`: `SMAppServiceLoginItem` · Fake |
 | `Installation` | Homebrew facts, stable link, LaunchAgent, upgrade script | real file system (temp home in tests) |
