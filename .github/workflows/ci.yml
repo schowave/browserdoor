@@ -21,8 +21,10 @@ jobs:
 
   formula:
     # Builds the rendered formula the way users get it: from a source tarball, then as a
-    # bottle that is poured again (no Xcode needed on the user's side).
-    runs-on: macos-26
+    # bottle that is poured again (no Xcode needed on the user's side). On the oldest macOS the
+    # release builds bottles on, whose Swift is older than the one the test job uses: v0.6.0
+    # passed here on macos-26 and then failed to build its bottles.
+    runs-on: macos-15
     env:
       HOMEBREW_NO_AUTO_UPDATE: "1"
       HOMEBREW_NO_INSTALL_CLEANUP: "1"

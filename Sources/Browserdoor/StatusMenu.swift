@@ -155,12 +155,19 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         guard NSPasteboard.general.availableType(from: [.string, .URL]) != nil else { return }
         if #available(macOS 15.4, *) {
             Task {
-                let patterns = try? await NSPasteboard.general.detectedPatterns(for: [\.probableWebURL])
-                clipboardItem?.isEnabled = patterns?.contains(\.probableWebURL) == true
+                clipboardItem?.isEnabled = await Self.clipboardHasWebLink()
             }
         } else {
             clipboardItem?.isEnabled = true
         }
+    }
+
+    /// Asked outside the main actor and answered as a Bool: the detected patterns aren't
+    /// Sendable, and the Swift of macOS 15's Xcode refuses to hand them to the main actor.
+    @available(macOS 15.4, *)
+    private nonisolated static func clipboardHasWebLink() async -> Bool {
+        let patterns = try? await NSPasteboard.general.detectedPatterns(for: [\.probableWebURL])
+        return patterns?.contains(\.probableWebURL) == true
     }
 
     private func item(_ title: String, _ action: Selector, key: String = "") -> NSMenuItem {

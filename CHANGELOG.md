@@ -2,6 +2,10 @@
 
 What changed for people using Browserdoor. Each release on GitHub starts with its section from this file.
 
+## v0.6.1 – 2026-11-13
+
+- v0.6.0 didn't build with the Swift of macOS 15's Xcode, so it never reached Homebrew. 0.6.1 is the same release, building on macOS 15 and later. Its changes are listed under v0.6.0 below.
+
 ## v0.6.0 – 2026-11-13
 
 - The picker shows a link's host in bold and the rest in gray. Hosts with non-ASCII letters appear in Punycode, so a look-alike such as `аpple.com` with a Cyrillic а doesn't pass for the real one. A file shows its name and folder.
