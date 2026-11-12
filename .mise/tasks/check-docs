@@ -1,0 +1,31 @@
+#!/bin/sh
+#MISE description="Check that README, SPEC and GLOSSARY know every target ID scheme and that SPEC's section references resolve"
+# shellcheck source=_lib.sh
+. "$(dirname "$0")/_lib.sh"
+problems=""
+problem() { problems="$problems
+  $1"; }
+
+# Every ID prefix built in Target.swift ("zen:\(…)", "chromium:\(…)", …) is documented.
+prefixes="$(grep -oE '"[a-z]+:\\\(' Sources/BrowserdoorCore/Target.swift | sed -E 's/^"([a-z]+:).*/\1/' | sort -u)"
+[ -n "$prefixes" ] || problem "no target ID prefixes found in Target.swift"
+for prefix in $prefixes; do
+  for doc in README.md SPEC.md GLOSSARY.md; do
+    grep -qF "\`$prefix" "$doc" || problem "$doc: target ID scheme \`${prefix}…\` is not documented"
+  done
+done
+
+# SPEC section numbers ("## 3." / "### 3.4") are unique, and every "siehe 3.4" points at one.
+sections="$(grep -E '^#{2,4} [0-9]+(\.[0-9]+)*\.? ' SPEC.md | sed -E 's/^#+ ([0-9.]*[0-9])\.? .*/\1/')"
+for dup in $(printf '%s\n' "$sections" | sort | uniq -d); do
+  problem "SPEC.md: section $dup appears more than once"
+done
+for ref in $(grep -oE 'siehe [0-9]+(\.[0-9]+)*' SPEC.md | sed 's/siehe //' | sort -u); do
+  printf '%s\n' "$sections" | grep -qx "$ref" || problem "SPEC.md: \"siehe $ref\" points at no section"
+done
+
+if [ -n "$problems" ]; then
+  echo "check-docs:$problems" >&2
+  exit 1
+fi
+echo "check-docs: ok"

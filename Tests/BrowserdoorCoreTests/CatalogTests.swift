@@ -92,3 +92,22 @@ struct CatalogTests {
         #expect(TargetSetting.normalizeHotkey("ab") == "b")
     }
 }
+
+struct TargetListingTests {
+    @Test func listsEveryTargetWithItsCommand() throws {
+        let configURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("browserdoor-listing-\(UUID().uuidString)/config.json")
+        var state = TargetCatalog(environment: sampleEnvironment(), configURL: configURL).load()
+        let safari = try #require(state.rows.firstIndex { $0.id == "app:com.apple.Safari" })
+        state.rows[safari].hidden = true
+        let lines = state.listing { _ in false }.split(separator: "\n").map { $0.split(separator: "\t").map(String.init) }
+
+        #expect(lines.count == state.rows.count)
+        #expect(lines.first == ["1", "zen:{aaaa}", "Work", "default",
+                                "/usr/bin/open -a /Applications/Zen.app --args --space {aaaa} https://example.com"])
+        #expect(lines.contains(["-", "app:com.apple.Safari", "Safari", "hidden",
+                                "open -a /Applications/Safari.app https://example.com"]))
+        let chrome = try #require(lines.first { $0[1] == "chromium:com.google.Chrome:Profile 2" })
+        #expect(chrome[4] == "/usr/bin/open -na '/Applications/Google Chrome.app' --args '--profile-directory=Profile 2' https://example.com")
+    }
+}

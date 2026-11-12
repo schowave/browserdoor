@@ -1,0 +1,8 @@
+#!/bin/sh
+#MISE description="Build the app and print the targets it finds on this Mac, with the command each opens a link with"
+#MISE depends=["app"]
+# Columns (tab-separated): key, target ID, name, flags (default/hidden), command for https://example.com.
+# Reads the real config and browsers; launches nothing.
+# shellcheck source=_lib.sh
+. "$(dirname "$0")/_lib.sh"
+"$APP/Contents/MacOS/$APP_NAME" --list-targets

@@ -184,7 +184,8 @@ mise tasks          # list all tasks
 mise run test       # unit tests
 mise run run        # build build/Browserdoor.app and start it
 mise run format     # swiftformat
-mise run ci         # lint, unit tests, release-script tests, app bundle, formula check
+mise run targets    # print the targets found on this Mac and the command each opens a link with
+mise run ci         # lint, unit tests, docs check, release-script tests, app bundle, formula check
 mise run demo-gif   # re-render docs/demo.gif from docs/demo/frames.py
 mise run social-preview  # re-render docs/social/preview.png (GitHub social preview)
 ```

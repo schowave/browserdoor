@@ -3,4 +3,6 @@
 # shellcheck source=_lib.sh
 . "$(dirname "$0")/_lib.sh"
 # shellcheck disable=SC2086 # flags are intentionally word-split
-swift test $SWIFT_BUILD_FLAGS
+# Warnings fail the tests (and so CI), but not the Homebrew build: a newer Swift that
+# deprecates something must not break installs.
+swift test -Xswiftc -warnings-as-errors $SWIFT_BUILD_FLAGS

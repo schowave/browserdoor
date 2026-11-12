@@ -34,7 +34,9 @@ struct SystemLaunchPort: LaunchPort {
         guard filled > 0 else { return false }
         var path = [CChar](repeating: 0, count: 4 * Int(MAXPATHLEN))
         for pid in pids.prefix(Int(filled)) where pid > 0 {
-            if proc_pidpath(pid, &path, UInt32(path.count)) > 0, String(cString: path).hasPrefix(prefix) {
+            if proc_pidpath(pid, &path, UInt32(path.count)) > 0,
+               path.withUnsafeBufferPointer({ String(cString: $0.baseAddress!) }).hasPrefix(prefix)
+            {
                 return true
             }
         }
