@@ -189,7 +189,7 @@ Then pick another default browser in **System Settings → Desktop & Dock → De
 
 ## Development
 
-Tooling and tasks run through [mise](https://mise.jdx.dev); Swift comes from Xcode. [CONTRIBUTING.md](CONTRIBUTING.md) has the checklist for pull requests, and [SECURITY.md](SECURITY.md) how to report a vulnerability.
+Tooling and tasks run through [mise](https://mise.jdx.dev); Swift comes from Xcode. [CONTRIBUTING.md](CONTRIBUTING.md) has the checklist for pull requests, and [SECURITY.md](SECURITY.md) how to report a vulnerability. Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ```sh
 mise install        # actionlint, shellcheck, swiftformat (pinned in mise.toml)
