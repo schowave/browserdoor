@@ -2,7 +2,7 @@
 
 What changed for people using Browserdoor. Each release on GitHub starts with its section from this file.
 
-## Unreleased
+## v0.6.0 – 2026-11-13
 
 - The picker shows a link's host in bold and the rest in gray. Hosts with non-ASCII letters appear in Punycode, so a look-alike such as `аpple.com` with a Cyrillic а doesn't pass for the real one. A file shows its name and folder.
 - The selected row in the picker looks like a selected menu item, and the default target carries a `↩` mark.
