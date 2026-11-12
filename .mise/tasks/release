@@ -4,45 +4,65 @@
 # Before running it: review the changes since the last tag (`/code-review high <last tag>`)
 # add a "## <tag>" section to CHANGELOG.md (rename "## Unreleased") and push main. That
 # section goes on top of the generated release notes.
+# Run it again with the same tag to finish a release that stopped after the tag was pushed.
 # shellcheck source=_lib.sh
 . "$(dirname "$0")/_lib.sh"
 fail() { echo "release: $1" >&2; exit 1; }
 
 tag="${1:-}"
-case "$tag" in
-  v[0-9]*.[0-9]*.[0-9]*) ;;
-  *) fail "usage: mise run release vX.Y.Z" ;;
-esac
+# A release is vMAJOR.MINOR.PATCH and nothing else (no -rc1, no fourth number).
+echo "$tag" | grep -Eqx 'v[0-9]+\.[0-9]+\.[0-9]+' || fail "usage: mise run release vX.Y.Z"
 [ "$(git rev-parse --abbrev-ref HEAD)" = main ] || fail "not on main"
 [ -z "$(git status --porcelain)" ] || fail "uncommitted changes"
 git fetch -q origin main --tags
 [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] \
   || fail "main and origin/main differ (pull, or push your commits first)"
-if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then fail "$tag exists already"; fi
 # The tag's section of CHANGELOG.md: from "## <tag>" up to the next "## ".
 notes="$(awk -v tag="$tag" '/^## /{inside = ($2 == tag)} inside && !/^## /' CHANGELOG.md | sed '/./,$!d')"
 [ -n "$notes" ] || fail "CHANGELOG.md has no \"## $tag\" section"
 
-mise run ci
-
-# The repo requires annotated tags.
-git tag -a "$tag" -m "$tag"
-git push -q origin "$tag"
-echo "release: pushed $tag, waiting for the release workflow…"
+if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+  # A tag that is already out on this commit: an earlier run stopped after pushing it.
+  [ "$(git rev-parse "$tag^{commit}")" = "$(git rev-parse HEAD)" ] \
+    || fail "$tag exists already on another commit"
+  git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null || fail "$tag exists only locally"
+  echo "release: $tag is already pushed, picking up where the last run stopped"
+else
+  mise run ci
+  # The repo requires annotated tags.
+  git tag -a "$tag" -m "$tag"
+  git push -q origin "$tag"
+  echo "release: pushed $tag, waiting for the release workflow…"
+fi
 
 run=""
-for _ in $(seq 30); do
-  run="$(gh run list --workflow release.yml --limit 5 --json databaseId,headBranch \
+for _ in $(seq 60); do
+  run="$(gh run list --workflow release.yml --limit 10 --json databaseId,headBranch \
     --jq "[.[] | select(.headBranch == \"$tag\")][0].databaseId // empty")"
   [ -n "$run" ] && break
   sleep 5
 done
-[ -n "$run" ] || fail "no release run for $tag showed up"
-gh run watch "$run" --exit-status || fail "release workflow failed: gh run view $run --log-failed"
+[ -n "$run" ] || fail "no release run for $tag showed up; run this again once it has"
+
+if ! gh run watch "$run" --exit-status; then
+  # A bottle may fail while the release and the tap update still go out (the tap job runs
+  # unless the release job failed). Then only the missing bottles are worth a warning.
+  jobs="$(gh run view "$run" --json jobs --jq '.jobs[] | "\(.name)\t\(.conclusion)"')"
+  for job in release tap; do
+    printf '%s\n' "$jobs" | grep -qx "$job	success" || fail "release workflow failed: gh run view $run --log-failed"
+  done
+  echo "release: warning: some bottles failed, users of those systems build from source:" >&2
+  printf '%s\n' "$jobs" | grep -v '	success$' >&2
+fi
 
 body="$(gh release view "$tag" --json body --jq .body)"
-gh release edit "$tag" --notes "$(printf '%s\n\n%s\n' "$notes" "$body")" >/dev/null
-echo "release: put the CHANGELOG.md section on top of the release notes"
+first="$(printf '%s\n' "$notes" | head -n 1)"
+if [ "$(printf '%s\n' "$body" | head -n 1)" = "$first" ]; then
+  echo "release: the CHANGELOG.md section is already on top of the release notes"
+else
+  gh release edit "$tag" --notes "$(printf '%s\n\n%s\n' "$notes" "$body")" >/dev/null
+  echo "release: put the CHANGELOG.md section on top of the release notes"
+fi
 formula="$(gh api repos/schowave/homebrew-tap/contents/Formula/browserdoor.rb --jq .content | base64 -d)"
 echo "$formula" | grep -q "/tags/$tag.tar.gz" || fail "the tap formula does not point at $tag"
 echo "release: $tag is out, and schowave/tap/browserdoor points at it"

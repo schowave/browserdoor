@@ -12,11 +12,12 @@ git -C "$repo" config user.email test@example.invalid
 git -C "$repo" config user.name test
 git -C "$repo" config tag.gpgSign false
 mkdir -p "$repo/.mise/tasks" "$repo/Sources" "$repo/.github"
-cp "$tasks/_lib.sh" "$tasks/next-patch-version" "$tasks/app-changed-since-release" "$repo/.mise/tasks/"
+cp "$tasks/_lib.sh" "$tasks/next-patch-version" "$tasks/app-changed-since-release" "$tasks/release" "$repo/.mise/tasks/"
 echo a > "$repo/Sources/a.swift"
 git -C "$repo" add -A && git -C "$repo" commit -qm init
 
 run() { (cd "$repo" && ".mise/tasks/$1"); }
+run_release() { (cd "$repo" && git checkout -q -B not-main && .mise/tasks/release "$1"); }
 
 [ -z "$(run next-patch-version)" ] || fail "next-patch-version without tags should print nothing"
 run app-changed-since-release || fail "without tags everything counts as changed"
@@ -31,6 +32,14 @@ echo ci > "$repo/.github/x.yml" && git -C "$repo" add -A && git -C "$repo" commi
 if run app-changed-since-release; then fail "CI-only change must not count"; fi
 echo b > "$repo/Sources/a.swift" && git -C "$repo" add -A && git -C "$repo" commit -qm src
 run app-changed-since-release || fail "a Sources change must count"
+
+# release accepts only vMAJOR.MINOR.PATCH; anything else stops before git or GitHub is touched.
+for t in "" v1.2 v1.2.3-rc1 v1.2.3.4 1.2.3 "v1.2.3 x"; do
+  out="$(run_release "$t" 2>&1)" && fail "release accepted '$t'"
+  echo "$out" | grep -q "usage:" || fail "release '$t' should fail with usage, got: $out"
+done
+out="$(run_release v1.2.3 2>&1)" || true
+echo "$out" | grep -q "not on main" || fail "release should accept v1.2.3 and stop at the branch check, got: $out"
 
 rendered="$("$tasks/render-formula" 1.2.3 abc file:///tmp/x.tar.gz)"
 echo "$rendered" | grep -q 'url "file:///tmp/x.tar.gz"' || fail "render-formula ignores the url argument"
