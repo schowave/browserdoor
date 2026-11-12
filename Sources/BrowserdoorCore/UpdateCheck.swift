@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 
 /// A dotted numeric version like `0.1.1` (a leading `v` is ignored).
 public struct AppVersion: Comparable, Sendable, CustomStringConvertible {
@@ -62,10 +63,20 @@ public enum UpdateNotice: Equatable, Sendable {
     case failed(String)
 }
 
-/// Decides when to check for updates and what to announce. Automatic checks run at most once
-/// per day (if enabled) and only speak up for a new release the user hasn't put off; a check the
-/// user asked for always reports its result.
-@MainActor
+/// What the menu and the settings show about updates.
+public enum UpdateStatus: Equatable, Sendable {
+    case idle
+    case checking
+    case upToDate
+    case available(ReleaseInfo)
+    case failed(String)
+}
+
+/// Decides when to check for updates, what to announce and what status to show. Automatic checks
+/// run at most once per day (if enabled) and only speak up for a new release the user hasn't put
+/// off; a check the user asked for always reports its result. A failed automatic check keeps the
+/// status it had; only a failed check the user asked for shows the failure.
+@MainActor @Observable
 public final class UpdatePolicy {
     public static let interval: TimeInterval = 24 * 60 * 60
 
@@ -76,6 +87,7 @@ public final class UpdatePolicy {
 
     /// The newer release found by the last check, if any.
     public private(set) var available: ReleaseInfo?
+    public private(set) var status: UpdateStatus
 
     public init(currentVersion: String, source: ReleaseSource, preferences: UpdatePreferences,
                 now: @escaping () -> Date = Date.init)
@@ -84,6 +96,7 @@ public final class UpdatePolicy {
         self.source = source
         self.preferences = preferences
         self.now = now
+        status = preferences.lastCheck == nil ? .idle : .upToDate
     }
 
     public var isDue: Bool {
@@ -95,7 +108,7 @@ public final class UpdatePolicy {
     /// A due automatic check. Nil: nothing to tell (not due, up to date, put off, or failed).
     public func checkAutomatically() async -> UpdateNotice? {
         guard isDue else { return nil }
-        let notice = await check()
+        let notice = await check(manual: false)
         if case let .available(release) = notice, release.tag != preferences.skippedTag {
             return notice
         }
@@ -104,7 +117,7 @@ public final class UpdatePolicy {
 
     /// A check the user asked for; always returns what to show.
     public func checkNow() async -> UpdateNotice {
-        await check()
+        await check(manual: true)
     }
 
     /// The user answered "Later": don't announce this release automatically again.
@@ -112,18 +125,24 @@ public final class UpdatePolicy {
         preferences.skippedTag = release.tag
     }
 
-    private func check() async -> UpdateNotice {
+    private func check(manual: Bool) async -> UpdateNotice {
+        status = .checking
         do {
             let release = try await source.latestRelease()
             preferences.lastCheck = now()
             guard Self.isUpdate(release, over: currentVersion) else {
                 available = nil
+                status = .upToDate
                 return .upToDate
             }
             available = release
+            status = .available(release)
             return .available(release)
         } catch {
-            return .failed(error.localizedDescription)
+            let message = error.localizedDescription
+            status = manual ? .failed(message)
+                : available.map(UpdateStatus.available) ?? (preferences.lastCheck == nil ? .idle : .upToDate)
+            return .failed(message)
         }
     }
 

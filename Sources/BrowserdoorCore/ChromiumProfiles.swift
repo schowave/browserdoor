@@ -65,3 +65,38 @@ public enum ChromiumProfiles {
         var name: String?
     }
 }
+
+/// Chromium browsers: one target per profile, opened with `--profile-directory`.
+struct ChromiumFamily: BrowserFamily {
+    var bundleIds: [String] {
+        ChromiumBrowser.known.map(\.bundleId)
+    }
+
+    /// Profiles from `Local State`. A single profile keeps its `chromium:` ID but shows only the
+    /// app name; an unreadable `Local State` gives one plain entry.
+    func targets(app: URL, bundleId: String, discovery: Discovery) -> [Target] {
+        let environment = discovery.environment
+        let appName = discovery.appName(app, fallback: bundleId)
+        guard let browser = ChromiumBrowser.known.first(where: { $0.bundleId == bundleId }) else { return [] }
+        let profiles = environment.contents(of: browser.localStateURL(home: environment.home))
+            .flatMap { try? ChromiumProfiles.parse(localState: $0) } ?? []
+
+        guard !profiles.isEmpty else {
+            return [Target.plain(app: app, bundleId: bundleId, name: appName)]
+        }
+        return profiles.map { profile in
+            Target(
+                id: TargetID.chromium(bundleId: bundleId, profileDirectory: profile.directory).string,
+                name: profiles.count == 1 ? appName : "\(appName) › \(profile.name)",
+                kind: .chromium(app: app, profileDirectory: profile.directory)
+            )
+        }
+    }
+
+    static func launchCommands(app: URL, profileDirectory: String, urls: [URL]) -> [LaunchCommand] {
+        [.run(
+            executable: URL(fileURLWithPath: "/usr/bin/open"),
+            arguments: ["-na", app.path, "--args", "--profile-directory=\(profileDirectory)"] + urls.map(\.absoluteString)
+        )]
+    }
+}

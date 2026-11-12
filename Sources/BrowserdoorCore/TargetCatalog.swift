@@ -102,3 +102,56 @@ public struct CatalogState {
                    uniquingKeysWith: { first, _ in first })
     }
 }
+
+/// Edits as the settings window makes them. Each keeps the config's rules (a name equal to the
+/// detected one is no rename, a hotkey is one lowercase key, an app is added once).
+public extension CatalogState {
+    /// Renames a target; an empty name or the detected one removes the custom name.
+    mutating func rename(_ id: String, to name: String) {
+        edit(id) { row in row.label = (name.isEmpty || name == row.target.name) ? nil : name }
+    }
+
+    /// Sets a target's key from what was typed (the last character); empty removes it.
+    mutating func setHotkey(_ id: String, typed input: String) {
+        edit(id) { row in row.hotkey = TargetSetting.normalizeHotkey(input) }
+    }
+
+    mutating func setHidden(_ id: String, _ hidden: Bool) {
+        edit(id) { row in row.hidden = hidden }
+    }
+
+    /// Makes a target the one `Enter` opens, or, if it already is, removes the default.
+    mutating func toggleDefault(_ id: String) {
+        defaultTarget = defaultTarget == id ? nil : id
+    }
+
+    /// Adds apps by bundle ID, each once.
+    mutating func addExtraApps(_ bundleIds: [String]) {
+        for id in bundleIds where !extraApps.contains(id) {
+            extraApps.append(id)
+        }
+    }
+
+    mutating func removeExtraApp(_ bundleId: String) {
+        extraApps.removeAll { $0 == bundleId }
+    }
+
+    /// The bundle ID behind a target the user added as an extra app (removable with −).
+    func extraApp(forTarget id: String) -> String? {
+        guard case let .app(bundleId) = TargetID(id), extraApps.contains(bundleId) else { return nil }
+        return bundleId
+    }
+
+    private mutating func edit(_ id: String, _ change: (inout TargetSetting) -> Void) {
+        guard let index = rows.firstIndex(where: { $0.id == id }) else { return }
+        change(&rows[index])
+    }
+}
+
+public extension TargetCatalog {
+    /// Where an extra app is and what it's called, for the settings list (bundle ID if unknown).
+    func extraAppInfo(_ bundleId: String) -> (url: URL?, name: String) {
+        let url = environment.applicationURL(bundleId: bundleId)
+        return (url, url.flatMap { environment.appInfo(at: $0)?.name } ?? bundleId)
+    }
+}

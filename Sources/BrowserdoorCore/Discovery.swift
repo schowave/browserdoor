@@ -27,10 +27,20 @@ public protocol BrowserEnvironment {
     func applicationURL(bundleId: String) -> URL?
 }
 
+/// A browser family whose apps become targets of their own (Zen spaces, Chromium or Firefox
+/// profiles). Everything about one family (where its data lives, how its targets are named and
+/// opened) sits in that family's file.
+protocol BrowserFamily: Sendable {
+    /// Bundle IDs of the family's apps, in default order.
+    var bundleIds: [String] { get }
+    /// Targets for one installed app of the family. Falls back to a plain `app:` target when the
+    /// app has nothing to split into.
+    func targets(app: URL, bundleId: String, discovery: Discovery) -> [Target]
+}
+
 public struct Discovery {
-    public static let zenBundleId = "app.zen-browser.zen"
-    /// First Zen version shipping `--space` (zen-browser/desktop#15074).
-    public static let zenMinimumSpaceVersion = [1, 24]
+    /// In default order: Zen spaces, then Chromium profiles, then Firefox profiles.
+    static let families: [BrowserFamily] = [ZenBrowser(), ChromiumFamily(), FirefoxFamily()]
 
     public var environment: BrowserEnvironment
     public var zenProfileOverride: URL?
@@ -43,28 +53,18 @@ public struct Discovery {
         self.extraApps = Set(extraApps)
     }
 
-    /// Discovers all targets in default order: Zen spaces, Chromium profiles, Firefox profiles,
-    /// other browsers A–Z.
+    /// Discovers all targets in default order: the families, then other browsers A–Z.
     public func discover() -> [Target] {
         let installed = installedApps()
         var covered: Set<String> = [environment.ownBundleId]
         var result: [Target] = []
 
-        if let zen = installed[Self.zenBundleId] {
-            covered.insert(Self.zenBundleId)
-            result += zenTargets(app: zen.url)
-        }
-
-        for browser in ChromiumBrowser.known {
-            guard let app = installed[browser.bundleId] else { continue }
-            covered.insert(browser.bundleId)
-            result += chromiumTargets(browser: browser, app: app.url)
-        }
-
-        for browser in FirefoxBrowser.known {
-            guard let app = installed[browser.bundleId] else { continue }
-            covered.insert(browser.bundleId)
-            result += firefoxTargets(browser: browser, app: app.url)
+        for family in Self.families {
+            for bundleId in family.bundleIds {
+                guard let app = installed[bundleId] else { continue }
+                covered.insert(bundleId)
+                result += family.targets(app: app.url, bundleId: bundleId, discovery: self)
+            }
         }
 
         let wanted = KnownBrowsers.bundleIds.union(extraApps)
@@ -77,7 +77,7 @@ public struct Discovery {
         }
         let others = candidates.values
             .filter { wanted.contains($0.info.bundleId) && !covered.contains($0.info.bundleId) }
-            .map { Target(id: Target.appID($0.info.bundleId), name: $0.info.name, kind: .app($0.url)) }
+            .map { Target.plain(app: $0.url, bundleId: $0.info.bundleId, name: $0.info.name) }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
 
         // IDs must be unique (config keys, SwiftUI identity); keep the first occurrence.
@@ -106,86 +106,9 @@ public struct Discovery {
         return roots.contains { path.hasPrefix($0) }
     }
 
-    func zenTargets(app: URL) -> [Target] {
-        let info = environment.appInfo(at: app)
-        let plain = [Target(id: Target.appID(Self.zenBundleId), name: info?.name ?? "Zen", kind: .app(app))]
-
-        guard
-            let info, Self.versionAtLeast(info.version, Self.zenMinimumSpaceVersion),
-            let executableName = info.executableName,
-            let profile = zenProfileOverride ?? zenDefaultProfile(),
-            let data = environment.contents(of: profile.appendingPathComponent(ZenSpaces.sessionFileName)),
-            let json = try? MozLz4.decompress(data),
-            let spaces = try? ZenSpaces.parse(sessionJSON: json),
-            !spaces.isEmpty
-        else { return plain }
-
-        let executable = app.appendingPathComponent("Contents/MacOS").appendingPathComponent(executableName)
-        return spaces.map { space in
-            Target(
-                id: Target.zenID(space.uuid),
-                name: space.name,
-                kind: .zenSpace(app: app, executable: executable, space: space, profile: zenProfileOverride)
-            )
-        }
-    }
-
-    func zenDefaultProfile() -> URL? {
-        let root = ZenProfile.defaultRoot(home: environment.home)
-        guard
-            let data = environment.contents(of: root.appendingPathComponent("profiles.ini")),
-            let text = String(data: data, encoding: .utf8)
-        else { return nil }
-        return ZenProfile.defaultProfile(profilesIni: text, root: root)
-    }
-
-    func chromiumTargets(browser: ChromiumBrowser, app: URL) -> [Target] {
-        let appName = environment.appInfo(at: app)?.name ?? browser.bundleId
-        let profiles = environment.contents(of: browser.localStateURL(home: environment.home))
-            .flatMap { try? ChromiumProfiles.parse(localState: $0) } ?? []
-
-        guard !profiles.isEmpty else {
-            return [Target(id: Target.appID(browser.bundleId), name: appName, kind: .app(app))]
-        }
-        return profiles.map { profile in
-            Target(
-                id: Target.chromiumID(browser.bundleId, profile.directory),
-                name: profiles.count == 1 ? appName : "\(appName) › \(profile.name)",
-                kind: .chromium(app: app, profileDirectory: profile.directory)
-            )
-        }
-    }
-
-    /// One target per profile; a single profile stays a plain `app:` entry, which LaunchServices
-    /// opens in whatever profile Firefox would pick itself.
-    func firefoxTargets(browser: FirefoxBrowser, app: URL) -> [Target] {
-        let appName = environment.appInfo(at: app)?.name ?? browser.bundleId
-        let root = browser.root(home: environment.home)
-        let groups = root.appendingPathComponent(FirefoxProfiles.groupsDirectory, isDirectory: true)
-        let profiles = environment.contents(of: root.appendingPathComponent("profiles.ini"))
-            .flatMap { String(data: $0, encoding: .utf8) }
-            .map { ini in
-                FirefoxProfiles.parse(profilesIni: ini) { storeID in
-                    let database = groups.appendingPathComponent("\(storeID).sqlite")
-                    return environment.contents(of: database).flatMap { data in
-                        FirefoxProfiles.parseStore(
-                            database: data,
-                            wal: environment.contents(of: URL(fileURLWithPath: database.path + "-wal"))
-                        )
-                    }
-                }
-            } ?? []
-
-        guard profiles.count > 1 else {
-            return [Target(id: Target.appID(browser.bundleId), name: appName, kind: .app(app))]
-        }
-        return profiles.map { profile in
-            Target(
-                id: Target.firefoxID(browser.bundleId, profile.path),
-                name: "\(appName) › \(profile.name)",
-                kind: .firefox(app: app, profile: profile.directory(root: root))
-            )
-        }
+    /// The app's display name, or `fallback` when its Info.plist can't be read.
+    func appName(_ app: URL, fallback: String) -> String {
+        environment.appInfo(at: app)?.name ?? fallback
     }
 
     /// Compares the leading numeric components of a version like `1.24.1b`.

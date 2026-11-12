@@ -93,6 +93,61 @@ struct CatalogTests {
     }
 }
 
+struct CatalogEditTests {
+    func state(_ env: FakeEnvironment = sampleEnvironment()) -> CatalogState {
+        let configURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("browserdoor-edits-\(UUID().uuidString)/config.json")
+        return TargetCatalog(environment: env, configURL: configURL).load()
+    }
+
+    @Test func renamingToTheDetectedNameOrNothingClearsTheLabel() {
+        var state = state()
+        state.rename("zen:{aaaa}", to: "Kunde")
+        #expect(state.pickerEntries.first?.label == "Kunde")
+        state.rename("zen:{aaaa}", to: "Work")
+        #expect(state.rows.first?.label == nil)
+        state.rename("zen:{aaaa}", to: "Kunde")
+        state.rename("zen:{aaaa}", to: "")
+        #expect(state.rows.first?.label == nil)
+    }
+
+    @Test func hotkeyKeepsTheLastTypedKeyLowercased() {
+        var state = state()
+        state.setHotkey("zen:{aaaa}", typed: "kW")
+        #expect(state.rows.first?.hotkey == "w")
+        #expect(state.effectiveKeys["zen:{aaaa}"] == "w")
+        state.setHotkey("zen:{aaaa}", typed: "")
+        #expect(state.rows.first?.hotkey == nil)
+    }
+
+    @Test func hidingAndTheDefaultTarget() {
+        var state = state()
+        state.setHidden("zen:{aaaa}", true)
+        #expect(!state.pickerEntries.contains { $0.id == "zen:{aaaa}" })
+        state.toggleDefault("zen:{bbbb}")
+        #expect(state.defaultTarget == "zen:{bbbb}")
+        state.toggleDefault("zen:{bbbb}")
+        #expect(state.defaultTarget == nil)
+    }
+
+    @Test func extraAppsAreAddedOnceAndRemovable() {
+        var state = state()
+        state.addExtraApps(["com.googlecode.iterm2", "com.googlecode.iterm2"])
+        #expect(state.extraApps == ["com.googlecode.iterm2"])
+        #expect(state.extraApp(forTarget: "app:com.googlecode.iterm2") == "com.googlecode.iterm2")
+        #expect(state.extraApp(forTarget: "app:com.apple.Safari") == nil) // known browser, not added
+        #expect(state.extraApp(forTarget: "zen:{aaaa}") == nil)
+        state.removeExtraApp("com.googlecode.iterm2")
+        #expect(state.extraApps.isEmpty)
+    }
+
+    @Test func extraAppInfoComesFromTheEnvironment() {
+        let catalog = TargetCatalog(environment: sampleEnvironment(), configURL: URL(fileURLWithPath: "/nowhere/config.json"))
+        #expect(catalog.extraAppInfo("com.googlecode.iterm2").name == "iTerm")
+        #expect(catalog.extraAppInfo("com.example.gone") == (nil, "com.example.gone"))
+    }
+}
+
 struct TargetListingTests {
     @Test func listsEveryTargetWithItsCommand() throws {
         let configURL = FileManager.default.temporaryDirectory

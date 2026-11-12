@@ -51,7 +51,7 @@ public struct LinkOpener {
             }
         }
         // The remote command may leave Zen in the background.
-        if running, !commands.isEmpty, case .zenSpace = target.kind {
+        if running, !commands.isEmpty, target.activatesAfterRemoteCommand {
             port.activate(target.appURL)
         }
     }

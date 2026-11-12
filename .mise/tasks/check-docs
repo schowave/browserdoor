@@ -6,9 +6,9 @@ problems=""
 problem() { problems="$problems
   $1"; }
 
-# Every ID prefix built in Target.swift ("zen:\(…)", "chromium:\(…)", …) is documented.
-prefixes="$(grep -oE '"[a-z]+:\\\(' Sources/BrowserdoorCore/Target.swift | sed -E 's/^"([a-z]+:).*/\1/' | sort -u)"
-[ -n "$prefixes" ] || problem "no target ID prefixes found in Target.swift"
+# Every ID prefix built in TargetID.swift ("zen:\(…)", "chromium:\(…)", …) is documented.
+prefixes="$(grep -oE '"[a-z]+:\\\(' Sources/BrowserdoorCore/TargetID.swift | sed -E 's/^"([a-z]+:).*/\1/' | sort -u)"
+[ -n "$prefixes" ] || problem "no target ID prefixes found in TargetID.swift"
 for prefix in $prefixes; do
   for doc in README.md SPEC.md GLOSSARY.md; do
     grep -qF "\`$prefix" "$doc" || problem "$doc: target ID scheme \`${prefix}…\` is not documented"

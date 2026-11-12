@@ -41,19 +41,27 @@ final class SettingsModel {
 
     /// Apps the user added, with name and icon for display.
     var extraApps: [ExtraApp] {
-        state.extraApps.map(Self.extraApp)
+        state.extraApps.map { bundleId in
+            let info = catalog.extraAppInfo(bundleId)
+            return ExtraApp(bundleId: bundleId, name: info.name, icon: info.url.map { NSWorkspace.shared.icon(forFile: $0.path) })
+        }
     }
 
     /// The selected row is an app the user added (and can remove with −).
     var selectionIsExtraApp: Bool {
-        guard let id = selection else { return false }
-        return state.extraApps.contains { id == Target.appID($0) }
+        selection.flatMap(state.extraApp(forTarget:)) != nil
     }
 
     func removeSelectedExtraApp() {
-        guard selectionIsExtraApp, let id = selection else { return }
-        removeExtraApp(String(id.dropFirst("app:".count)))
+        guard let bundleId = selection.flatMap(state.extraApp(forTarget:)) else { return }
+        removeExtraApp(bundleId)
         selection = nil
+    }
+
+    /// Applies an edit to the state and saves.
+    func edit(_ change: (inout CatalogState) -> Void) {
+        change(&state)
+        save()
     }
 
     func icon(for target: Target) -> EntryIcon {
@@ -76,11 +84,6 @@ final class SettingsModel {
         save()
     }
 
-    func setDefault(_ id: String?) {
-        state.defaultTarget = id
-        save()
-    }
-
     func addExtraApp() {
         let panel = NSOpenPanel()
         panel.title = L("Choose an App")
@@ -89,16 +92,11 @@ final class SettingsModel {
         panel.allowsMultipleSelection = true
         NSApp.activate()
         guard panel.runModal() == .OK else { return }
-        for url in panel.urls {
-            guard let id = environment.appInfo(at: url)?.bundleId, !state.extraApps.contains(id) else { continue }
-            state.extraApps.append(id)
-        }
-        save()
+        edit { $0.addExtraApps(panel.urls.compactMap { environment.appInfo(at: $0)?.bundleId }) }
     }
 
     func removeExtraApp(_ id: String) {
-        state.extraApps.removeAll { $0 == id }
-        save()
+        edit { $0.removeExtraApp(id) }
     }
 
     func chooseZenProfile() {
@@ -137,12 +135,6 @@ final class SettingsModel {
             log.error("login item: \(error.localizedDescription, privacy: .public)")
         }
         launchesAtLogin = CurrentInstallation.shared.launchesAtLogin
-    }
-
-    private static func extraApp(_ bundleId: String) -> ExtraApp {
-        let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId)
-        let name = url.map { FileManager.default.displayName(atPath: $0.path).replacingOccurrences(of: ".app", with: "") }
-        return ExtraApp(bundleId: bundleId, name: name ?? bundleId, icon: url.map { NSWorkspace.shared.icon(forFile: $0.path) })
     }
 }
 
@@ -295,7 +287,7 @@ private struct TargetRow: View {
             Image(systemName: "line.3.horizontal").foregroundStyle(.tertiary)
             Toggle("", isOn: Binding(
                 get: { !row.hidden },
-                set: { row.hidden = !$0; model.save() }
+                set: { visible in model.edit { $0.setHidden(row.id, !visible) } }
             ))
             .toggleStyle(.checkbox)
             .labelsHidden()
@@ -303,7 +295,7 @@ private struct TargetRow: View {
             IconView(icon: model.icon(for: row.target)).frame(width: 22, height: 22)
             TextField(row.target.name, text: Binding(
                 get: { row.displayName },
-                set: { row.label = ($0.isEmpty || $0 == row.target.name) ? nil : $0; model.save() }
+                set: { name in model.edit { $0.rename(row.id, to: name) } }
             ))
             .textFieldStyle(.plain)
             .opacity(row.hidden ? 0.5 : 1)
@@ -311,14 +303,14 @@ private struct TargetRow: View {
             Spacer(minLength: 8)
             TextField(row.hidden ? "–" : (model.state.effectiveKeys[row.id].map { String($0).uppercased() } ?? "–"), text: Binding(
                 get: { row.hotkey?.uppercased() ?? "" },
-                set: { row.hotkey = TargetSetting.normalizeHotkey($0); model.save() }
+                set: { typed in model.edit { $0.setHotkey(row.id, typed: typed) } }
             ))
             .frame(width: 36)
             .multilineTextAlignment(.center)
             .font(.system(.body, design: .monospaced))
             .help(L("Shortcut key in the picker"))
             Button {
-                model.setDefault(isDefault ? nil : row.id)
+                model.edit { $0.toggleDefault(row.id) }
             } label: {
                 Image(systemName: isDefault ? "star.fill" : "star")
                     .foregroundStyle(isDefault ? Color.yellow : Color.secondary)

@@ -18,6 +18,23 @@ public struct HomebrewInstall: Equatable, Sendable {
         prefix.appendingPathComponent("bin")
     }
 
+    /// A `.command` script for Terminal: upgrade the formula, quit the running app by its PID (a
+    /// dev build with the same executable name keeps running), start the new version.
+    public func upgradeScript(runningPID pid: Int32) -> String {
+        let brew = Shell.quote(brew.path)
+        let start = Shell.quote(bin.appendingPathComponent(formula).path)
+        return """
+        #!/bin/sh
+        echo "Updating Browserdoor…"
+        \(brew) update --quiet && \(brew) upgrade \(formula) || { echo; echo "Update failed."; exit 1; }
+        kill \(pid) 2>/dev/null
+        while kill -0 \(pid) 2>/dev/null; do sleep 0.2; done
+        \(start)
+        echo; echo "Browserdoor updated and restarted. You can close this window."
+
+        """
+    }
+
     /// `/opt/homebrew/Cellar/browserdoor/0.1.0/Browserdoor.app` → prefix `/opt/homebrew`, formula `browserdoor`.
     /// Nil if the bundle is not inside a Cellar.
     public static func detect(bundlePath: String) -> HomebrewInstall? {
@@ -45,34 +62,22 @@ public struct HomebrewInstall: Equatable, Sendable {
     }
 }
 
-/// The login item Browserdoor used before (`SMAppService.mainApp`), which remembers the versioned
-/// Cellar path. Only here to migrate away from it.
-public protocol LegacyLoginItem {
-    var isEnabled: Bool { get }
-    func unregister()
-}
-
 /// Keeps Browserdoor reachable under a path that survives `brew upgrade`, and manages the login item
 /// (a LaunchAgent running `open -a <app>`) on top of that path.
 ///
 /// - For a Homebrew install, `~/Applications/<App>.app` is a symlink to the `opt` path. Browserdoor
 ///   only creates or replaces its *own* links; a real app or someone else's link stays untouched.
-/// - The login item is only repointed when the app it starts is gone, so a second copy (e.g. a
-///   dev build) never takes it over.
+/// - The login item is only repointed when the app it starts is gone, so a second copy never
+///   takes it over. What earlier versions left behind is handled in `Legacy`.
 public struct Installation {
     public var home: URL
     public var bundleURL: URL
     public var label: String
-    public var legacyLoginItem: LegacyLoginItem?
-    /// Label of a LaunchAgent written under an earlier bundle ID; replaced by one under `label`.
-    public var legacyLabel: String?
 
-    public init(home: URL, bundleURL: URL, label: String, legacyLoginItem: LegacyLoginItem? = nil, legacyLabel: String? = nil) {
+    public init(home: URL, bundleURL: URL, label: String) {
         self.home = home
         self.bundleURL = bundleURL
         self.label = label
-        self.legacyLoginItem = legacyLoginItem
-        self.legacyLabel = legacyLabel
     }
 
     private var fm: FileManager {
@@ -116,18 +121,10 @@ public struct Installation {
         fm.fileExists(atPath: agentURL.path)
     }
 
-    /// Run at every launch: maintain the link, migrate legacy login items, repoint an agent
-    /// whose app disappeared.
+    /// Run at every launch (`Startup` does): maintain the link, repoint an agent whose app
+    /// disappeared.
     public func prepare() {
-        removeLegacyLink()
         ensureLink()
-        migrateLegacyAgent()
-        if let legacy = legacyLoginItem, legacy.isEnabled {
-            legacy.unregister()
-            if !launchesAtLogin {
-                try? setLaunchAtLogin(true)
-            }
-        }
         if launchesAtLogin, agentTargetIsGone() {
             try? setLaunchAtLogin(true)
         }
@@ -151,33 +148,6 @@ public struct Installation {
     }
 
     // MARK: Internals
-
-    /// The app was called Doorman (formula `doorman`) up to 0.2.x. Removes its
-    /// `~/Applications/Doorman.app` link if it still points into that formula, so only one entry
-    /// remains; a login item that started it is then repointed by `prepare()`.
-    static let legacyName = (app: "Doorman.app", formula: "doorman")
-
-    private func removeLegacyLink() {
-        let legacy = linkURL.deletingLastPathComponent().appendingPathComponent(Self.legacyName.app)
-        guard legacy != linkURL,
-              let destination = try? fm.destinationOfSymbolicLink(atPath: legacy.path),
-              destination.hasSuffix("/\(Self.legacyName.app)"),
-              destination.contains("/Cellar/\(Self.legacyName.formula)/")
-              || destination.hasSuffix("/opt/\(Self.legacyName.formula)/\(Self.legacyName.app)")
-        else { return }
-        try? fm.removeItem(at: legacy)
-    }
-
-    /// A login item under the old label moves to the current one; without one, none is created.
-    private func migrateLegacyAgent() {
-        guard let legacyLabel, legacyLabel != label else { return }
-        let legacy = agentURL.deletingLastPathComponent().appendingPathComponent("\(legacyLabel).plist")
-        guard fm.fileExists(atPath: legacy.path) else { return }
-        try? fm.removeItem(at: legacy)
-        if !launchesAtLogin {
-            try? setLaunchAtLogin(true)
-        }
-    }
 
     private func ensureLink() {
         guard let homebrew, fm.fileExists(atPath: homebrew.optApp.path) else { return }

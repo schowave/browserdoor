@@ -54,6 +54,30 @@ struct UpdatePolicyTests {
         #expect(p.isDue)
     }
 
+    @Test func statusFollowsChecks() async {
+        #expect(policy(.success(release("v0.2.0"))).status == .idle)
+        let p = policy(.success(release("v0.2.0")))
+        _ = await p.checkNow()
+        #expect(p.status == .available(release("v0.2.0")))
+        #expect(policy(.success(release("v0.2.0"))).status == .upToDate) // checked before, nothing pending
+        let current = policy(.success(release("v0.1.1")))
+        _ = await current.checkNow()
+        #expect(current.status == .upToDate)
+    }
+
+    @Test func onlyAFailedManualCheckShowsTheFailure() async {
+        let error = URLError(.timedOut)
+        let automatic = policy(.failure(error))
+        _ = await automatic.checkAutomatically()
+        #expect(automatic.status == .idle)
+        prefs.lastCheck = now.addingTimeInterval(-25 * 3600)
+        let later = policy(.failure(error))
+        _ = await later.checkAutomatically()
+        #expect(later.status == .upToDate)
+        _ = await later.checkNow()
+        #expect(later.status == .failed(error.localizedDescription))
+    }
+
     @Test func failedCheckIsRetriedNextTime() async {
         _ = await policy(.failure(URLError(.timedOut))).checkAutomatically()
         #expect(prefs.lastCheck == nil)

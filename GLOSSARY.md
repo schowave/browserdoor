@@ -25,3 +25,9 @@ Domain terms used in Browserdoor's code, docs and reviews. Module names in `code
 | **Update policy** | `UpdatePolicy`: when to check for a new release and what to announce, behind `ReleaseSource` and `UpdatePreferences`. |
 | **Put off** | "Later" on an update notice: automatic checks don't announce that release again. |
 | **Zen icon cache** | `ZenIconCache`: Zen's space icons extracted from `omni.ja`, once per Zen version. |
+| **Target icon** | `TargetIcons`: what a target shows (app icon, or a Zen glyph on the space color), before any image is loaded. |
+| **Target ID** | `TargetID`: the stable ID of a target, formatted and parsed in one place. |
+| **Browser family** | Browsers whose apps split into several targets (Zen spaces, Chromium profiles, Firefox profiles): `ZenBrowser`, `ChromiumFamily`, `FirefoxFamily`. |
+| **Startup** | `Startup`: everything a launch does before any UI, ending in what to show next (onboarding, reclaiming the default browser, nothing). |
+| **Legacy** | What earlier versions left behind (SMAppService login item, the Doorman name, the old bundle ID), moved over by `Startup`, one step per version. |
+| **Release build / dev build** | `BundleIdentity`: the Homebrew build runs as `io.github.schowave.browserdoor` and owns the user's data; dev builds run as `….dev` and stay apart. |

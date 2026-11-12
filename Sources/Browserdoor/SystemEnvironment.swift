@@ -8,7 +8,7 @@ struct SystemEnvironment: BrowserEnvironment {
     }
 
     var ownBundleId: String {
-        Bundle.main.bundleIdentifier ?? AppIdentity.bundleId
+        AppIdentity.bundleId
     }
 
     func httpsHandlers() -> [URL] {
@@ -46,8 +46,8 @@ struct SystemEnvironment: BrowserEnvironment {
 }
 
 enum AppIdentity {
-    /// `io.github.schowave.browserdoor`, or `….dev` for builds from `mise run app`: the login item
-    /// label, cache folder and log subsystem follow it, so a dev build stays apart.
-    static let bundleId = Bundle.main.bundleIdentifier ?? "io.github.schowave.browserdoor"
+    /// `BundleIdentity.release` for the Homebrew build, `BundleIdentity.dev` otherwise. The
+    /// login item label, cache folder and log subsystem follow it.
+    static let bundleId = BundleIdentity.of(bundleIdentifier: Bundle.main.bundleIdentifier)
     static let name = "Browserdoor"
 }

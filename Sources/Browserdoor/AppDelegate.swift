@@ -5,39 +5,27 @@ import BrowserdoorCore
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let picker = PickerController()
     private var statusItem: NSStatusItem?
-    private let defaults = UserDefaults.standard
-    private static let onboardedKey = "didOnboard"
 
     func applicationDidFinishLaunching(_: Notification) {
-        // First, so everything below reads the preferences carried over from the old bundle ID.
-        let migration = migrateFromLegacyIdentity()
+        let next = Startup(
+            bundleId: AppIdentity.bundleId,
+            installation: CurrentInstallation.shared,
+            legacyLoginItem: SMAppServiceLoginItem(),
+            port: SystemStartupPort()
+        ).run()
         setUpStatusItem()
         setUpMainMenu()
-        LSRegisterURL(Bundle.main.bundleURL as CFURL, true)
-        Config.migrateLegacyLocation(home: FileManager.default.homeDirectoryForCurrentUser)
-        CurrentInstallation.shared.prepare()
-        LaunchServicesCleanup.run()
         picker.prewarm()
         UpdateChecker.shared.startAutomaticChecks()
-        if !defaults.bool(forKey: Self.onboardedKey) {
-            defaults.set(true, forKey: Self.onboardedKey)
+        switch next {
+        case .onboard:
             onboard()
-        } else if migration.reclaimDefaultBrowser {
-            // The old bundle ID was the default browser; macOS asks once to confirm the new one.
+        case .reclaimDefaultBrowser:
             NSApp.activate()
             DefaultBrowser.makeBrowserdoor()
+        case .nothing:
+            break
         }
-    }
-
-    /// Release builds only: dev builds have their own ID and leave the installed app's data alone.
-    private func migrateFromLegacyIdentity() -> IdentityMigration.Outcome {
-        guard AppIdentity.bundleId == IdentityMigration.bundleId else { return .init() }
-        let outcome = IdentityMigration(home: FileManager.default.homeDirectoryForCurrentUser,
-                                        port: SystemIdentityMigrationPort()).run()
-        if outcome.migrated {
-            log.notice("moved data from \(IdentityMigration.legacyBundleId, privacy: .public)")
-        }
-        return outcome
     }
 
     /// Opening Browserdoor again (Finder, Spotlight, `browserdoor`) while it runs shows the settings.

@@ -111,3 +111,53 @@ public enum FirefoxProfiles {
         return profiles
     }
 }
+
+/// Firefox: one target per profile, opened with `--profile <dir>`.
+struct FirefoxFamily: BrowserFamily {
+    var bundleIds: [String] {
+        FirefoxBrowser.known.map(\.bundleId)
+    }
+
+    /// Profiles from `profiles.ini` and profile group databases. A single profile stays a plain
+    /// `app:` entry, which LaunchServices opens in whatever profile Firefox would pick itself.
+    func targets(app: URL, bundleId: String, discovery: Discovery) -> [Target] {
+        let environment = discovery.environment
+        let appName = discovery.appName(app, fallback: bundleId)
+        guard let browser = FirefoxBrowser.known.first(where: { $0.bundleId == bundleId }) else { return [] }
+        let root = browser.root(home: environment.home)
+        let groups = root.appendingPathComponent(FirefoxProfiles.groupsDirectory, isDirectory: true)
+        let profiles = environment.contents(of: root.appendingPathComponent("profiles.ini"))
+            .flatMap { String(data: $0, encoding: .utf8) }
+            .map { ini in
+                FirefoxProfiles.parse(profilesIni: ini) { storeID in
+                    let database = groups.appendingPathComponent("\(storeID).sqlite")
+                    return environment.contents(of: database).flatMap { data in
+                        FirefoxProfiles.parseStore(
+                            database: data,
+                            wal: environment.contents(of: URL(fileURLWithPath: database.path + "-wal"))
+                        )
+                    }
+                }
+            } ?? []
+
+        guard profiles.count > 1 else {
+            return [Target.plain(app: app, bundleId: bundleId, name: appName)]
+        }
+        return profiles.map { profile in
+            Target(
+                id: TargetID.firefox(bundleId: bundleId, profilePath: profile.path).string,
+                name: "\(appName) › \(profile.name)",
+                kind: .firefox(app: app, profile: profile.directory(root: root))
+            )
+        }
+    }
+
+    /// A second instance hands the URLs to a running one for the same profile and quits;
+    /// otherwise Firefox starts with that profile.
+    static func launchCommands(app: URL, profile: URL, urls: [URL]) -> [LaunchCommand] {
+        [.run(
+            executable: URL(fileURLWithPath: "/usr/bin/open"),
+            arguments: ["-na", app.path, "--args", "--profile", profile.path] + urls.map(\.absoluteString)
+        )]
+    }
+}

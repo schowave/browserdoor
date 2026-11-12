@@ -33,14 +33,6 @@ extension LaunchCommand {
         case let .run(executable, arguments): [executable.path] + arguments
         case let .open(urls, app): ["open", "-a", app.path] + urls.map(\.absoluteString)
         }
-        return words.map(Self.quoted).joined(separator: " ")
-    }
-
-    private static func quoted(_ word: String) -> String {
-        let plain = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_./:=,@%+{}"))
-        if !word.isEmpty, word.unicodeScalars.allSatisfy(plain.contains) {
-            return word
-        }
-        return "'" + word.replacingOccurrences(of: "'", with: "'\\''") + "'"
+        return words.map(Shell.quote).joined(separator: " ")
     }
 }

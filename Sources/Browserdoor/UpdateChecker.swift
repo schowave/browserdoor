@@ -7,15 +7,10 @@ import BrowserdoorCore
 final class UpdateChecker {
     static let shared = UpdateChecker()
 
-    enum Status: Equatable {
-        case idle
-        case checking
-        case upToDate
-        case available(ReleaseInfo)
-        case failed(String)
+    /// Owned by the policy, which SwiftUI observes through this property.
+    var status: UpdateStatus {
+        policy.status
     }
-
-    private(set) var status: Status = .idle
 
     var automatic: Bool {
         didSet { preferences.checksAutomatically = automatic }
@@ -43,28 +38,18 @@ final class UpdateChecker {
     }
 
     private func checkAutomatically() async {
-        guard policy.isDue else { return }
-        status = .checking
-        let notice = await policy.checkAutomatically()
-        updateStatus()
-        if case let .available(release) = notice {
+        if case let .available(release) = await policy.checkAutomatically() {
             showAvailable(release)
         }
     }
 
     /// A check the user asked for: always shows the result.
     func checkNow() async {
-        status = .checking
-        let notice = await policy.checkNow()
-        switch notice {
-        case .upToDate: status = .upToDate; showUpToDate()
-        case let .available(release): status = .available(release); showAvailable(release)
-        case let .failed(message): status = .failed(message); showFailed(message)
+        switch await policy.checkNow() {
+        case .upToDate: showUpToDate()
+        case let .available(release): showAvailable(release)
+        case let .failed(message): showFailed(message)
         }
-    }
-
-    private func updateStatus() {
-        status = policy.available.map(Status.available) ?? (preferences.lastCheck == nil ? .idle : .upToDate)
     }
 
     // MARK: Alerts
@@ -90,7 +75,7 @@ final class UpdateChecker {
         NSApp.activate()
         let alert = NSAlert()
         alert.messageText = L("Browserdoor %@ is available", release.version.description)
-        let canUpgrade = Self.brewExecutable != nil
+        let canUpgrade = Self.homebrew != nil
         alert.informativeText = canUpgrade
             ? L("You have version %@. The update runs “brew upgrade browserdoor” in Terminal and restarts Browserdoor.", RunningApp.version)
             : L("You have version %@.", RunningApp.version)
@@ -113,26 +98,17 @@ final class UpdateChecker {
 
     // MARK: Upgrade
 
-    /// `<prefix>/bin/brew` when Browserdoor runs from a Homebrew Cellar.
-    static var brewExecutable: URL? {
-        guard let brew = CurrentInstallation.shared.homebrew?.brew,
-              FileManager.default.isExecutableFile(atPath: brew.path) else { return nil }
-        return brew
+    /// The Homebrew install Browserdoor runs from, if `brew` is there to upgrade it.
+    static var homebrew: HomebrewInstall? {
+        guard let homebrew = CurrentInstallation.shared.homebrew,
+              FileManager.default.isExecutableFile(atPath: homebrew.brew.path) else { return nil }
+        return homebrew
     }
 
-    /// Opens a `.command` script in Terminal: upgrade, quit this Browserdoor, start the new one.
+    /// Opens the upgrade script in Terminal.
     private func upgradeInTerminal() {
-        guard let brew = Self.brewExecutable else { return }
-        let browserdoor = brew.deletingLastPathComponent().appendingPathComponent("browserdoor").path
-        let script = """
-        #!/bin/sh
-        echo "Updating Browserdoor…"
-        "\(brew.path)" update --quiet && "\(brew.path)" upgrade browserdoor || { echo; echo "Update failed."; exit 1; }
-        pkill -x Browserdoor
-        sleep 1
-        "\(browserdoor)"
-        echo; echo "Browserdoor updated and restarted. You can close this window."
-        """
+        guard let homebrew = Self.homebrew else { return }
+        let script = homebrew.upgradeScript(runningPID: ProcessInfo.processInfo.processIdentifier)
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("browserdoor-update.command")
         do {
             try script.write(to: url, atomically: true, encoding: .utf8)

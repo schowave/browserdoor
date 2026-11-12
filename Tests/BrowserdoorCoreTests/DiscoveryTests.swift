@@ -48,13 +48,14 @@ struct DiscoveryTests {
 
     @Test func zenSpaceTargetUsesExecutable() throws {
         let zen = try #require(Discovery(environment: environment()).discover().first)
-        guard case let .zenSpace(_, executable, space, profile) = zen.kind else {
+        guard case let .zenSpace(_, executable, space, profile, version) = zen.kind else {
             Issue.record("expected zen space")
             return
         }
         #expect(executable.path == "/Applications/Zen.app/Contents/MacOS/zen")
         #expect(space.uuid == "{aaaa}")
         #expect(profile == nil)
+        #expect(version == "1.24.1b")
     }
 
     @Test func oldZenFallsBackToPlainApp() {
@@ -74,7 +75,7 @@ struct DiscoveryTests {
         env.files["/custom/zen-sessions.jsonlz4"] = mozLz4(json: #"{"spaces":[{"uuid":"{x}","name":"X"}]}"#)
         let targets = Discovery(environment: env, zenProfileOverride: URL(fileURLWithPath: "/custom")).discover()
         #expect(targets.first?.id == "zen:{x}")
-        guard case let .zenSpace(_, _, _, profile) = targets.first?.kind else {
+        guard case let .zenSpace(_, _, _, profile, _) = targets.first?.kind else {
             Issue.record("expected zen space")
             return
         }
@@ -106,5 +107,35 @@ struct DiscoveryTests {
         #expect(Discovery.versionAtLeast("2.0", [1, 24]))
         #expect(!Discovery.versionAtLeast("1.23.99", [1, 24]))
         #expect(!Discovery.versionAtLeast(nil, [1, 24]))
+    }
+
+    @Test func everyFamilyBrowserIsAKnownBrowser() {
+        for family in Discovery.families {
+            for id in family.bundleIds {
+                #expect(KnownBrowsers.bundleIds.contains(id), "\(id) is missing from KnownBrowsers")
+            }
+        }
+    }
+}
+
+struct TargetIDTests {
+    @Test func roundTripsEveryForm() {
+        let ids: [TargetID] = [
+            .zen(uuid: "{b4ac0402-9e47}"),
+            .chromium(bundleId: "com.google.Chrome", profileDirectory: "Profile 2"),
+            .firefox(bundleId: "org.mozilla.firefox", profilePath: "Profiles/x1.default-release"),
+            .firefox(bundleId: "org.mozilla.firefox", profilePath: "/Volumes/a:b/ff"),
+            .app(bundleId: "com.apple.Safari"),
+        ]
+        for id in ids {
+            #expect(TargetID(id.string) == id)
+        }
+        #expect(TargetID.app(bundleId: "com.apple.Safari").string == "app:com.apple.Safari")
+    }
+
+    @Test func rejectsAnythingElse() {
+        for string in ["", "app:", "zen", "chromium:com.google.Chrome", "firefox::x", "safari:x", "app"] {
+            #expect(TargetID(string) == nil, "\(string)")
+        }
     }
 }

@@ -5,7 +5,8 @@ public struct Target: Equatable, Sendable, Identifiable {
     public enum Kind: Equatable, Sendable {
         /// `profile` is set only when the config overrides Zen's default profile;
         /// the command then has to address that profile's instance explicitly.
-        case zenSpace(app: URL, executable: URL, space: ZenSpace, profile: URL? = nil)
+        /// `version` is Zen's, which its icon cache is keyed by.
+        case zenSpace(app: URL, executable: URL, space: ZenSpace, profile: URL? = nil, version: String = "")
         case chromium(app: URL, profileDirectory: String)
         case firefox(app: URL, profile: URL)
         case app(URL)
@@ -25,24 +26,13 @@ public struct Target: Equatable, Sendable, Identifiable {
 
     public var appURL: URL {
         switch kind {
-        case let .zenSpace(app, _, _, _), let .chromium(app, _), let .firefox(app, _), let .app(app): app
+        case let .zenSpace(app, _, _, _, _), let .chromium(app, _), let .firefox(app, _), let .app(app): app
         }
     }
 
-    public static func zenID(_ uuid: String) -> String {
-        "zen:\(uuid)"
-    }
-
-    public static func chromiumID(_ bundleId: String, _ dir: String) -> String {
-        "chromium:\(bundleId):\(dir)"
-    }
-
-    public static func firefoxID(_ bundleId: String, _ profilePath: String) -> String {
-        "firefox:\(bundleId):\(profilePath)"
-    }
-
-    public static func appID(_ bundleId: String) -> String {
-        "app:\(bundleId)"
+    /// A browser listed as a single entry.
+    static func plain(app: URL, bundleId: String, name: String) -> Target {
+        Target(id: TargetID.app(bundleId: bundleId).string, name: name, kind: .app(app))
     }
 }
 
@@ -61,32 +51,24 @@ extension Target {
     func launchCommands(for urls: [URL], appIsRunning: Bool = true) -> [LaunchCommand] {
         let urls = URLPolicy.filter(urls)
         guard !urls.isEmpty else { return [] }
-        let strings = urls.map(\.absoluteString)
         switch kind {
-        case let .zenSpace(app, executable, space, profile):
-            let base = (profile.map { ["--profile", $0.path] } ?? []) + ["--space", space.uuid]
-            guard appIsRunning else {
-                // Zen stores the space for startup; extra URLs open in the same window.
-                return [.run(
-                    executable: URL(fileURLWithPath: "/usr/bin/open"),
-                    arguments: ["-a", app.path, "--args"] + base + strings
-                )]
-            }
-            // `--space <space> [<url>]` takes a single URL, so one call per URL.
-            return strings.map { .run(executable: executable, arguments: base + [$0]) }
+        case let .zenSpace(app, executable, space, profile, _):
+            return ZenBrowser.launchCommands(app: app, executable: executable, space: space, profile: profile,
+                                             urls: urls, appIsRunning: appIsRunning)
         case let .chromium(app, dir):
-            return [.run(
-                executable: URL(fileURLWithPath: "/usr/bin/open"),
-                arguments: ["-na", app.path, "--args", "--profile-directory=\(dir)"] + strings
-            )]
+            return ChromiumFamily.launchCommands(app: app, profileDirectory: dir, urls: urls)
         case let .firefox(app, profile):
-            // A second instance hands the URLs to a running one for the same profile and quits.
-            return [.run(
-                executable: URL(fileURLWithPath: "/usr/bin/open"),
-                arguments: ["-na", app.path, "--args", "--profile", profile.path] + strings
-            )]
+            return FirefoxFamily.launchCommands(app: app, profile: profile, urls: urls)
         case let .app(app):
             return [.open(urls: urls, app: app)]
         }
+    }
+
+    /// The app has to be brought forward after its remote command (Zen's leaves it behind).
+    var activatesAfterRemoteCommand: Bool {
+        if case .zenSpace = kind {
+            return true
+        }
+        return false
     }
 }

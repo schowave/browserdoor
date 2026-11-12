@@ -156,7 +156,9 @@ Die Datei liegt unter `~/.config/browserdoor/config.json`. Sie ist optional; feh
 
 ## 7. Erster Start
 
-Beim ersten Start passiert Folgendes:
+Jeder Start läuft durch `Startup`, bevor irgendeine Oberfläche erscheint: Altlasten übernehmen (`Legacy`), bei LaunchServices registrieren, Installation pflegen, nach einem Update aufräumen, dann entscheiden, ob Onboarding oder das Zurückholen des Standardbrowsers folgt. Dev-Builds (`….dev`, auch `swift run` ohne Bundle) bekommen weder Onboarding noch Migration.
+
+Beim ersten Start eines Release-Builds passiert Folgendes:
 1. Die App registriert sich bei LaunchServices (`LSRegisterURL`).
 2. Ist Browserdoor nicht Standardbrowser, erscheint ein Dialog. Bei Zustimmung ruft die App `NSWorkspace.setDefaultApplication(at:toOpenURLsWithScheme:)` für http auf. macOS zeigt dann den eigenen Bestätigungsdialog.
 3. Der Autostart wird aktiviert (LaunchAgent, siehe unten).
@@ -165,12 +167,12 @@ Beim ersten Start passiert Folgendes:
 - Läuft Browserdoor aus einem Cellar, legt es bei jedem Start `~/Applications/Browserdoor.app` als Symlink auf `<brew prefix>/opt/browserdoor/Browserdoor.app` an (bzw. korrigiert einen veralteten eigenen Symlink). Eine echte App an dieser Stelle bleibt unangetastet.
 - Der Autostart ist ein LaunchAgent `~/Library/LaunchAgents/io.github.schowave.browserdoor.plist`, der `open -a ~/Applications/Browserdoor.app` ausführt. `SMAppService.mainApp` würde sich den versionierten Pfad merken; ein solches Login-Item aus früheren Builds wird beim Start entfernt und ersetzt.
 - Der Standardbrowser hängt an der Bundle-ID und ist damit pfadunabhängig; jeder Start registriert die laufende Kopie neu (`LSRegisterURL`).
-- **Bundle-ID-Wechsel** (bis 0.4.x `io.github.schowave.doorman`, seit 0.5.0 `io.github.schowave.browserdoor`): Der erste Start eines Release-Builds übernimmt, was unter der alten ID lag (`IdentityMigration`), und zwar vor allem anderen, damit Update-Check und Aufräumen schon die übernommenen Werte sehen:
-  - Die UserDefaults der alten Domain werden in die neue kopiert (vorhandene Schlüssel bleiben), danach wird die alte Domain gelöscht. Damit kommen Onboarding-Status, Update-Check, letzter Bundle-Pfad und die Menüleisten-Position mit.
+- **Bundle-ID-Wechsel** (bis 0.4.x `io.github.schowave.doorman`, seit 0.5.0 `io.github.schowave.browserdoor`): Der erste Start eines Release-Builds übernimmt, was unter der alten ID lag (`Legacy.moveIdentity`), und zwar vor allem anderen, damit Update-Check und Aufräumen schon die übernommenen Werte sehen:
+  - Eine noch laufende alte Instanz wird beendet (sie würde sonst die alte Domain wieder schreiben und zwei Menüleisten-Symbole zeigen).
+  - Die UserDefaults der alten Domain werden in die neue kopiert (Schlüssel, die in der eigenen Domain schon stehen, bleiben; globale oder registrierte Werte zählen nicht), danach wird die alte Domain gelöscht. Damit kommen Onboarding-Status, Update-Check, letzter Bundle-Pfad und die Menüleisten-Position mit.
   - `~/Library/Caches/io.github.schowave.doorman` wird gelöscht.
-  - Ein LaunchAgent unter dem alten Label wird durch einen unter dem neuen ersetzt (`Installation.prepare`). Wer keinen hatte, bekommt keinen.
+  - Ein LaunchAgent unter dem alten Label wird durch einen unter dem neuen ersetzt (`Legacy.moveLoginItem`). Wer keinen hatte, bekommt keinen.
   - War die alte ID als `https`-Handler eingetragen (gelesen aus `com.apple.launchservices.secure.plist`, weil die alte App nach `brew cleanup` nicht mehr existiert), fragt Browserdoor sofort per `setDefaultApplication` nach, macOS zeigt den Bestätigungsdialog. Lehnt der Nutzer ab, bleibt der Hinweis im Menü.
-  - Dev-Builds (`….dev`) migrieren nichts.
 - Nach einem Update trägt Browserdoor den Pfad der Version, aus der es zuletzt lief, aus LaunchServices aus (`lsregister -u`), wenn er nicht mehr existiert (`brew cleanup` hat ihn gelöscht). Existiert er noch (z. B. ein Dev-Build), bleibt er.
 
 ## 8. Architektur
@@ -179,16 +181,18 @@ Begriffe: siehe [GLOSSARY.md](GLOSSARY.md). Die Logik steckt in wenigen tiefen M
 
 | Modul (BrowserdoorCore) | Besitzt | Seam / Adapter |
 |---|---|---|
-| `TargetCatalog` | Config-Datei (inkl. unlesbar), Zen-Profilpfad, Discovery, Picker-Einträge, Edit-Zeilen, effektive Tasten, Speichern | `BrowserEnvironment`: `SystemEnvironment` · `FakeEnvironment` |
+| `TargetCatalog` | Config-Datei (inkl. unlesbar), Zen-Profilpfad, Discovery, Picker-Einträge, Bearbeitungen (umbenennen, Taste, ausblenden, Standard, Extra-Apps), effektive Tasten, Speichern | `BrowserEnvironment`: `SystemEnvironment` · `FakeEnvironment` |
 | `Discovery` | Ziele finden (Allowlist, Pfadfilter, Zen-Versionsprüfung, Chromium- und Firefox-Profile, Extra-Apps) | `BrowserEnvironment` |
 | `PickerSession` | Links, Einträge, Auswahl; Eingabe → Effekte (close/open/copy) | in-process |
 | `LinkOpener` | Eingehende Items → erlaubte Links; Link + Ziel → Start inkl. Zen läuft/kalt und Aktivierung | `LaunchPort`: `SystemLaunchPort` · `RecordingPort` |
-| `Installation` | Homebrew-Fakten, stabiler Link, LaunchAgent, Migration von SMAppService | echtes Dateisystem (Temp-Home in Tests); `LegacyLoginItem`: `SMAppServiceLoginItem` · Fake |
-| `UpdatePolicy` | Wann prüfen, was melden, Später, Fehler | `ReleaseSource`: `GitHubReleaseSource` · Stub; `UpdatePreferences`: `UserDefaultsUpdatePreferences` · In-Memory |
-| `ZenIconCache` | Icon-Cache je Zen-Version, gemerkte Fehlschläge | Extraktor: `unzip` · Fake |
+| `Startup` | Ablauf jedes Starts: Altlasten (`Legacy`, nach Version geordnet), Registrierung, Installation, Aufräumen nach Updates, Onboarding oder Standardbrowser zurückholen; Release- gegen Dev-Build (`BundleIdentity`) | `StartupPort`: `SystemStartupPort` · Fake; `LegacyLoginItem`: `SMAppServiceLoginItem` · Fake |
+| `Installation` | Homebrew-Fakten, stabiler Link, LaunchAgent, Upgrade-Skript | echtes Dateisystem (Temp-Home in Tests) |
+| Browser-Familien | `ZenBrowser`, `ChromiumFamily`, `FirefoxFamily`: je Familie Datenort, Ziele, Namen, Startbefehle; `TargetID` formatiert und parst die IDs | über `Discovery` |
+| `UpdatePolicy` | Wann prüfen, was melden, Später, Fehler, angezeigter Status | `ReleaseSource`: `GitHubReleaseSource` · Stub; `UpdatePreferences`: `UserDefaultsUpdatePreferences` · In-Memory |
+| `TargetIcons` | Icon je Ziel (Emoji → SVG → Anfangsbuchstabe), startet die Extraktion einmal je Zen-Version | `ZenIconCache`, Extraktor: `unzip` · Fake |
 | Parser | `MozLz4`, `ZenSpaces`, `ZenProfile`, `ChromiumProfiles`, `FirefoxProfiles`, `WeblocParser` | in-process |
 
-App: `AppDelegate` (Menüleiste, Onboarding), `PickerController` (rendert die Session, führt Effekte aus), `Settings` (Fenster über `CatalogState`), `UpdateChecker` (Dialoge, Upgrade im Terminal), `IconProvider` (NSImages, startet die Icon-Extraktion), Adapter (`SystemEnvironment`, `SystemLaunchPort`, `SMAppServiceLoginItem`).
+App: `AppDelegate` (Menüleiste, Onboarding-Dialog), `PickerController` (rendert die Session, führt Effekte aus), `Settings` (Fenster, bindet die Bearbeitungen von `CatalogState`), `UpdateChecker` (Dialoge, öffnet das Upgrade-Skript), `IconProvider` (lädt NSImages), Adapter (`SystemEnvironment`, `SystemLaunchPort`, `SystemStartupPort`, `SMAppServiceLoginItem`).
 
 ## 9. Build, Distribution, CI
 
