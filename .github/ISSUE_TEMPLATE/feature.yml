@@ -1,0 +1,16 @@
+name: Feature request
+description: A browser, a profile type or a behaviour Browserdoor should support
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you're trying to do
+      description: The situation, not the solution. Which apps and browsers are involved?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Idea
+      description: How Browserdoor could help. For a new browser, how it opens a link in a given profile or space from the command line, if you know.

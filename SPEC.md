@@ -1,67 +1,67 @@
-# Browserdoor — Spezifikation v1
+# Browserdoor — Specification v1
 
-Browserdoor ist ein macOS-Link-Picker in der Art von Browserosaurus. Er wird als Standardbrowser registriert. Beim Klick auf einen Link erscheint an der Mausposition ein Panel. Darin wählt man das Ziel: einen **Zen-Workspace**, ein **Chromium-Profil**, ein **Firefox-Profil** oder einen anderen installierten Browser.
+Browserdoor is a macOS link picker in the style of Browserosaurus. It is registered as the default browser. When you click a link, a panel appears at the mouse position. In it you choose the target: a **Zen space**, a **Chromium profile**, a **Firefox profile** or another installed browser.
 
-## 1. Ziele und Nicht-Ziele
+## 1. Goals and non-goals
 
-**v1 umfasst**
-- Standardbrowser für `http`, `https`, `.html` und `.webloc`
-- Panel mit einer gemischten Zielliste: Zen-Workspaces, Chromium-Browser × Profile, Firefox-Profile, übrige Browser
-- Konfiguration als JSON-Datei
-- Installation per Homebrew-Formula aus einem eigenen Tap
+**v1 includes**
+- Default browser for `http`, `https`, `.html` and `.webloc`
+- Panel with a mixed target list: Zen spaces, Chromium browsers × profiles, Firefox profiles, other browsers
+- Configuration as a JSON file
+- Installation via a Homebrew formula from a dedicated tap
 
-**Nicht in v1**
-- Regel-Engine (à la Finicky)
-- Bypass per Modifier-Taste
-- Einstellungsfenster (GUI)
-- Code-Signierung und Cask
-- editierbare URL im Panel
+**Not in v1**
+- Rule engine (à la Finicky)
+- Bypass via a modifier key
+- Settings window (GUI)
+- Code signing and cask
+- Editable URL in the panel
 - `mailto:`
-- mehrere Zen-Profile
-- Firefox-Container als eigene Ziele
-- Safari-Profile (Safari hat dafür kein CLI)
+- Multiple Zen profiles
+- Firefox containers as separate targets
+- Safari profiles (Safari has no CLI for them)
 
-## 2. Plattform und Technik
+## 2. Platform and technology
 
-- Swift 6, SwiftUI und AppKit, **macOS 14+**.
-- Build mit Swift Package Manager. `mise run app` baut daraus `Browserdoor.app` (siehe 9). Gebaut wird mit Xcode 16 (Swift 6).
-- Die App läuft dauerhaft im Hintergrund:
-  - `LSUIElement`, also kein Dock-Icon
-  - Menüleisten-Icon (eine angelehnte Tür als Template-Bild, `NSStatusItem`; das Menü wird bei jedem Öffnen neu aufgebaut, damit die Statuszeilen aktuell sind)
-  - Autostart über einen LaunchAgent (siehe 7)
-- Lizenz: MIT. Das Repo liegt öffentlich auf GitHub.
+- Swift 6, SwiftUI and AppKit, **macOS 14+**.
+- Built with Swift Package Manager. `mise run app` builds `Browserdoor.app` from it (see 9). The build uses Xcode 16 (Swift 6).
+- The app runs permanently in the background:
+  - `LSUIElement`, so no Dock icon
+  - Menu bar icon (a door ajar as a template image, `NSStatusItem`; the menu is rebuilt every time it opens, so the status lines are current)
+  - Autostart via a LaunchAgent (see 7)
+- License: MIT. The repo is public on GitHub.
 
-## 3. Ziele (Targets)
+## 3. Targets
 
-Ein **Ziel** ist ein Eintrag im Panel. Jedes Ziel hat eine stabile `id`, einen Anzeigenamen, ein Icon und eine Methode zum Öffnen.
+A **target** is an entry in the panel. Every target has a stable `id`, a display name, an icon and a method for opening.
 
-| Art | ID-Schema | Öffnen |
+| Kind | ID scheme | Opening |
 |---|---|---|
-| Zen-Workspace | `zen:{<uuid>}` | Zen läuft: `<Zen.app>/Contents/MacOS/zen --space "{uuid}" <url>` je URL. Zen läuft nicht: `open -a <Zen.app> --args --space "{uuid}" <url…>` |
-| Zen ohne Workspace-Support | `app:app.zen-browser.zen` | wie ein normaler Browser |
-| Chromium-Profil | `chromium:<bundleId>:<profileDir>` | `open -na <App> --args --profile-directory=<dir> <url…>` |
-| Firefox-Profil | `firefox:<bundleId>:<profilePath>` | `open -na <App> --args --profile <dir> <url…>` |
-| Normaler Browser | `app:<bundleId>` | `NSWorkspace.open(urls, withApplicationAt:)` |
+| Zen space | `zen:{<uuid>}` | Zen is running: `<Zen.app>/Contents/MacOS/zen --space "{uuid}" <url>` per URL. Zen is not running: `open -a <Zen.app> --args --space "{uuid}" <url…>` |
+| Zen without workspace support | `app:app.zen-browser.zen` | like a regular browser |
+| Chromium profile | `chromium:<bundleId>:<profileDir>` | `open -na <App> --args --profile-directory=<dir> <url…>` |
+| Firefox profile | `firefox:<bundleId>:<profilePath>` | `open -na <App> --args --profile <dir> <url…>` |
+| Regular browser | `app:<bundleId>` | `NSWorkspace.open(urls, withApplicationAt:)` |
 
 ### 3.1 Zen
 
-- **App finden**: über die Bundle-ID `app.zen-browser.zen` unter den https-Handlern (siehe 3.4, Pfadfilter).
-- **Profil**: Gelesen wird `~/Library/Application Support/zen/profiles.ini`. Maßgeblich ist die `Default=`-Zeile der `[Install…]`-Sektion. Gibt es sie nicht, gilt das Profil mit `Default=1`. In der Konfiguration lässt sich das Profil mit `zen.profilePath` überschreiben.
-- **Workspaces**: Sie stehen in `<profile>/zen-sessions.jsonlz4`.
-  - Format: mozLz4. Die Datei beginnt mit der Magic `mozLz40\0` (8 Byte), danach folgt die Größe als uint32 LE, danach ein rohes LZ4-Block-Payload.
-  - Daraus wird `spaces[]` gelesen, jeweils mit `uuid`, `name`, `icon` und `theme.gradientColors`.
-  - Die Datei wird **bei jedem Öffnen des Panels** neu gelesen.
-- **Icons**: `icon` ist eine `chrome://browser/skin/zen-icons/selectable/<name>.svg`-URL, ein Emoji oder leer.
-  - Die SVGs liegen in `<Zen.app>/Contents/Resources/browser/omni.ja` (ein Zip) unter `chrome/browser/skin/classic/browser/zen-icons/selectable/`.
-  - Sie werden einmalig pro Zen-Version nach `~/Library/Caches/io.github.schowave.browserdoor/zen-icons/<version>/` extrahiert.
-  - Fallback: Ist das Icon ein Emoji, wird es direkt angezeigt. Sonst erscheint der Anfangsbuchstabe auf der Theme-Farbe.
-- **Versionsprüfung**: `--space` gibt es ab Zen 1.24 (PR zen-browser/desktop#15074). Ist die Version älter (`CFBundleShortVersionString`) oder kann die Datei nicht gelesen werden, erscheint Zen als ein einzelnes `app:`-Ziel.
-- **Zen läuft nicht**: Browserdoor startet Zen über LaunchServices (`open -a … --args --space …`), damit Zen kein Kindprozess von Browserdoor wird. Zen merkt sich den Space für den Start (`zen.workspaces.cmdline-initial-workspace`).
-- **Zen läuft**: Der direkte Aufruf übergibt an die laufende Instanz und kehrt sofort zurück (getestet mit 1.24.1b). Danach aktiviert Browserdoor Zen.
+- **Finding the app**: via the bundle ID `app.zen-browser.zen` among the https handlers (see 3.4, path filter).
+- **Profile**: Browserdoor reads `~/Library/Application Support/zen/profiles.ini`. The `Default=` line of the `[Install…]` section decides. If it does not exist, the profile with `Default=1` applies. In the configuration, `zen.profilePath` overrides the profile.
+- **Workspaces**: They are stored in `<profile>/zen-sessions.jsonlz4`.
+  - Format: mozLz4. The file starts with the magic `mozLz40\0` (8 bytes), followed by the size as uint32 LE, followed by a raw LZ4 block payload.
+  - From it, Browserdoor reads `spaces[]`, each with `uuid`, `name`, `icon` and `theme.gradientColors`.
+  - The file is read again **every time the panel opens**.
+- **Icons**: `icon` is a `chrome://browser/skin/zen-icons/selectable/<name>.svg` URL, an emoji or empty.
+  - The SVGs are in `<Zen.app>/Contents/Resources/browser/omni.ja` (a zip) under `chrome/browser/skin/classic/browser/zen-icons/selectable/`.
+  - They are extracted once per Zen version to `~/Library/Caches/io.github.schowave.browserdoor/zen-icons/<version>/`.
+  - Fallback: If the icon is an emoji, it is shown directly. Otherwise the initial letter appears on the theme color.
+- **Version check**: `--space` exists from Zen 1.24 on (PR zen-browser/desktop#15074). If the version is older (`CFBundleShortVersionString`) or the file cannot be read, Zen appears as a single `app:` target.
+- **Zen is not running**: Browserdoor starts Zen via LaunchServices (`open -a … --args --space …`), so Zen does not become a child process of Browserdoor. Zen keeps the space for its own launch (`zen.workspaces.cmdline-initial-workspace`).
+- **Zen is running**: The direct call hands over to the running instance and returns immediately (tested with 1.24.1b). Then Browserdoor activates Zen.
 
-### 3.2 Chromium-Browser
+### 3.2 Chromium browsers
 
-- **Unterstützte Browser** (`bundleId` → Datenverzeichnis unter `~/Library/Application Support/`):
+- **Supported browsers** (`bundleId` → data directory under `~/Library/Application Support/`):
   - `com.google.Chrome` → `Google/Chrome`
   - `com.google.Chrome.beta` → `Google/Chrome Beta`
   - `com.google.Chrome.canary` → `Google/Chrome Canary`
@@ -69,51 +69,51 @@ Ein **Ziel** ist ein Eintrag im Panel. Jedes Ziel hat eine stabile `id`, einen A
   - `com.microsoft.edgemac` → `Microsoft Edge`
   - `com.vivaldi.Vivaldi` → `Vivaldi`
   - `org.chromium.Chromium` → `Chromium`
-- **Profile**: Sie stehen in `<datadir>/Local State` unter `profile.info_cache`, als Abbildung `<profileDir>` → `{name}`.
-- Gibt es **genau ein** Profil, erscheint der Browser als ein einzelner Eintrag ohne Profilnamen. Das Ziel-ID-Schema bleibt dann `chromium:<bundleId>:<profileDir>`.
+- **Profiles**: They are stored in `<datadir>/Local State` under `profile.info_cache`, as a mapping `<profileDir>` → `{name}`.
+- If there is **exactly one** profile, the browser appears as a single entry without a profile name. The target ID scheme then stays `chromium:<bundleId>:<profileDir>`.
 
 ### 3.3 Firefox
 
-- **Unterstützt**: `org.mozilla.firefox` mit dem Datenverzeichnis `~/Library/Application Support/Firefox`. Developer Edition und Nightly teilen sich dieses Verzeichnis und bleiben einzelne `app:`-Einträge, sonst stünde jedes Profil dreimal da.
-- **Profile**: Sie stehen in `profiles.ini` in den `[ProfileN]`-Sektionen (`Name`, `Path`, `IsRelative`). `profilePath` in der Ziel-ID ist `Path`, wie Firefox ihn speichert.
-  - Seit Firefox 138 legt der Profil-Manager eine Profilgruppe in `Profile Groups/<StoreID>.sqlite` ab (Tabelle `Profiles`: `id`, `path`, `name`, …; `path` relativ zum Datenverzeichnis). In `profiles.ini` steht davon nur ein Profil, markiert mit `StoreID=`. Es wird durch die Profile der Gruppe ersetzt.
-  - Die Datenbank läuft im WAL-Modus. Browserdoor kopiert Datenbank und `-wal` in ein temporäres Verzeichnis und liest dort, damit neue Profile sofort sichtbar sind und Firefox' Dateien unberührt bleiben.
-  - Reihenfolge: zuerst die Profile, die eine `[Install…]`-Sektion als `Default=` nennt, dann die übrigen nach Sektionsnummer bzw. `id`.
-  - Das leere `default`-Profil, das Firefox neben `default-release` anlegt, fällt weg, außer eine Installation nutzt es.
-- Gibt es **höchstens ein** Profil, bleibt Firefox ein einzelnes `app:`-Ziel.
-- **Öffnen**: Immer über `open -na`, damit Firefox kein Kindprozess von Browserdoor wird. Läuft das Profil schon, übergibt die neue Instanz die URLs an die laufende und beendet sich (getestet mit Firefox 160). Sonst startet Firefox mit diesem Profil.
+- **Supported**: `org.mozilla.firefox` with the data directory `~/Library/Application Support/Firefox`. Developer Edition and Nightly share this directory and stay single `app:` entries; otherwise every profile would be listed three times.
+- **Profiles**: They are stored in `profiles.ini` in the `[ProfileN]` sections (`Name`, `Path`, `IsRelative`). `profilePath` in the target ID is `Path`, as Firefox stores it.
+  - Since Firefox 138, the profile manager stores a profile group in `Profile Groups/<StoreID>.sqlite` (table `Profiles`: `id`, `path`, `name`, …; `path` relative to the data directory). `profiles.ini` contains only one profile of it, marked with `StoreID=`. It is replaced by the profiles of the group.
+  - The database runs in WAL mode. Browserdoor copies the database and `-wal` to a temporary directory and reads them there, so new profiles are visible immediately and Firefox's files stay untouched.
+  - Order: first the profiles that an `[Install…]` section names as `Default=`, then the others by section number or `id`.
+  - The empty `default` profile that Firefox creates next to `default-release` is dropped, unless an installation uses it.
+- If there is **at most one** profile, Firefox stays a single `app:` target.
+- **Opening**: Always via `open -na`, so Firefox does not become a child process of Browserdoor. If the profile is already running, the new instance hands the URLs to the running one and quits (tested with Firefox 160). Otherwise Firefox starts with this profile.
 
-### 3.4 Übrige Browser
+### 3.4 Other browsers
 
-- Grundlage sind alle Apps, die `https` öffnen können (`NSWorkspace.urlsForApplications(toOpen:)`).
-- **Pfadfilter**: Es zählen nur Apps unter `/Applications`, `~/Applications` oder `/System`. Kopien in Caches oder Snapshots (Playwright, Puppeteer, …) fliegen raus. Gibt es eine Bundle-ID mehrfach, gewinnt die erste erlaubte Kopie.
-- **Allowlist**: Gezeigt werden nur bekannte Browser (`KnownBrowsers`, analog zu Browserosaurus), plus die Bundle-IDs aus `extraApps` in der Konfiguration. LaunchServices listet sonst auch Terminals, Web-App-Wrapper, Finicky/Browserosaurus usw.
-- Ausgenommen sind Browserdoor selbst sowie Zen, die Chromium-Browser und Firefox, wenn sie schon über 3.1 bis 3.3 abgedeckt sind.
+- The basis is all apps that can open `https` (`NSWorkspace.urlsForApplications(toOpen:)`).
+- **Path filter**: Only apps under `/Applications`, `~/Applications` or `/System` count. Copies in caches or snapshots (Playwright, Puppeteer, …) are dropped. If a bundle ID occurs more than once, the first allowed copy wins.
+- **Allowlist**: Only known browsers are shown (`KnownBrowsers`, analogous to Browserosaurus), plus the bundle IDs from `extraApps` in the configuration. Otherwise LaunchServices also lists terminals, web app wrappers, Finicky/Browserosaurus etc.
+- Excluded are Browserdoor itself, and Zen, the Chromium browsers and Firefox when 3.1 to 3.3 already cover them.
 
-### 3.5 Erlaubte URLs
+### 3.5 Allowed URLs
 
-URLs landen als Kommandozeilen-Argumente bei den Browsern. Deshalb lässt Browserdoor nur `http`, `https` und `file` durch (`URLPolicy`); alles andere, etwa `--remote-debugging-port=…` oder `javascript:`, wird verworfen. Aus `.webloc`-Dateien kommen nur `http` und `https`, damit eine heruntergeladene Datei keine lokale Datei öffnen kann. Die Prüfung greift beim Empfang und noch einmal beim Bauen der Launch-Kommandos.
+URLs reach the browsers as command-line arguments. Therefore Browserdoor lets only `http`, `https` and `file` through (`URLPolicy`); everything else, such as `--remote-debugging-port=…` or `javascript:`, is discarded. From `.webloc` files only `http` and `https` are accepted, so a downloaded file cannot open a local file. The check applies on receipt and again when building the launch commands.
 
-Ist `zen.profilePath` gesetzt, bekommt jeder Zen-Aufruf zusätzlich `--profile <pfad>`, damit `--space` die Instanz mit diesem Profil erreicht.
+If `zen.profilePath` is set, every Zen call additionally gets `--profile <path>`, so `--space` reaches the instance with this profile.
 
 ## 4. Panel (UI)
 
-- Ein schwebendes, randloses `NSPanel` an der Mausposition. Es wird auf den sichtbaren Bildschirmbereich begrenzt.
-- **Inhalt**:
-  - oben die URL, nicht editierbar und gekürzt; bei mehreren Links „N Links“ mit Tooltip
-  - darunter die Liste der Ziele: Icon, Name, Hotkey
-  - Button „URL kopieren“
-- **Bedienung**:
-  - Hotkey eines Eintrags öffnet dieses Ziel.
-  - ↑ und ↓ bewegen die Auswahl, Enter öffnet die Auswahl. Vorausgewählt ist das Default-Ziel, sonst der erste Eintrag.
-  - Esc oder ein Klick außerhalb schließt das Panel.
-  - ⌘C kopiert die URL(s).
-- **Hotkeys**: Ohne Konfiguration gilt `1`–`9`, dann `0` in Listenreihenfolge. In der Konfiguration lassen sie sich pro Ziel überschreiben.
-- **Mehrere Links**: Treffen weitere URLs ein, solange das Panel offen ist, werden sie gesammelt. Eine Auswahl öffnet alle.
+- A floating, borderless `NSPanel` at the mouse position. It is constrained to the visible screen area.
+- **Content**:
+  - at the top the URL, not editable and truncated; for multiple links "N links" with a tooltip
+  - below it the list of targets: icon, name, hotkey
+  - Button "Copy URL"
+- **Controls**:
+  - An entry's hotkey opens that target.
+  - ↑ and ↓ move the selection, Enter opens the selection. The default target is preselected, otherwise the first entry.
+  - Esc or a click outside closes the panel.
+  - ⌘C copies the URL(s).
+- **Hotkeys**: Without configuration, `1`–`9`, then `0` apply in list order. The configuration can override them per target.
+- **Multiple links**: If more URLs arrive while the panel is open, they are collected. A selection opens all of them.
 
-## 5. Konfiguration
+## 5. Configuration
 
-Die Datei liegt unter `~/.config/browserdoor/config.json`. Sie ist optional; fehlt sie, gelten die Defaults. Unbekannte Felder werden ignoriert.
+The file is at `~/.config/browserdoor/config.json`. It is optional; if it is missing, the defaults apply. Unknown fields are ignored.
 
 ```json
 {
@@ -128,107 +128,107 @@ Die Datei liegt unter `~/.config/browserdoor/config.json`. Sie ist optional; feh
 }
 ```
 
-- **`order`**: Diese Ziele stehen zuerst, in der angegebenen Reihenfolge. Alle übrigen folgen in der Erkennungsreihenfolge:
-  1. Zen-Workspaces in Zens Reihenfolge
-  2. Chromium-Browser
-  3. Firefox-Profile
-  4. übrige Browser alphabetisch
-- **`extraApps`**: Bundle-IDs von Apps, die keine bekannten Browser sind, aber trotzdem als Ziel erscheinen sollen.
-- **`targets.<id>.label`**: Überschreibt den Anzeigenamen. Gleichzeitig ist es der lesbare Zusatz zur UUID.
-- Die Datei wird normalerweise über das Einstellungsfenster gepflegt (siehe 6). Es schreibt sie bei jeder Änderung neu (sortierte Schlüssel, stabile Diffs); Einstellungen von Zielen, die gerade nicht erkannt werden, bleiben erhalten.
+- **`order`**: These targets come first, in the given order. All others follow in discovery order:
+  1. Zen spaces in Zen's order
+  2. Chromium browsers
+  3. Firefox profiles
+  4. other browsers alphabetically
+- **`extraApps`**: Bundle IDs of apps that are not known browsers but should still appear as a target.
+- **`targets.<id>.label`**: Overrides the display name. In the config file it is also the readable name next to the UUID.
+- The file is normally maintained through the settings window (see 6). It rewrites the file on every change (sorted keys, stable diffs); settings of targets that are not currently discovered are kept.
 
-## 6. Menüleiste, Einstellungen, Updates
+## 6. Menu bar, settings, updates
 
-**Menüleisten-Menü** (wird bei jedem Öffnen neu aufgebaut, nur billige Abfragen):
-- „Auf Browserdoor X aktualisieren…“, falls ein Update bekannt ist
-- Hinweis „Browserdoor ist nicht Standardbrowser“ plus „Als Standardbrowser festlegen“, nur wenn nötig
-- „Einstellungen…“ (⌘,), „Nach Updates suchen…“, Versionszeile, „Browserdoor beenden“
+**Menu bar menu** (rebuilt every time it opens, only cheap queries):
+- "Update to Browserdoor X…", if an update is known
+- Notice "Browserdoor isn't your default browser" plus "Make Default Browser", only when needed
+- "Settings…" (⌘,), "Check for Updates…", version line, "Quit Browserdoor"
 
-**Einstellungsfenster** (SwiftUI in einem `NSWindow`; öffnet sich auch, wenn Browserdoor bei laufender App erneut gestartet wird, z. B. per `browserdoor`):
-- *Allgemein:* Standardbrowser-Status und -Button, „Beim Anmelden starten“ (LaunchAgent; der Haken zeigt nur, ob er existiert, nicht ob er in den Systemeinstellungen blockiert ist), Updates.
-- *Ziele:* alle erkannten Ziele mit Icon, per Ziehen sortierbar, ein-/ausblendbar, umbenennbar, eigene Taste (die tatsächlich vergebene Taste steht grau als Platzhalter; vergibt man eine Taste, die schon ein anderes Ziel hat, verliert das andere Ziel sie), Stern für das Standardziel. **+** fügt Apps über einen Auswahldialog hinzu (`extraApps`; sie erscheinen auch ohne https-Registrierung), **−** entfernt eine solche App.
-- *Erweitert:* weitere Apps, Zen-Profil, Konfigurationsdatei im Finder zeigen.
-- Ein unsichtbares Hauptmenü liefert ⌘C/⌘V/⌘A, ⌘W und ⌘, für das Fenster.
+**Settings window** (SwiftUI in an `NSWindow`; also opens when Browserdoor is started again while the app is running, e.g. via `browserdoor`):
+- *General:* default browser status and button, "Start at login" (LaunchAgent; the checkmark shows only whether it exists, not whether it is blocked in System Settings), updates.
+- *Targets:* all discovered targets with icon, sortable by dragging, can be shown/hidden, renamable, custom key (the key actually assigned is shown in gray as a placeholder; if you assign a key that another target already has, the other target loses it), star for the default target. **+** adds apps via a selection dialog (`extraApps`; they appear even without an https registration), **−** removes such an app.
+- *Advanced:* additional apps, Zen profile, show the configuration file in Finder.
+- An invisible main menu provides ⌘C/⌘V/⌘A, ⌘W and ⌘, for the window.
 
-**Updates:** `HEAD https://github.com/schowave/browserdoor/releases/latest`; die Weiterleitung auf `…/releases/tag/<tag>` nennt das neueste Release (ohne Entwürfe und Pre-Releases). Die API (`api.github.com`) wird bewusst nicht genutzt, weil sie ohne Token nur 60 Anfragen pro Stunde und IP erlaubt. Geprüft wird automatisch höchstens einmal pro 24 h (abschaltbar) und auf Anfrage. Ist die Version neuer (`AppVersion`-Vergleich; Dev-Builds `0.0.0` nie), erscheint ein Dialog. „Im Terminal aktualisieren“ öffnet ein `.command`-Skript: `brew update && brew upgrade browserdoor`, altes Browserdoor beenden, neues per `browserdoor` starten. Ohne Homebrew-Installation gibt es stattdessen die Release-Seite. „Später“ unterdrückt die automatische Meldung für diese Version. Das ist der einzige Netzwerkzugriff von Browserdoor.
+**Updates:** `HEAD https://github.com/schowave/browserdoor/releases/latest`; the redirect to `…/releases/tag/<tag>` names the newest release (excluding drafts and pre-releases). The API (`api.github.com`) is deliberately not used, because without a token it allows only 60 requests per hour and IP. The automatic check runs at most once per 24 h (can be turned off) and on request. If the version is newer (`AppVersion` comparison; dev builds, version `0.0.0`, are never offered updates), a dialog appears. "Update in Terminal" opens a `.command` script: `brew update && brew upgrade browserdoor`, quit the old Browserdoor, start the new one via `browserdoor`. Without a Homebrew installation, the release page is offered instead. "Later" suppresses the automatic notice for this version. This is Browserdoor's only network access.
 
-**Sprache:** Englisch und Deutsch nach Systemsprache (`Resources/Localization/*.lproj/Localizable.strings`, Schlüssel = englischer Text). `mise run check-strings` prüft, dass jeder Schlüssel übersetzt ist.
+**Language:** English and German according to the system language (`Resources/Localization/*.lproj/Localizable.strings`, key = English text). `mise run check-strings` checks that every key is translated.
 
-## 7. Erster Start
+## 7. First launch
 
-Jeder Start läuft durch `Startup`, bevor irgendeine Oberfläche erscheint: Altlasten übernehmen (`Legacy`), bei LaunchServices registrieren, Installation pflegen, nach einem Update aufräumen, dann entscheiden, ob Onboarding oder das Zurückholen des Standardbrowsers folgt. Dev-Builds (`….dev`, auch `swift run` ohne Bundle) bekommen weder Onboarding noch Migration.
+Every launch goes through `Startup` before any UI appears: carry over what earlier versions left (`Legacy`), register with LaunchServices, maintain the installation, clean up after an update, then decide whether onboarding or reclaiming the default browser follows. Dev builds (`….dev`, also `swift run` without a bundle) get neither onboarding nor migration.
 
-Beim ersten Start eines Release-Builds passiert Folgendes:
-1. Die App registriert sich bei LaunchServices (`LSRegisterURL`).
-2. Ist Browserdoor nicht Standardbrowser, erscheint ein Dialog. Bei Zustimmung ruft die App `NSWorkspace.setDefaultApplication(at:toOpenURLsWithScheme:)` für http auf. macOS zeigt dann den eigenen Bestätigungsdialog.
-3. Der Autostart wird aktiviert (LaunchAgent, siehe unten).
+On the first launch of a release build, the following happens:
+1. The app registers with LaunchServices (`LSRegisterURL`).
+2. If Browserdoor is not the default browser, a dialog appears. On consent the app calls `NSWorkspace.setDefaultApplication(at:toOpenURLsWithScheme:)` for http. macOS then shows its own confirmation dialog.
+3. Autostart is enabled (LaunchAgent, see below).
 
-**Stabil über `brew upgrade`:** Homebrew installiert in ein versioniertes Cellar-Verzeichnis, das `brew cleanup` nach einem Upgrade löscht. Deshalb:
-- Läuft Browserdoor aus einem Cellar, legt es bei jedem Start `~/Applications/Browserdoor.app` als Symlink auf `<brew prefix>/opt/browserdoor/Browserdoor.app` an (bzw. korrigiert einen veralteten eigenen Symlink). Eine echte App an dieser Stelle bleibt unangetastet.
-- Der Autostart ist ein LaunchAgent `~/Library/LaunchAgents/io.github.schowave.browserdoor.plist`, der `open -a ~/Applications/Browserdoor.app` ausführt. `SMAppService.mainApp` würde sich den versionierten Pfad merken; ein solches Login-Item aus früheren Builds wird beim Start entfernt und ersetzt.
-- Der Standardbrowser hängt an der Bundle-ID und ist damit pfadunabhängig; jeder Start registriert die laufende Kopie neu (`LSRegisterURL`).
-- **Bundle-ID-Wechsel** (bis 0.4.x `io.github.schowave.doorman`, seit 0.5.0 `io.github.schowave.browserdoor`): Der erste Start eines Release-Builds übernimmt, was unter der alten ID lag (`Legacy.moveIdentity`), und zwar vor allem anderen, damit Update-Check und Aufräumen schon die übernommenen Werte sehen:
-  - Eine noch laufende alte Instanz wird beendet (sie würde sonst die alte Domain wieder schreiben und zwei Menüleisten-Symbole zeigen).
-  - Die UserDefaults der alten Domain werden in die neue kopiert (Schlüssel, die in der eigenen Domain schon stehen, bleiben; globale oder registrierte Werte zählen nicht), danach wird die alte Domain gelöscht. Damit kommen Onboarding-Status, Update-Check, letzter Bundle-Pfad und die Menüleisten-Position mit.
-  - `~/Library/Caches/io.github.schowave.doorman` wird gelöscht.
-  - Ein LaunchAgent unter dem alten Label wird durch einen unter dem neuen ersetzt (`Legacy.moveLoginItem`). Wer keinen hatte, bekommt keinen.
-  - War die alte ID als `https`-Handler eingetragen (gelesen aus `com.apple.launchservices.secure.plist`, weil die alte App nach `brew cleanup` nicht mehr existiert), fragt Browserdoor sofort per `setDefaultApplication` nach, macOS zeigt den Bestätigungsdialog. Lehnt der Nutzer ab, bleibt der Hinweis im Menü.
-- Nach einem Update trägt Browserdoor den Pfad der Version, aus der es zuletzt lief, aus LaunchServices aus (`lsregister -u`), wenn er nicht mehr existiert (`brew cleanup` hat ihn gelöscht). Existiert er noch (z. B. ein Dev-Build), bleibt er.
+**Stable across `brew upgrade`:** Homebrew installs into a versioned Cellar directory, which `brew cleanup` deletes after an upgrade. Therefore:
+- If Browserdoor runs from a Cellar, it creates `~/Applications/Browserdoor.app` on every launch as a symlink to `<brew prefix>/opt/browserdoor/Browserdoor.app` (or corrects an outdated symlink of its own). A real app at that location stays untouched.
+- The autostart is a LaunchAgent `~/Library/LaunchAgents/io.github.schowave.browserdoor.plist` that runs `open -a ~/Applications/Browserdoor.app`. `SMAppService.mainApp` would remember the versioned path; such a login item from earlier builds is removed and replaced on launch.
+- The default browser is tied to the bundle ID and is therefore independent of the path; every launch registers the running copy again (`LSRegisterURL`).
+- **Bundle ID change** (up to 0.4.x `io.github.schowave.doorman`, since 0.5.0 `io.github.schowave.browserdoor`): The first launch of a release build takes over what was stored under the old ID (`Legacy.moveIdentity`), before anything else, so the update check and the cleanup already see the taken-over values:
+  - A still running old instance is quit (otherwise it would write the old domain again and show two menu bar icons).
+  - The UserDefaults of the old domain are copied into the new one (keys already present in the own domain stay; global or registered values do not count), then the old domain is deleted. This carries over the onboarding status, the update check, the last bundle path and the menu bar position.
+  - `~/Library/Caches/io.github.schowave.doorman` is deleted.
+  - A LaunchAgent under the old label is replaced by one under the new label (`Legacy.moveLoginItem`). Anyone who had none gets none.
+  - If the old ID was registered as the `https` handler (read from `com.apple.launchservices.secure.plist`, because the old app no longer exists after `brew cleanup`), Browserdoor asks immediately via `setDefaultApplication`, and macOS shows the confirmation dialog. If the user declines, the notice stays in the menu.
+- After an update, Browserdoor unregisters from LaunchServices the path of the version it last ran from (`lsregister -u`), if that path no longer exists (`brew cleanup` deleted it). If it still exists (e.g. a dev build), it stays.
 
-## 8. Architektur
+## 8. Architecture
 
-Begriffe: siehe [GLOSSARY.md](GLOSSARY.md). Die Logik steckt in wenigen tiefen Modulen in `BrowserdoorCore`, getestet über ihr Interface; die App (`Sources/Browserdoor`) rendert und stellt die Adapter für die Seams.
+Terms: see [GLOSSARY.md](GLOSSARY.md). The logic lives in a few deep modules in `BrowserdoorCore`, tested through their interface; the app (`Sources/Browserdoor`) renders and provides the adapters for the seams.
 
-| Modul (BrowserdoorCore) | Besitzt | Seam / Adapter |
+| Module (BrowserdoorCore) | Owns | Seam / adapter |
 |---|---|---|
-| `TargetCatalog` | Config-Datei (inkl. unlesbar), Zen-Profilpfad, Discovery, Picker-Einträge (aus den Zeilen abgeleitet: Reihenfolge, Ausblenden, Namen, Tasten), Bearbeitungen (sortieren, umbenennen, Taste, ausblenden, Standard, Extra-Apps, Zen-Profil; nur über diese ändert sich der Zustand), effektive Tasten, Speichern. `Config` ist nur das Dateiformat mit Laden, Zusammenführen beim Speichern und Reihenfolge | `BrowserEnvironment`: `SystemEnvironment` · `FakeEnvironment` |
-| `Discovery` | Ziele finden (Allowlist, Pfadfilter, Zen-Versionsprüfung, Chromium- und Firefox-Profile, Extra-Apps) | `BrowserEnvironment` |
-| `PickerSession` | Links, Einträge, Auswahl, Hinweis auf unlesbare Config; Eingabe → Effekte (close/open/copy). `PickerPlacement`: Position an der Maus, im sichtbaren Bildschirm gehalten | in-process |
-| `LinkOpener` | Eingehende Items → erlaubte Links; Link + Ziel → die Befehle der Familie ausführen, danach aktivieren, wenn die Familie das verlangt | `LaunchPort`: `SystemLaunchPort` · `RecordingPort` |
-| `Startup` | Ablauf jedes Starts: Altlasten (`Legacy`, nach Version geordnet), Registrierung, Installation, Aufräumen nach Updates, Onboarding oder Standardbrowser zurückholen; Release- gegen Dev-Build (`BundleIdentity`) | `StartupPort`: `SystemStartupPort` · Fake; `LegacyLoginItem`: `SMAppServiceLoginItem` · Fake |
-| `Installation` | Homebrew-Fakten, stabiler Link, LaunchAgent, Upgrade-Skript | echtes Dateisystem (Temp-Home in Tests) |
-| Browser-Familien | `ZenBrowser`, `ChromiumFamily`, `FirefoxFamily`: je Familie Datenort, Ziele und Namen; dazu je eine Zielart (`ZenSpaceKind`, `ChromiumProfileKind`, `FirefoxProfileKind`, für einfache Browser `AppKind`) mit Startbefehlen (läuft/kalt) und Aktivierung. Eine neue Familie ist eine Datei plus Eintrag in `Discovery.families`; `TargetID` formatiert und parst die IDs | `BrowserFamily` (Discovery), `TargetKind` (Start) |
-| `UpdatePolicy` | Wann prüfen, was melden, Später, Fehler, angezeigter Status | `ReleaseSource`: `GitHubReleaseSource` · Stub; `UpdatePreferences`: `UserDefaultsUpdatePreferences` · In-Memory |
-| `TargetIcons` | Icon je Ziel: App-Icon, nur Zen-Spaces anders (Emoji → SVG → Anfangsbuchstabe); startet die Extraktion einmal je Zen-Version | `ZenIconCache`, Extraktor: `unzip` · Fake |
-| Parser | `MozLz4`, `ZenSpaces`, `ZenProfile`, `ChromiumProfiles`, `FirefoxProfiles`, `WeblocParser` | in-process |
+| `TargetCatalog` | Config file (incl. unreadable), Zen profile path, discovery, picker entries (derived from the rows: order, hiding, names, keys), edits (sort, rename, key, hide, default, extra apps, Zen profile; the state changes only through these), effective keys, saving. `Config` is only the file format with loading, merging on save and order | `BrowserEnvironment`: `SystemEnvironment` · `FakeEnvironment` |
+| `Discovery` | Finding targets (allowlist, path filter, Zen version check, Chromium and Firefox profiles, extra apps) | `BrowserEnvironment` |
+| `PickerSession` | Links, entries, selection, notice about an unreadable config; input → effects (close/open/copy). `PickerPlacement`: position at the mouse, kept within the visible screen | in-process |
+| `LinkOpener` | Incoming items → allowed links; link + target → run the family's commands, then activate if the family requires it | `LaunchPort`: `SystemLaunchPort` · `RecordingPort` |
+| `Startup` | Sequence of every launch: legacy (`Legacy`, ordered by version), registration, installation, cleanup after updates, onboarding or reclaiming the default browser; release build vs. dev build (`BundleIdentity`) | `StartupPort`: `SystemStartupPort` · Fake; `LegacyLoginItem`: `SMAppServiceLoginItem` · Fake |
+| `Installation` | Homebrew facts, stable link, LaunchAgent, upgrade script | real file system (temp home in tests) |
+| Browser families | `ZenBrowser`, `ChromiumFamily`, `FirefoxFamily`: per family the data location, targets and names; plus one target kind each (`ZenSpaceKind`, `ChromiumProfileKind`, `FirefoxProfileKind`, for simple browsers `AppKind`) with launch commands (running/cold) and activation. A new family is one file plus an entry in `Discovery.families`; `TargetID` formats and parses the IDs | `BrowserFamily` (discovery), `TargetKind` (launch) |
+| `UpdatePolicy` | When to check, what to announce, Later, errors, displayed status | `ReleaseSource`: `GitHubReleaseSource` · Stub; `UpdatePreferences`: `UserDefaultsUpdatePreferences` · In-Memory |
+| `TargetIcons` | Icon per target: the app icon, only Zen spaces differ (emoji → SVG → initial letter); starts the extraction once per Zen version | `ZenIconCache`, extractor: `unzip` · Fake |
+| Parsers | `MozLz4`, `ZenSpaces`, `ZenProfile`, `ChromiumProfiles`, `FirefoxProfiles`, `WeblocParser` | in-process |
 
-App: `AppDelegate` (Menüleiste, Onboarding-Dialog), `PickerController` (zeigt die Session direkt an, führt Effekte aus), `Settings` (Fenster, bindet die Bearbeitungen von `CatalogState`), `UpdateChecker` (Dialoge, öffnet das Upgrade-Skript), `IconProvider` (lädt NSImages; beobachtbar, damit offene Fenster die Zen-Icons nachladen, sobald sie extrahiert sind), Adapter (`SystemEnvironment`, `SystemLaunchPort`, `SystemStartupPort`, `SMAppServiceLoginItem`).
+App: `AppDelegate` (menu bar, onboarding dialog), `PickerController` (shows the session directly, runs effects), `Settings` (window, binds the edits of `CatalogState`), `UpdateChecker` (dialogs, opens the upgrade script), `IconProvider` (loads NSImages; observable, so open windows reload the Zen icons as soon as they are extracted), adapters (`SystemEnvironment`, `SystemLaunchPort`, `SystemStartupPort`, `SMAppServiceLoginItem`).
 
-## 9. Build, Distribution, CI
+## 9. Build, distribution, CI
 
-- **Tooling:** mise. `mise.toml` pinnt `actionlint`, `shellcheck` und `swiftformat`. Swift selbst kommt aus Xcode bzw. den Command Line Tools, weil Browserdoor das macOS-SDK braucht.
-- **Tasks:** Sie liegen in `.mise/tasks/` als ausführbare Shell-Skripte mit `#MISE`-Kopfzeilen und ersetzen das frühere Makefile: `test`, `app`, `install`, `run`, `lint`, `format`, `render-formula`, `check-formula`, `next-patch-version`, `app-changed-since-release`, `test-scripts`, `bottle`, `ci`, `clean`, `check-docs`, `targets`, `release`. Gemeinsame Einstellungen kommen aus `_lib.sh`. Die Skripte laufen auch ohne mise.
-- `mise run app` erzeugt `build/Browserdoor.app`. Info.plist, App-Icon (`Resources/Icon/AppIcon.icns`) und Menüleisten-Glyph (`MenuBarIcon.svg`, Template-Bild) kommen aus `Resources/`. Das `.icns` wird mit `mise run icons` aus `AppIcon.svg` erzeugt und eingecheckt. Signiert wird ad hoc. Die Version kommt aus `VERSION` oder dem letzten `v*`-Tag. Solche Entwicklerbuilds bekommen die Bundle-ID `io.github.schowave.browserdoor.dev` und den Namen „Browserdoor Dev“, damit sie Standardbrowser, Einstellungen, Login-Item und Menüleiste nicht mit der installierten App teilen. Nur `install` (Homebrew) baut mit `DEV_BUILD=0` die echte ID.
+- **Tooling:** mise. `mise.toml` pins `actionlint`, `shellcheck` and `swiftformat`. Swift itself comes from Xcode or the Command Line Tools, because Browserdoor needs the macOS SDK.
+- **Tasks:** They live in `.mise/tasks/` as executable shell scripts with `#MISE` header lines and replace the former Makefile: `test`, `app`, `install`, `run`, `lint`, `format`, `render-formula`, `check-formula`, `next-patch-version`, `app-changed-since-release`, `test-scripts`, `bottle`, `ci`, `clean`, `check-docs`, `targets`, `release`. Shared settings come from `_lib.sh`. The scripts also run without mise.
+- `mise run app` produces `build/Browserdoor.app`. Info.plist, app icon (`Resources/Icon/AppIcon.icns`) and menu bar glyph (`MenuBarIcon.svg`, template image) come from `Resources/`. The `.icns` is generated from `AppIcon.svg` with `mise run icons` and checked in. Signing is ad hoc. The version comes from `VERSION` or the latest `v*` tag. Such developer builds get the bundle ID `io.github.schowave.browserdoor.dev` and the name "Browserdoor Dev", so they do not share the default browser, settings, login item and menu bar with the installed app. Only `install` (Homebrew) builds the real ID with `DEV_BUILD=0`.
 - **Homebrew:**
-  - Die Formula `browserdoor` liegt im Tap `schowave/homebrew-tap` unter `Formula/`.
-  - Nutzer ab macOS 15 bekommen eine Bottle (Apple Silicon und Intel) und brauchen dann kein Xcode. Ohne passende Bottle baut die Formula aus dem Release-Tarball (`depends_on xcode: 16` zum Bauen) und ruft `.mise/tasks/install` direkt auf, also ohne mise, mit `PREFIX`, `VERSION`, `SWIFT_BUILD_FLAGS=--disable-sandbox` und `BIN_APP_PATH` (der stabile `opt`-Pfad für `bin/browserdoor`, das `open -a` nutzt).
-  - Die Vorlage `packaging/homebrew/browserdoor.rb` nutzt `@URL@`, `@VERSION@` und `@SHA256@`. `render-formula` setzt die Werte ein, `check-formula` prüft das Ergebnis. Den `bottle do`-Block schreibt erst der Release-Workflow hinein. Der Formula-Test prüft auch die Code-Signatur der App, damit eine Bottle sie beim Verschieben nicht beschädigt.
-- **CI** (`ci.yml`, macOS-Runner):
-  - Job `test`: `mise run ci` mit lint, Unit-Tests, Tests der Release-Skripte, App-Bundle und Formula-Check.
-  - Job `formula`: rendert die Formula für einen lokalen Tarball, baut sie mit `.mise/tasks/bottle` als Bottle, führt `brew audit --strict` aus, installiert die Bottle neu (prüft `poured_from_bottle`) und führt `brew test` aus, also den Weg, den Nutzer gehen.
-- **Release** (`release.yml`): läuft bei einem Tag `v*` oder wenn ein anderer Workflow es aufruft (`workflow_call`). Ablauf: testen, App bauen, GitHub-Release anlegen (falls noch keines existiert). Danach bauen `macos-15` (arm64) und `macos-15-intel` je eine Bottle (für macOS 14 gibt es keine Runner mehr) und hängen sie ans Release. Zuletzt kommt die Formula mit `bottle do`-Block (`brew bottle --merge`, vorher `brew trust`) in den Tap. Schlägt eine Bottle fehl, wird der Tap trotzdem aktualisiert, nur mit weniger Bottles. Schlagen alle fehl, bleibt der Tap unverändert. Neben jeder Bottle liegt ihr JSON im Release. Ein erneuter Lauf verwendet vorhandene Bottles wieder, damit die sha256-Werte im Tap gültig bleiben. Dafür braucht es das Secret `TAP_GITHUB_TOKEN`. Der Workflow lässt sich erneut ausführen.
+  - The formula `browserdoor` lives in the tap `schowave/homebrew-tap` under `Formula/`.
+  - Users on macOS 15 and later get a bottle (Apple Silicon and Intel) and then need no Xcode. Without a matching bottle, the formula builds from the release tarball (`depends_on xcode: 16` for building) and calls `.mise/tasks/install` directly, i.e. without mise, with `PREFIX`, `VERSION`, `SWIFT_BUILD_FLAGS=--disable-sandbox` and `BIN_APP_PATH` (the stable `opt` path for `bin/browserdoor`, which uses `open -a`).
+  - The template `packaging/homebrew/browserdoor.rb` uses `@URL@`, `@VERSION@` and `@SHA256@`. `render-formula` fills in the values, `check-formula` checks the result. Only the release workflow writes the `bottle do` block into it. The formula test also checks the app's code signature, so that a bottle does not damage it when relocating.
+- **CI** (`ci.yml`, macOS runner):
+  - Job `test`: `mise run ci` with lint, unit tests, tests of the release scripts, app bundle and formula check.
+  - Job `formula`: renders the formula for a local tarball, builds it as a bottle with `.mise/tasks/bottle`, runs `brew audit --strict`, reinstalls the bottle (checks `poured_from_bottle`) and runs `brew test`, i.e. the path users take.
+- **Release** (`release.yml`): runs on a `v*` tag or when another workflow calls it (`workflow_call`). Sequence: test, build the app, create the GitHub release (if none exists yet). Then `macos-15` (arm64) and `macos-15-intel` each build a bottle (there are no runners for macOS 14 anymore) and attach it to the release. Finally the formula with the `bottle do` block (`brew bottle --merge`, preceded by `brew trust`) goes into the tap. If one bottle fails, the tap is still updated, only with fewer bottles. If all fail, the tap stays unchanged. Each bottle's JSON sits next to it in the release. A rerun reuses existing bottles, so the sha256 values in the tap stay valid. This requires the secret `TAP_GITHUB_TOKEN`.
 - **Renovate** (GitHub App, `renovate.json`):
-  - Einmal pro Woche (Montag vor 6 Uhr), je ein PR für GitHub Actions (auf Digests gepinnt) und einer für die mise-Tools. Getrennt, damit eine neue Lint-Regel nicht auch die Action-Updates blockiert.
-  - Updates werden erst übernommen, wenn sie 7 Tage alt sind (`minimumReleaseAge`).
-  - Majors erstellt Renovate erst nach Freigabe im Dependency Dashboard.
-  - Renovate merged die PRs selbst, sobald die CI grün ist.
-- **Auto-Release** (`auto-release.yml`):
-  - Ein Merge von `renovate[bot]` auf `main` legt den nächsten Patch-Tag an (`next-patch-version`), aber nur, wenn sich seit dem letzten Tag die App geändert hat (`Sources/`, `Resources/`, `Package.swift`/`.resolved`; `app-changed-since-release`). Updates, die nur CI oder Lint-Werkzeuge betreffen, ergeben kein Release.
-  - Der Tag entsteht per API; trägt `HEAD` schon einen Tag, passiert nichts. Eine `concurrency`-Gruppe verhindert parallele Releases.
-  - Mit dem `GITHUB_TOKEN` angelegte Tags starten selbst keine Workflows, deshalb ruft der Job `release.yml` direkt auf.
-  - Ohne vorhandenen `v*`-Tag passiert nichts; das erste Release entsteht von Hand.
+  - Once a week (Monday before 6 am), one PR for GitHub Actions (pinned to digests) and one for the mise tools. Separate, so a new lint rule does not also block the Action updates.
+  - Updates are taken only once they are 7 days old (`minimumReleaseAge`).
+  - Renovate creates majors only after approval in the Dependency Dashboard.
+  - Renovate merges the PRs itself as soon as CI is green.
+- **Auto-release** (`auto-release.yml`):
+  - A merge by `renovate[bot]` to `main` creates the next patch tag (`next-patch-version`), but only if the app has changed since the last tag (`Sources/`, `Resources/`, `Package.swift`/`.resolved`; `app-changed-since-release`). Updates that affect only CI or lint tools produce no release.
+  - The tag is created via the API; if `HEAD` already carries a tag, nothing happens. A `concurrency` group prevents parallel releases.
+  - Tags created with the `GITHUB_TOKEN` do not start workflows themselves, so the job calls `release.yml` directly.
+  - Without an existing `v*` tag nothing happens; the first release is created by hand.
 
 ## 10. Tests
 
-Folgende Teile des Cores sind abgedeckt:
-- MozLz4-Decoder, gegen Fixtures (komprimierte Datei → erwartetes JSON)
-- Parser für `zen-sessions`, `profiles.ini` und `Local State`
-- Webloc-Parser
-- Ordnen, Ausblenden, Labels und Hotkey-Vergabe der Konfiguration
-- Discovery: Reihenfolge, Allowlist, `extraApps`, Pfadfilter, Zen-Fallbacks
-- Launch-Command je Zieltyp, inklusive Zen-Kaltstart
-- Tastenbelegung im Panel (`PickerKeys`), inklusive Feststelltaste
-- Entscheidung über den Symlink in `~/Applications` und das Neuschreiben des LaunchAgents
-- Release-Skripte (`test-scripts`): nächster Patch-Tag, App-Änderung seit dem letzten Release, URL-Argument von `render-formula`
+The following parts of the core are covered:
+- MozLz4 decoder, against fixtures (compressed file → expected JSON)
+- Parsers for `zen-sessions`, `profiles.ini` and `Local State`
+- Webloc parser
+- Ordering, hiding, labels and hotkey assignment of the configuration
+- Discovery: order, allowlist, `extraApps`, path filter, Zen fallbacks
+- Launch command per target kind, including Zen cold start
+- Key handling in the panel (`PickerKeys`), including Caps Lock
+- Decision about the symlink in `~/Applications` and rewriting the LaunchAgent
+- Release scripts (`test-scripts`): next patch tag, app change since the last release, URL argument of `render-formula`
 
-Die UI wird manuell getestet.
+The UI is tested manually.

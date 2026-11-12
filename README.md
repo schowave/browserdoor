@@ -44,6 +44,11 @@ browserdoor
 
 `browserdoor` starts the app and always points at the installed version.
 
+On first launch Browserdoor asks whether it should become your default browser (macOS asks you to confirm), adds a login item and puts a link at `~/Applications/Browserdoor.app`. That link keeps working after `brew upgrade`. After an upgrade, quit Browserdoor from the menu bar and run `browserdoor` again.
+
+<details>
+<summary><b>Upgrading from Doorman (0.2.x) or Browserdoor 0.4.x</b></summary>
+
 Browserdoor was called Doorman up to version 0.2.6. Homebrew only loads formulae you trust, and that trust is tied to the formula name, so trust the new name once before upgrading:
 
 ```sh
@@ -53,9 +58,8 @@ brew upgrade doorman && browserdoor
 
 `brew upgrade` moves the `doorman` install over by itself. Your settings and `~/.config/doorman` (now `~/.config/browserdoor`) carry over, and the old command `doorman` keeps working.
 
-Version 0.5.0 also moved the app's bundle ID from `io.github.schowave.doorman` to `io.github.schowave.browserdoor`. The first start after updating from 0.4.x or earlier carries your settings, login item and menu bar position over. macOS ties the default browser to the bundle ID, so it asks you once to confirm Browserdoor again.
-
-On first launch Browserdoor asks whether it should become your default browser (macOS asks you to confirm), adds a login item and puts a link at `~/Applications/Browserdoor.app`. That link keeps working after `brew upgrade`. After an upgrade, quit Browserdoor from the menu bar and run `browserdoor` again.
+Version 0.5.0 moved the app's bundle ID from `io.github.schowave.doorman` to `io.github.schowave.browserdoor`. The first start after updating from 0.4.x or earlier carries your settings, login item and menu bar position over. macOS ties the default browser to the bundle ID, so it asks you once to confirm Browserdoor again.
+</details>
 
 ## Usage
 
@@ -158,9 +162,15 @@ The checkmark only means the LaunchAgent exists. macOS can still block it, so ch
 Open the menu bar menu. If it says Browserdoor isn't your default browser, choose **Make Default Browser** and confirm the macOS dialog.
 </details>
 
+Something else? [Open an issue](https://github.com/schowave/browserdoor/issues/new/choose). The bug report form asks for the output of this command, which lists every target Browserdoor found and the command it opens a link with:
+
+```sh
+"$(brew --prefix)/opt/browserdoor/Browserdoor.app/Contents/MacOS/Browserdoor" --list-targets
+```
+
 ## Updates
 
-Browserdoor looks for a new release on GitHub once a day (you can switch that off in the settings). If there is one, **Update in Terminal** runs `brew upgrade browserdoor` and restarts the app. Or do it yourself:
+Browserdoor looks for a new release on GitHub once a day (you can switch that off in the settings). What changed is in [CHANGELOG.md](CHANGELOG.md). If there is one, **Update in Terminal** runs `brew upgrade browserdoor` and restarts the app. Or do it yourself:
 
 ```sh
 brew upgrade browserdoor && browserdoor
@@ -172,13 +182,14 @@ brew upgrade browserdoor && browserdoor
 brew uninstall browserdoor
 rm -f ~/Applications/Browserdoor.app ~/Library/LaunchAgents/io.github.schowave.browserdoor.plist
 rm -rf ~/.config/browserdoor ~/Library/Caches/io.github.schowave.browserdoor
+defaults delete io.github.schowave.browserdoor
 ```
 
 Then pick another default browser in **System Settings → Desktop & Dock → Default web browser**.
 
 ## Development
 
-Tooling and tasks run through [mise](https://mise.jdx.dev); Swift comes from Xcode.
+Tooling and tasks run through [mise](https://mise.jdx.dev); Swift comes from Xcode. [CONTRIBUTING.md](CONTRIBUTING.md) has the checklist for pull requests, and [SECURITY.md](SECURITY.md) how to report a vulnerability.
 
 ```sh
 mise install        # actionlint, shellcheck, swiftformat (pinned in mise.toml)
@@ -196,7 +207,7 @@ The logic lives in `Sources/BrowserdoorCore` and is tested without the UI; `Sour
 
 ### Releases and dependencies
 
-Pushing a tag like `v0.2.0` runs [`release.yml`](.github/workflows/release.yml): tests, build, GitHub release, bottles for Apple Silicon and Intel (built on macOS 15) attached to the release, and an updated `Formula/browserdoor.rb` with a `bottle do` block in [schowave/homebrew-tap](https://github.com/schowave/homebrew-tap). CI also builds the formula from a source tarball as a bottle (`mise run bottle`), pours that bottle again and runs `brew test` and `brew audit --strict`.
+`mise run release vX.Y.Z` checks that `main` is pushed and clean, runs `mise run ci`, pushes the tag and puts the version's section from [CHANGELOG.md](CHANGELOG.md) on top of the release notes. The tag runs [`release.yml`](.github/workflows/release.yml): tests, build, GitHub release, bottles for Apple Silicon and Intel (built on macOS 15) attached to the release, and an updated `Formula/browserdoor.rb` with a `bottle do` block in [schowave/homebrew-tap](https://github.com/schowave/homebrew-tap). CI also builds the formula from a source tarball as a bottle (`mise run bottle`), pours that bottle again and runs `brew test` and `brew audit --strict`.
 
 Renovate opens a weekly pull request for GitHub Actions and one for the mise tools, waits seven days after a release before picking it up, and asks before major updates. It merges once CI is green. If a merge changes the app itself, [`auto-release.yml`](.github/workflows/auto-release.yml) tags and releases the next patch version.
 

@@ -2,7 +2,8 @@
 #MISE description="Release a version: check, tag, push the tag, follow the release workflow"
 #USAGE arg "<tag>" help="Version tag, e.g. v0.5.2"
 # Before running it: review the changes since the last tag (`/code-review high <last tag>`)
-# and push main. If docs/release-notes/<tag>.md exists, it is appended to the generated notes.
+# add a "## <tag>" section to CHANGELOG.md (rename "## Unreleased") and push main. That
+# section goes on top of the generated release notes.
 # shellcheck source=_lib.sh
 . "$(dirname "$0")/_lib.sh"
 fail() { echo "release: $1" >&2; exit 1; }
@@ -18,7 +19,9 @@ git fetch -q origin main --tags
 [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] \
   || fail "main and origin/main differ (pull, or push your commits first)"
 if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then fail "$tag exists already"; fi
-notes="docs/release-notes/$tag.md"
+# The tag's section of CHANGELOG.md: from "## <tag>" up to the next "## ".
+notes="$(awk -v tag="$tag" '/^## /{inside = ($2 == tag)} inside && !/^## /' CHANGELOG.md | sed '/./,$!d')"
+[ -n "$notes" ] || fail "CHANGELOG.md has no \"## $tag\" section"
 
 mise run ci
 
@@ -37,11 +40,9 @@ done
 [ -n "$run" ] || fail "no release run for $tag showed up"
 gh run watch "$run" --exit-status || fail "release workflow failed: gh run view $run --log-failed"
 
-if [ -f "$notes" ]; then
-  body="$(gh release view "$tag" --json body --jq .body)"
-  gh release edit "$tag" --notes "$(printf '%s\n\n%s\n' "$(cat "$notes")" "$body")" >/dev/null
-  echo "release: added $notes to the release notes"
-fi
+body="$(gh release view "$tag" --json body --jq .body)"
+gh release edit "$tag" --notes "$(printf '%s\n\n%s\n' "$notes" "$body")" >/dev/null
+echo "release: put the CHANGELOG.md section on top of the release notes"
 formula="$(gh api repos/schowave/homebrew-tap/contents/Formula/browserdoor.rb --jq .content | base64 -d)"
 echo "$formula" | grep -q "/tags/$tag.tar.gz" || fail "the tap formula does not point at $tag"
 echo "release: $tag is out, and schowave/tap/browserdoor points at it"

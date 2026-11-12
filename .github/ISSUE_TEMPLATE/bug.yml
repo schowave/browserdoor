@@ -1,0 +1,34 @@
+name: Bug report
+description: Something doesn't work as described in the README
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Browserdoor (menu bar → Settings → General), macOS, and the browser involved.
+      placeholder: Browserdoor 0.5.1, macOS 15.4, Zen 1.24.1b
+    validations:
+      required: true
+  - type: textarea
+    id: targets
+    attributes:
+      label: Targets
+      description: |
+        For a missing target or a link opening in the wrong place: the output of
+        `"$(brew --prefix)/opt/browserdoor/Browserdoor.app/Contents/MacOS/Browserdoor" --list-targets`.
+        It lists every target and the command it opens a link with. Remove names you'd rather not share.
+      render: text
+  - type: textarea
+    id: config
+    attributes:
+      label: Config
+      description: Your `~/.config/browserdoor/config.json`, if you changed anything.
+      render: json
