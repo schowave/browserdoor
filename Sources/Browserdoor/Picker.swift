@@ -69,7 +69,7 @@ final class PickerController: NSObject, NSWindowDelegate {
                 // The settings window takes the focus; otherwise it goes back where the click came from.
                 close(returnFocus: !opensSettings)
             case .openSettings:
-                SettingsWindowController.shared.show()
+                SettingsWindowController.shared.show(tab: .targets)
             case let .open(links, target):
                 Links.opener.open(links, in: target)
             case let .copy(text):

@@ -14,6 +14,10 @@ What changed for people using Browserdoor. Each release on GitHub starts with it
 - The menu bar icon carries a dot while Browserdoor isn't your default browser.
 - The menu bar icon can be hidden in the settings or by ⌘-dragging it away; opening Browserdoor again shows the settings.
 - ⌘M and ⌘H work in the settings window.
+- The settings window has its tabs in the toolbar and fits each pane; only Targets can be resized, and it keeps its size.
+- A target's key is set by clicking the key field and pressing the key. When the key belonged to another target, a note says so.
+- Right-click a target in the settings to rename it, make it the default, hide it or remove an added app. Added apps are managed only in Targets now.
+- A failure to change "Start at login" shows below the switch.
 - A key you give a target in the settings now moves to that target; before, two targets could show the same key while the picker gave it to only one.
 - Zen space icons that are still being extracted appear in an open picker or settings window as soon as they're ready, not only the next time.
 - The picker stays on screen when more links arrive while it's open.

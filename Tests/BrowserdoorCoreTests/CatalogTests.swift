@@ -153,11 +153,14 @@ struct CatalogEditTests {
 
     @Test func aKeyMovesToTheTargetThatGetsItLast() {
         var state = state()
-        state.setHotkey("zen:{aaaa}", typed: "x")
-        state.setHotkey("zen:{bbbb}", typed: "x")
+        #expect(state.setHotkey("zen:{aaaa}", typed: "x") == nil)
+        #expect(state.setHotkey("zen:{bbbb}", typed: "x") == "Work")
+        #expect(state.setHotkey("zen:{bbbb}", typed: "x") == nil)
         #expect(state.rows.first { $0.id == "zen:{aaaa}" }?.hotkey == nil)
         #expect(state.effectiveKeys["zen:{bbbb}"] == "x")
         #expect(state.effectiveKeys["zen:{aaaa}"] == "1")
+        // An automatic number key counts too: the picker showed it on the other target.
+        #expect(state.setHotkey("zen:{bbbb}", typed: "1") == "Work")
     }
 
     @Test func moveMatchesSwiftUIsListMove() {
@@ -183,12 +186,6 @@ struct CatalogEditTests {
         #expect(state.extraApp(forTarget: "zen:{aaaa}") == nil)
         state.removeExtraApp("com.googlecode.iterm2")
         #expect(state.extraApps.isEmpty)
-    }
-
-    @Test func extraAppInfoComesFromTheEnvironment() {
-        let catalog = TargetCatalog(environment: sampleEnvironment(), configURL: URL(fileURLWithPath: "/nowhere/config.json"))
-        #expect(catalog.extraAppInfo("com.googlecode.iterm2").name == "iTerm")
-        #expect(catalog.extraAppInfo("com.example.gone") == (nil, "com.example.gone"))
     }
 }
 

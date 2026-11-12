@@ -136,14 +136,22 @@ public extension CatalogState {
 
     /// Sets a target's key from what was typed (the last character); empty removes it. A key
     /// belongs to one target: another target that had it loses it.
-    mutating func setHotkey(_ id: String, typed input: String) {
+    /// - Returns: the display name of the target the picker showed the key on before, if another.
+    @discardableResult
+    mutating func setHotkey(_ id: String, typed input: String) -> String? {
         let key = TargetSetting.normalizeHotkey(input)
+        let previous = key.flatMap { key in
+            effectiveKeys.first { $0.key != id && $0.value == key }.flatMap { holder in
+                rows.first { $0.id == holder.key }?.displayName
+            }
+        }
         if let key {
             for i in rows.indices where rows[i].id != id && rows[i].hotkey == key {
                 rows[i].hotkey = nil
             }
         }
         edit(id) { row in row.hotkey = key }
+        return previous
     }
 
     mutating func setHidden(_ id: String, _ hidden: Bool) {
@@ -193,14 +201,6 @@ public extension CatalogState {
     private mutating func edit(_ id: String, _ change: (inout TargetSetting) -> Void) {
         guard let index = rows.firstIndex(where: { $0.id == id }) else { return }
         change(&rows[index])
-    }
-}
-
-public extension TargetCatalog {
-    /// Where an extra app is and what it's called, for the settings list (bundle ID if unknown).
-    func extraAppInfo(_ bundleId: String) -> (url: URL?, name: String) {
-        let url = environment.applicationURL(bundleId: bundleId)
-        return (url, url.flatMap { environment.appInfo(at: $0)?.name } ?? bundleId)
     }
 }
 

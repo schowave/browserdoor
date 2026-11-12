@@ -45,7 +45,6 @@
 "config.json is invalid; using defaults" = "config.json ist fehlerhaft – Standardwerte aktiv";
 
 /* Settings window */
-"Browserdoor Settings" = "Browserdoor-Einstellungen";
 "General" = "Allgemein";
 "Targets" = "Ziele";
 "Advanced" = "Erweitert";
@@ -60,14 +59,24 @@
 "Up to date" = "Aktuell";
 "%@ available" = "%@ verfügbar";
 "Check failed" = "Prüfung fehlgeschlagen";
-"Drag to reorder. Hidden targets don't appear in the picker. Without a custom key, targets get number keys." = "Zum Sortieren ziehen. Ausgeblendete Ziele erscheinen nicht in der Auswahl. Grau angezeigte Tasten sind automatisch vergeben; eine eigene Taste einfach eintippen.";
+"Drag to reorder. Hidden targets don't appear in the picker. Without a custom key, targets get number keys. Right-click a target for more." = "Zum Sortieren ziehen. Ausgeblendete Ziele erscheinen nicht in der Auswahl. Grau angezeigte Tasten sind automatisch vergeben; für eine eigene Taste auf das Feld klicken und die Taste drücken. Rechtsklick auf ein Ziel zeigt weitere Aktionen.";
+"Hide in Picker" = "In der Auswahl ausblenden";
+"Show in Picker" = "In der Auswahl zeigen";
+"Make Default Target" = "Als Standardziel festlegen";
+"Remove as Default Target" = "Nicht mehr Standardziel";
+"Rename" = "Umbenennen";
+"Remove App" = "App entfernen";
+"Name" = "Name";
+"On" = "Ein";
+"Off" = "Aus";
+"Automatic: %@" = "Automatisch: %@";
+"Press a key; Esc cancels, ⌫ removes the key" = "Taste drücken; Esc bricht ab, ⌫ entfernt die Taste";
+"Key %@ moved here from “%@”." = "Taste %@ von „%@“ übernommen.";
+"Couldn't change the login item: %@" = "Anmeldeobjekt konnte nicht geändert werden: %@";
 "Show in picker" = "In der Auswahl zeigen";
-"Key" = "Taste";
 "Shortcut key in the picker" = "Taste in der Auswahl";
 "Default target (Enter)" = "Standardziel (Eingabetaste)";
 "Make default target (Enter)" = "Als Standardziel festlegen (Eingabetaste)";
-"Additional apps" = "Weitere Apps";
-"Apps that aren't browsers but can open web links, e.g. a web-app wrapper." = "Apps, die keine Browser sind, aber Weblinks öffnen können, z. B. ein Web-App-Wrapper.";
 "Add App…" = "App hinzufügen…";
 "Remove" = "Entfernen";
 "Choose an App" = "App auswählen";
@@ -92,7 +101,7 @@
 "Update in Terminal" = "Im Terminal aktualisieren";
 "Open Release Page" = "Release-Seite öffnen";
 "Release Notes" = "Release-Notes";
-"Add an app" = "App hinzufügen";
+"Add an app that isn't a browser but can open web links, e.g. a web-app wrapper" = "App hinzufügen, die kein Browser ist, aber Weblinks öffnen kann, z. B. ein Web-App-Wrapper";
 "Remove the selected app (only apps you added)" = "Ausgewählte App entfernen (nur selbst hinzugefügte)";
 "Click to rename" = "Zum Umbenennen klicken";
 "Renamed from “%@”" = "Umbenannt, ursprünglich „%@“";
