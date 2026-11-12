@@ -4,7 +4,7 @@
 
 # Browserdoor
 
-A link picker for macOS. Click a link anywhere, then choose the Zen space, Chrome profile or browser it opens in.
+A link picker for macOS. Click a link anywhere, then choose the Zen space, Chrome or Firefox profile, or browser it opens in.
 
 [![CI](https://github.com/schowave/browserdoor/actions/workflows/ci.yml/badge.svg)](https://github.com/schowave/browserdoor/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/schowave/browserdoor?sort=semver)](https://github.com/schowave/browserdoor/releases)
@@ -18,12 +18,13 @@ A link picker for macOS. Click a link anywhere, then choose the Zen space, Chrom
 
 I use [Zen](https://zen-browser.app) with one space per client, each with its own container. Links from Slack, Mail or Teams always opened in whatever space happened to be active, so I kept ending up in the wrong account and moving tabs around by hand.
 
-[Browserosaurus](https://github.com/will-stone/browserosaurus) and [Finicky](https://github.com/johnste/finicky) solve this for browsers, but not for spaces inside a browser. Browserdoor shows each Zen space as its own entry, next to Chrome profiles and your other browsers. You pick one with a number key or a click.
+[Browserosaurus](https://github.com/will-stone/browserosaurus) and [Finicky](https://github.com/johnste/finicky) solve this for browsers, but not for spaces inside a browser. Browserdoor shows each Zen space as its own entry, next to Chrome and Firefox profiles and your other browsers. You pick one with a number key or a click.
 
 What it does:
 
 - reads your Zen spaces (names, icons, colors) and opens links with Zen's `--space` flag (Zen 1.24 or later)
 - lists every profile of Chrome, Brave, Edge, Vivaldi and Chromium separately
+- lists every Firefox profile separately, including the ones from Firefox's new profile manager
 - only shows real browsers, so terminals, web-app wrappers and test builds stay out of the list
 - collects links that arrive at the same moment into one picker, so one choice opens them all
 - runs as a small menu bar app (Swift/SwiftUI). The only network request is the update check, which you can turn off.
@@ -89,19 +90,20 @@ Everything ends up in `~/.config/browserdoor/config.json`, so you can also edit 
 | Key | Meaning |
 |---|---|
 | `defaultTarget` | Target that `Enter` opens. Without it, the first entry. |
-| `order` | Targets listed first, in this order. All other targets follow in the default order: Zen workspaces, then Chromium profiles, then other browsers A–Z. |
+| `order` | Targets listed first, in this order. All other targets follow in the default order: Zen workspaces, then Chromium profiles, then Firefox profiles, then other browsers A–Z. |
 | `hidden` | Targets left out of the picker. |
 | `extraApps` | Bundle IDs of apps that aren't known browsers but should appear anyway. |
 | `targets.<id>.label` | Display name for the target. |
 | `targets.<id>.hotkey` | A single key that opens this target. Targets without one get number keys. |
 | `zen.profilePath` | Zen profile to use when it isn't the default profile from `profiles.ini`. |
 
-Target IDs come in three forms:
+Target IDs come in four forms:
 
 | ID | Target |
 |---|---|
 | `zen:{uuid}` | A Zen workspace |
 | `chromium:<bundleId>:<profileDir>` | A Chromium profile, e.g. `chromium:com.google.Chrome:Profile 2` |
+| `firefox:<bundleId>:<profilePath>` | A Firefox profile, e.g. `firefox:org.mozilla.firefox:Profiles/x1y2.default-release` |
 | `app:<bundleId>` | Any other browser |
 
 Browserdoor reads the file each time the picker opens, so changes apply right away. If the file is broken, the picker shows a warning and falls back to the defaults.
@@ -111,6 +113,8 @@ Browserdoor reads the file each time the picker opens, so changes apply right aw
 Zen keeps its spaces in `zen-sessions.jsonlz4` in the profile folder (Mozilla's LZ4 format). Browserdoor reads that file and opens a link with `zen --space "{uuid}" <url>`. If Zen is already running, the command goes to that instance; if not, Browserdoor starts Zen through LaunchServices and it opens in the chosen space. The space icons come from Zen's `omni.ja` and are cached per Zen version.
 
 Chromium profiles come from each browser's `Local State` file, and links open with `open -na <App> --args --profile-directory=<dir> <url>`.
+
+Firefox profiles come from `profiles.ini`, and the ones made with Firefox's profile manager from its database in `Profile Groups/`. Links open with `open -na Firefox --args --profile <dir> <url>`: if that profile is already open, the link goes to its window, otherwise Firefox starts with it. With only one profile, Firefox stays a single entry. Firefox Developer Edition and Nightly share Firefox's profiles and show up as single entries.
 
 The details are in [SPEC.md](SPEC.md).
 
@@ -126,6 +130,12 @@ Zen doesn't write its session file after every change. The space shows up once Z
 <summary><b>Zen shows up as one entry without workspaces</b></summary>
 
 You need Zen 1.24 or later, since that's where `--space` came in. If you don't use Zen's default profile, pick yours under *Settings → Advanced*.
+</details>
+
+<details>
+<summary><b>Firefox shows profiles I never use</b></summary>
+
+Firefox creates a profile for every installation it has seen, and old ones stay in `profiles.ini`. Hide them under *Settings → Targets*, or delete them in `about:profiles`. Browserdoor already leaves out the empty `default` profile Firefox creates next to `default-release`.
 </details>
 
 <details>

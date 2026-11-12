@@ -1,12 +1,12 @@
 # Browserdoor — Spezifikation v1
 
-Browserdoor ist ein macOS-Link-Picker in der Art von Browserosaurus. Er wird als Standardbrowser registriert. Beim Klick auf einen Link erscheint an der Mausposition ein Panel. Darin wählt man das Ziel: einen **Zen-Workspace**, ein **Chromium-Profil** oder einen anderen installierten Browser.
+Browserdoor ist ein macOS-Link-Picker in der Art von Browserosaurus. Er wird als Standardbrowser registriert. Beim Klick auf einen Link erscheint an der Mausposition ein Panel. Darin wählt man das Ziel: einen **Zen-Workspace**, ein **Chromium-Profil**, ein **Firefox-Profil** oder einen anderen installierten Browser.
 
 ## 1. Ziele und Nicht-Ziele
 
 **v1 umfasst**
 - Standardbrowser für `http`, `https`, `.html` und `.webloc`
-- Panel mit einer gemischten Zielliste: Zen-Workspaces, Chromium-Browser × Profile, übrige Browser
+- Panel mit einer gemischten Zielliste: Zen-Workspaces, Chromium-Browser × Profile, Firefox-Profile, übrige Browser
 - Konfiguration als JSON-Datei
 - Installation per Homebrew-Formula aus einem eigenen Tap
 
@@ -40,11 +40,12 @@ Ein **Ziel** ist ein Eintrag im Panel. Jedes Ziel hat eine stabile `id`, einen A
 | Zen-Workspace | `zen:{<uuid>}` | Zen läuft: `<Zen.app>/Contents/MacOS/zen --space "{uuid}" <url>` je URL. Zen läuft nicht: `open -a <Zen.app> --args --space "{uuid}" <url…>` |
 | Zen ohne Workspace-Support | `app:app.zen-browser.zen` | wie ein normaler Browser |
 | Chromium-Profil | `chromium:<bundleId>:<profileDir>` | `open -na <App> --args --profile-directory=<dir> <url…>` |
+| Firefox-Profil | `firefox:<bundleId>:<profilePath>` | `open -na <App> --args --profile <dir> <url…>` |
 | Normaler Browser | `app:<bundleId>` | `NSWorkspace.open(urls, withApplicationAt:)` |
 
 ### 3.1 Zen
 
-- **App finden**: über die Bundle-ID `app.zen-browser.zen` unter den https-Handlern (siehe 3.3, Pfadfilter).
+- **App finden**: über die Bundle-ID `app.zen-browser.zen` unter den https-Handlern (siehe 3.4, Pfadfilter).
 - **Profil**: Gelesen wird `~/Library/Application Support/zen/profiles.ini`. Maßgeblich ist die `Default=`-Zeile der `[Install…]`-Sektion. Gibt es sie nicht, gilt das Profil mit `Default=1`. In der Konfiguration lässt sich das Profil mit `zen.profilePath` überschreiben.
 - **Workspaces**: Sie stehen in `<profile>/zen-sessions.jsonlz4`.
   - Format: mozLz4. Die Datei beginnt mit der Magic `mozLz40\0` (8 Byte), danach folgt die Größe als uint32 LE, danach ein rohes LZ4-Block-Payload.
@@ -71,14 +72,25 @@ Ein **Ziel** ist ein Eintrag im Panel. Jedes Ziel hat eine stabile `id`, einen A
 - **Profile**: Sie stehen in `<datadir>/Local State` unter `profile.info_cache`, als Abbildung `<profileDir>` → `{name}`.
 - Gibt es **genau ein** Profil, erscheint der Browser als ein einzelner Eintrag ohne Profilnamen. Das Ziel-ID-Schema bleibt dann `chromium:<bundleId>:<profileDir>`.
 
-### 3.3 Übrige Browser
+### 3.3 Firefox
+
+- **Unterstützt**: `org.mozilla.firefox` mit dem Datenverzeichnis `~/Library/Application Support/Firefox`. Developer Edition und Nightly teilen sich dieses Verzeichnis und bleiben einzelne `app:`-Einträge, sonst stünde jedes Profil dreimal da.
+- **Profile**: Sie stehen in `profiles.ini` in den `[ProfileN]`-Sektionen (`Name`, `Path`, `IsRelative`). `profilePath` in der Ziel-ID ist `Path`, wie Firefox ihn speichert.
+  - Seit Firefox 138 legt der Profil-Manager eine Profilgruppe in `Profile Groups/<StoreID>.sqlite` ab (Tabelle `Profiles`: `id`, `path`, `name`, …; `path` relativ zum Datenverzeichnis). In `profiles.ini` steht davon nur ein Profil, markiert mit `StoreID=`. Es wird durch die Profile der Gruppe ersetzt.
+  - Die Datenbank läuft im WAL-Modus. Browserdoor kopiert Datenbank und `-wal` in ein temporäres Verzeichnis und liest dort, damit neue Profile sofort sichtbar sind und Firefox' Dateien unberührt bleiben.
+  - Reihenfolge: zuerst die Profile, die eine `[Install…]`-Sektion als `Default=` nennt, dann die übrigen nach Sektionsnummer bzw. `id`.
+  - Das leere `default`-Profil, das Firefox neben `default-release` anlegt, fällt weg, außer eine Installation nutzt es.
+- Gibt es **höchstens ein** Profil, bleibt Firefox ein einzelnes `app:`-Ziel.
+- **Öffnen**: Immer über `open -na`, damit Firefox kein Kindprozess von Browserdoor wird. Läuft das Profil schon, übergibt die neue Instanz die URLs an die laufende und beendet sich (getestet mit Firefox 160). Sonst startet Firefox mit diesem Profil.
+
+### 3.4 Übrige Browser
 
 - Grundlage sind alle Apps, die `https` öffnen können (`NSWorkspace.urlsForApplications(toOpen:)`).
 - **Pfadfilter**: Es zählen nur Apps unter `/Applications`, `~/Applications` oder `/System`. Kopien in Caches oder Snapshots (Playwright, Puppeteer, …) fliegen raus. Gibt es eine Bundle-ID mehrfach, gewinnt die erste erlaubte Kopie.
 - **Allowlist**: Gezeigt werden nur bekannte Browser (`KnownBrowsers`, analog zu Browserosaurus), plus die Bundle-IDs aus `extraApps` in der Konfiguration. LaunchServices listet sonst auch Terminals, Web-App-Wrapper, Finicky/Browserosaurus usw.
-- Ausgenommen sind Browserdoor selbst sowie Zen und die Chromium-Browser, wenn sie schon über 3.1 oder 3.2 abgedeckt sind.
+- Ausgenommen sind Browserdoor selbst sowie Zen, die Chromium-Browser und Firefox, wenn sie schon über 3.1 bis 3.3 abgedeckt sind.
 
-### 3.4 Erlaubte URLs
+### 3.5 Erlaubte URLs
 
 URLs landen als Kommandozeilen-Argumente bei den Browsern. Deshalb lässt Browserdoor nur `http`, `https` und `file` durch (`URLPolicy`); alles andere, etwa `--remote-debugging-port=…` oder `javascript:`, wird verworfen. Aus `.webloc`-Dateien kommen nur `http` und `https`, damit eine heruntergeladene Datei keine lokale Datei öffnen kann. Die Prüfung greift beim Empfang und noch einmal beim Bauen der Launch-Kommandos.
 
@@ -119,7 +131,8 @@ Die Datei liegt unter `~/.config/browserdoor/config.json`. Sie ist optional; feh
 - **`order`**: Diese Ziele stehen zuerst, in der angegebenen Reihenfolge. Alle übrigen folgen in der Erkennungsreihenfolge:
   1. Zen-Workspaces in Zens Reihenfolge
   2. Chromium-Browser
-  3. übrige Browser alphabetisch
+  3. Firefox-Profile
+  4. übrige Browser alphabetisch
 - **`extraApps`**: Bundle-IDs von Apps, die keine bekannten Browser sind, aber trotzdem als Ziel erscheinen sollen.
 - **`targets.<id>.label`**: Überschreibt den Anzeigenamen. Gleichzeitig ist es der lesbare Zusatz zur UUID.
 - Die Datei wird normalerweise über das Einstellungsfenster gepflegt (siehe 6). Es schreibt sie bei jeder Änderung neu (sortierte Schlüssel, stabile Diffs); Einstellungen von Zielen, die gerade nicht erkannt werden, bleiben erhalten.
@@ -161,13 +174,13 @@ Begriffe: siehe [GLOSSARY.md](GLOSSARY.md). Die Logik steckt in wenigen tiefen M
 | Modul (BrowserdoorCore) | Besitzt | Seam / Adapter |
 |---|---|---|
 | `TargetCatalog` | Config-Datei (inkl. unlesbar), Zen-Profilpfad, Discovery, Picker-Einträge, Edit-Zeilen, effektive Tasten, Speichern | `BrowserEnvironment`: `SystemEnvironment` · `FakeEnvironment` |
-| `Discovery` | Ziele finden (Allowlist, Pfadfilter, Zen-Versionsprüfung, Chromium-Profile, Extra-Apps) | `BrowserEnvironment` |
+| `Discovery` | Ziele finden (Allowlist, Pfadfilter, Zen-Versionsprüfung, Chromium- und Firefox-Profile, Extra-Apps) | `BrowserEnvironment` |
 | `PickerSession` | Links, Einträge, Auswahl; Eingabe → Effekte (close/open/copy) | in-process |
 | `LinkOpener` | Eingehende Items → erlaubte Links; Link + Ziel → Start inkl. Zen läuft/kalt und Aktivierung | `LaunchPort`: `SystemLaunchPort` · `RecordingPort` |
 | `Installation` | Homebrew-Fakten, stabiler Link, LaunchAgent, Migration von SMAppService | echtes Dateisystem (Temp-Home in Tests); `LegacyLoginItem`: `SMAppServiceLoginItem` · Fake |
 | `UpdatePolicy` | Wann prüfen, was melden, Später, Fehler | `ReleaseSource`: `GitHubReleaseSource` · Stub; `UpdatePreferences`: `UserDefaultsUpdatePreferences` · In-Memory |
 | `ZenIconCache` | Icon-Cache je Zen-Version, gemerkte Fehlschläge | Extraktor: `unzip` · Fake |
-| Parser | `MozLz4`, `ZenSpaces`, `ZenProfile`, `ChromiumProfiles`, `WeblocParser` | in-process |
+| Parser | `MozLz4`, `ZenSpaces`, `ZenProfile`, `ChromiumProfiles`, `FirefoxProfiles`, `WeblocParser` | in-process |
 
 App: `AppDelegate` (Menüleiste, Onboarding), `PickerController` (rendert die Session, führt Effekte aus), `Settings` (Fenster über `CatalogState`), `UpdateChecker` (Dialoge, Upgrade im Terminal), `IconProvider` (NSImages, startet die Icon-Extraktion), Adapter (`SystemEnvironment`, `SystemLaunchPort`, `SMAppServiceLoginItem`).
 

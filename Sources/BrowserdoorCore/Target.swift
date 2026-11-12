@@ -1,16 +1,18 @@
 import Foundation
 
-/// One entry the user can pick: a Zen workspace, a Chromium profile, or a plain browser.
+/// One entry the user can pick: a Zen workspace, a Chromium or Firefox profile, or a plain browser.
 public struct Target: Equatable, Sendable, Identifiable {
     public enum Kind: Equatable, Sendable {
         /// `profile` is set only when the config overrides Zen's default profile;
         /// the command then has to address that profile's instance explicitly.
         case zenSpace(app: URL, executable: URL, space: ZenSpace, profile: URL? = nil)
         case chromium(app: URL, profileDirectory: String)
+        case firefox(app: URL, profile: URL)
         case app(URL)
     }
 
-    /// Stable id used in the config: `zen:{uuid}`, `chromium:<bundleId>:<dir>`, `app:<bundleId>`.
+    /// Stable id used in the config: `zen:{uuid}`, `chromium:<bundleId>:<dir>`,
+    /// `firefox:<bundleId>:<profile path>`, `app:<bundleId>`.
     public var id: String
     public var name: String
     public var kind: Kind
@@ -23,7 +25,7 @@ public struct Target: Equatable, Sendable, Identifiable {
 
     public var appURL: URL {
         switch kind {
-        case let .zenSpace(app, _, _, _), let .chromium(app, _), let .app(app): app
+        case let .zenSpace(app, _, _, _), let .chromium(app, _), let .firefox(app, _), let .app(app): app
         }
     }
 
@@ -33,6 +35,10 @@ public struct Target: Equatable, Sendable, Identifiable {
 
     public static func chromiumID(_ bundleId: String, _ dir: String) -> String {
         "chromium:\(bundleId):\(dir)"
+    }
+
+    public static func firefoxID(_ bundleId: String, _ profilePath: String) -> String {
+        "firefox:\(bundleId):\(profilePath)"
     }
 
     public static func appID(_ bundleId: String) -> String {
@@ -72,6 +78,12 @@ extension Target {
             return [.run(
                 executable: URL(fileURLWithPath: "/usr/bin/open"),
                 arguments: ["-na", app.path, "--args", "--profile-directory=\(dir)"] + strings
+            )]
+        case let .firefox(app, profile):
+            // A second instance hands the URLs to a running one for the same profile and quits.
+            return [.run(
+                executable: URL(fileURLWithPath: "/usr/bin/open"),
+                arguments: ["-na", app.path, "--args", "--profile", profile.path] + strings
             )]
         case let .app(app):
             return [.open(urls: urls, app: app)]

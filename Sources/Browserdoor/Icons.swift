@@ -31,7 +31,7 @@ final class IconProvider {
 
     func icon(for target: Target) -> EntryIcon {
         switch target.kind {
-        case let .app(app), let .chromium(app, _):
+        case let .app(app), let .chromium(app, _), let .firefox(app, _):
             return .image(appIcon(app))
         case let .zenSpace(app, _, space, _):
             let color = space.color.map { Color(red: Double($0.r) / 255, green: Double($0.g) / 255, blue: Double($0.b) / 255) }

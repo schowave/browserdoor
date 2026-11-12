@@ -6,9 +6,11 @@ Domain terms used in Browserdoor's code, docs and reviews. Module names in `code
 |---|---|
 | **Link** | A URL Browserdoor may hand to a browser: `http`, `https` or `file`. Anything else (`javascript:`, `--flags`, …) never becomes a link. |
 | **Incoming item** | What macOS hands Browserdoor: a URL, an `.html` file or a `.webloc` file. `LinkOpener.links(from:)` turns items into links. |
-| **Target** | One entry the user can pick: a Zen space, a Chromium profile or a browser/app. Has a stable ID (`zen:{uuid}`, `chromium:<bundleId>:<dir>`, `app:<bundleId>`). |
+| **Target** | One entry the user can pick: a Zen space, a Chromium or Firefox profile, or a browser/app. Has a stable ID (`zen:{uuid}`, `chromium:<bundleId>:<dir>`, `firefox:<bundleId>:<path>`, `app:<bundleId>`). |
 | **Zen space** | A Zen workspace, read from `zen-sessions.jsonlz4` and opened with `zen --space`. |
 | **Chromium profile** | A profile of Chrome, Brave, Edge, Vivaldi or Chromium, opened with `--profile-directory`. |
+| **Firefox profile** | A Firefox profile from `profiles.ini` or a profile group database, opened with `--profile <dir>`. |
+| **Profile group** | Firefox's newer profile manager (since 138): profiles stored in `Profile Groups/<StoreID>.sqlite`, with one representative in `profiles.ini`. |
 | **Extra app** | An app the user added as a target even though it isn't a known browser. |
 | **Discovery** | Finding the targets on this Mac (`Discovery`, behind the `BrowserEnvironment` seam). |
 | **Target catalog** | `TargetCatalog`: config + discovery → the targets, their labels, hotkeys and order; saves edits. The single source for the picker and the settings window. |

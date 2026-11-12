@@ -43,7 +43,8 @@ public struct Discovery {
         self.extraApps = Set(extraApps)
     }
 
-    /// Discovers all targets in default order: Zen spaces, Chromium browsers, other browsers A–Z.
+    /// Discovers all targets in default order: Zen spaces, Chromium profiles, Firefox profiles,
+    /// other browsers A–Z.
     public func discover() -> [Target] {
         let installed = installedApps()
         var covered: Set<String> = [environment.ownBundleId]
@@ -58,6 +59,12 @@ public struct Discovery {
             guard let app = installed[browser.bundleId] else { continue }
             covered.insert(browser.bundleId)
             result += chromiumTargets(browser: browser, app: app.url)
+        }
+
+        for browser in FirefoxBrowser.known {
+            guard let app = installed[browser.bundleId] else { continue }
+            covered.insert(browser.bundleId)
+            result += firefoxTargets(browser: browser, app: app.url)
         }
 
         let wanted = KnownBrowsers.bundleIds.union(extraApps)
@@ -145,6 +152,38 @@ public struct Discovery {
                 id: Target.chromiumID(browser.bundleId, profile.directory),
                 name: profiles.count == 1 ? appName : "\(appName) › \(profile.name)",
                 kind: .chromium(app: app, profileDirectory: profile.directory)
+            )
+        }
+    }
+
+    /// One target per profile; a single profile stays a plain `app:` entry, which LaunchServices
+    /// opens in whatever profile Firefox would pick itself.
+    func firefoxTargets(browser: FirefoxBrowser, app: URL) -> [Target] {
+        let appName = environment.appInfo(at: app)?.name ?? browser.bundleId
+        let root = browser.root(home: environment.home)
+        let groups = root.appendingPathComponent(FirefoxProfiles.groupsDirectory, isDirectory: true)
+        let profiles = environment.contents(of: root.appendingPathComponent("profiles.ini"))
+            .flatMap { String(data: $0, encoding: .utf8) }
+            .map { ini in
+                FirefoxProfiles.parse(profilesIni: ini) { storeID in
+                    let database = groups.appendingPathComponent("\(storeID).sqlite")
+                    return environment.contents(of: database).flatMap { data in
+                        FirefoxProfiles.parseStore(
+                            database: data,
+                            wal: environment.contents(of: URL(fileURLWithPath: database.path + "-wal"))
+                        )
+                    }
+                }
+            } ?? []
+
+        guard profiles.count > 1 else {
+            return [Target(id: Target.appID(browser.bundleId), name: appName, kind: .app(app))]
+        }
+        return profiles.map { profile in
+            Target(
+                id: Target.firefoxID(browser.bundleId, profile.path),
+                name: "\(appName) › \(profile.name)",
+                kind: .firefox(app: app, profile: profile.directory(root: root))
             )
         }
     }
