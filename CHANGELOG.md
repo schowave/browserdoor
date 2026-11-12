@@ -10,6 +10,10 @@ What changed for people using Browserdoor. Each release on GitHub starts with it
 - Tab, ⇧Tab, Home and End move the selection in the picker; ⌘, opens the settings. A picker with every target hidden says so and offers the settings.
 - A mouse resting on the picker when it opens no longer changes the preselected target; hover selects once the mouse moves.
 - VoiceOver reads the picker's rows as buttons, with their key and which one is selected.
+- The menu bar menu has "About Browserdoor" and "Open Link from Clipboard…"; with ⌥ it offers "Report an Issue…" and "Show Configuration in Finder". The version line and the second update item are gone.
+- The menu bar icon carries a dot while Browserdoor isn't your default browser.
+- The menu bar icon can be hidden in the settings or by ⌘-dragging it away; opening Browserdoor again shows the settings.
+- ⌘M and ⌘H work in the settings window.
 - A key you give a target in the settings now moves to that target; before, two targets could show the same key while the picker gave it to only one.
 - Zen space icons that are still being extracted appear in an open picker or settings window as soon as they're ready, not only the next time.
 - The picker stays on screen when more links arrive while it's open.

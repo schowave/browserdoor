@@ -162,6 +162,10 @@ final class SettingsWindowController {
         NSApp.activate()
         window?.makeKeyAndOrderFront(nil)
     }
+
+    func revealConfig() {
+        model.revealConfig()
+    }
 }
 
 // MARK: - Views
@@ -187,6 +191,7 @@ struct SettingsView: View {
 private struct GeneralTab: View {
     @Bindable var model: SettingsModel
     @Bindable var updates: UpdateChecker
+    @Bindable var statusMenu = StatusMenu.shared
 
     var body: some View {
         Form {
@@ -203,6 +208,12 @@ private struct GeneralTab: View {
                     get: { model.launchesAtLogin },
                     set: { model.setLaunchAtLogin($0) }
                 ))
+                Toggle(isOn: $statusMenu.isVisible) {
+                    Text(L("Show in menu bar"))
+                    if !statusMenu.isVisible {
+                        Text(L("To get back here, open Browserdoor again, e.g. from Spotlight."))
+                    }
+                }
             }
             Section(L("Updates")) {
                 Toggle(L("Check for updates automatically"), isOn: $updates.automatic)

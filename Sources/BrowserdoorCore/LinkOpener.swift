@@ -39,6 +39,15 @@ public struct LinkOpener {
         }
     }
 
+    /// URLs in a text, e.g. the clipboard: each word that parses as a URL with a scheme.
+    /// Pass the result through `links(from:)`.
+    public static func urls(inText text: String) -> [URL] {
+        text.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).compactMap { word in
+            guard let url = URL(string: String(word)), url.scheme != nil else { return nil }
+            return url
+        }
+    }
+
     /// Opens `links` in `target` with the commands its browser family gives, and brings the app
     /// forward afterwards if the family asks for it.
     public func open(_ links: [URL], in target: Target) {

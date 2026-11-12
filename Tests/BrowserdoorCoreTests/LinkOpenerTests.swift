@@ -130,3 +130,18 @@ struct LinkOpenerTests {
         #expect(port.calls.isEmpty)
     }
 }
+
+struct ClipboardLinkTests {
+    @Test func findsURLsInText() {
+        let urls = LinkOpener.urls(inText: "https://a.example\n  see https://b.example/x?y=1 and words\tjavascript:alert(1)")
+        #expect(urls.map(\.absoluteString) == ["https://a.example", "https://b.example/x?y=1", "javascript:alert(1)"])
+        #expect(URLPolicy.filter(urls).count == 2)
+        #expect(LinkOpener.urls(inText: "no links here").isEmpty)
+    }
+
+    @Test func issueReportPrefillsVersionsOnly() {
+        let url = IssueReport.url(appVersion: "0.6.0", macOSVersion: "15.4.1")
+        #expect(url.absoluteString
+            == "https://github.com/schowave/browserdoor/issues/new?template=bug.yml&versions=Browserdoor%200.6.0,%20macOS%2015.4.1")
+    }
+}

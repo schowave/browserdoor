@@ -2,9 +2,8 @@ import AppKit
 import BrowserdoorCore
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate {
     private let picker = PickerController()
-    private var statusItem: NSStatusItem?
 
     func applicationDidFinishLaunching(_: Notification) {
         let next = Startup(
@@ -13,7 +12,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             legacyLoginItem: SMAppServiceLoginItem(),
             port: SystemStartupPort()
         ).run()
-        setUpStatusItem()
+        StatusMenu.shared.openLinks = { [picker] links in picker.show(urls: links) }
+        StatusMenu.shared.install()
         setUpMainMenu()
         picker.prewarm()
         UpdateChecker.shared.startAutomaticChecks()
@@ -22,7 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             onboard()
         case .reclaimDefaultBrowser:
             NSApp.activate()
-            DefaultBrowser.makeBrowserdoor()
+            DefaultBrowser.makeBrowserdoor { StatusMenu.shared.refreshIcon() }
         case .nothing:
             break
         }
@@ -54,7 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             alert.addButton(withTitle: L("Make Default"))
             alert.addButton(withTitle: L("Later"))
             if alert.runModal() == .alertFirstButtonReturn {
-                DefaultBrowser.makeBrowserdoor()
+                DefaultBrowser.makeBrowserdoor { StatusMenu.shared.refreshIcon() }
             }
         }
         if !CurrentInstallation.shared.launchesAtLogin {
@@ -65,12 +65,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: Main menu
 
     /// Browserdoor shows no menu bar of its own, but key equivalents in the settings window
-    /// (⌘C/⌘V in text fields, ⌘W, ⌘,) come from the main menu.
+    /// (⌘C/⌘V in text fields, ⌘W, ⌘M, ⌘H, ⌘,) come from the main menu.
     private func setUpMainMenu() {
         let main = NSMenu()
 
         let appMenu = NSMenu()
+        appMenu.addItem(item(L("About Browserdoor"), #selector(aboutAction)))
+        appMenu.addItem(.separator())
         appMenu.addItem(item(L("Settings…"), #selector(settingsAction), key: ","))
+        appMenu.addItem(.separator())
+        appMenu.addItem(withTitle: L("Hide Browserdoor"), action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: L("Quit Browserdoor"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         main.addItem(withTitle: AppIdentity.name, action: nil, keyEquivalent: "").submenu = appMenu
@@ -86,55 +90,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         main.addItem(withTitle: L("Edit"), action: nil, keyEquivalent: "").submenu = edit
 
         let window = NSMenu(title: L("Window"))
+        window.addItem(withTitle: L("Minimize"), action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
         window.addItem(withTitle: L("Close"), action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
         main.addItem(withTitle: L("Window"), action: nil, keyEquivalent: "").submenu = window
 
         NSApp.mainMenu = main
-    }
-
-    // MARK: Status item
-
-    private func setUpStatusItem() {
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        item.button?.image = Self.menuBarImage()
-        let menu = NSMenu()
-        menu.delegate = self
-        item.menu = menu
-        statusItem = item
-    }
-
-    /// The door glyph from the bundle as a template image (tinted by macOS for light and dark
-    /// menu bars); an SF Symbol when running outside the bundle, e.g. via `swift run`.
-    private static func menuBarImage() -> NSImage? {
-        if let url = Bundle.main.url(forResource: "MenuBarIcon", withExtension: "svg"),
-           let image = NSImage(contentsOf: url)
-        {
-            image.size = NSSize(width: 18, height: 18)
-            image.isTemplate = true
-            image.accessibilityDescription = AppIdentity.name
-            return image
-        }
-        return NSImage(systemSymbolName: "door.left.hand.open", accessibilityDescription: AppIdentity.name)
-    }
-
-    /// Rebuilt on every open so the status lines are current. Kept to cheap calls only.
-    func menuNeedsUpdate(_ menu: NSMenu) {
-        menu.removeAllItems()
-
-        if case let .available(release) = UpdateChecker.shared.status {
-            menu.addItem(item(L("Update to Browserdoor %@…", release.version.description), #selector(checkForUpdatesAction)))
-            menu.addItem(.separator())
-        }
-        if !DefaultBrowser.isBrowserdoor {
-            menu.addItem(withTitle: L("Browserdoor isn't your default browser"), action: nil, keyEquivalent: "").isEnabled = false
-            menu.addItem(item(L("Make Default Browser"), #selector(setDefaultAction)))
-            menu.addItem(.separator())
-        }
-        menu.addItem(item(L("Settings…"), #selector(settingsAction), key: ","))
-        menu.addItem(item(L("Check for Updates…"), #selector(checkForUpdatesAction)))
-        menu.addItem(.separator())
-        menu.addItem(withTitle: "\(AppIdentity.name) \(RunningApp.version)", action: nil, keyEquivalent: "").isEnabled = false
-        menu.addItem(item(L("Quit Browserdoor"), #selector(quitAction), key: "q"))
     }
 
     private func item(_ title: String, _ action: Selector, key: String = "") -> NSMenuItem {
@@ -143,19 +103,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return item
     }
 
-    @objc private func setDefaultAction() {
-        DefaultBrowser.makeBrowserdoor()
+    @objc private func aboutAction() {
+        About.show()
     }
 
     @objc private func settingsAction() {
         SettingsWindowController.shared.show()
-    }
-
-    @objc private func checkForUpdatesAction() {
-        Task { await UpdateChecker.shared.checkNow() }
-    }
-
-    @objc private func quitAction() {
-        NSApp.terminate(nil)
     }
 }

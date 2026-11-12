@@ -16,6 +16,17 @@
 "Select All" = "Alles auswählen";
 "Window" = "Fenster";
 "Close" = "Schließen";
+"Minimize" = "Im Dock ablegen";
+"Hide Browserdoor" = "Browserdoor ausblenden";
+"About Browserdoor" = "Über Browserdoor";
+"Report an Issue…" = "Problem melden…";
+"Open Link from Clipboard…" = "Link aus Zwischenablage öffnen…";
+"Show Configuration in Finder" = "Konfiguration im Finder zeigen";
+"Browserdoor – not the default browser" = "Browserdoor – nicht Standardbrowser";
+"Picks the browser, profile or Zen space for every link." = "Wählt für jeden Link Browser, Profil oder Zen-Space.";
+"MIT License" = "MIT-Lizenz";
+"Show in menu bar" = "In der Menüleiste anzeigen";
+"To get back here, open Browserdoor again, e.g. from Spotlight." = "Hierher kommst du zurück, indem du Browserdoor erneut öffnest, z. B. über Spotlight.";
 
 /* Onboarding */
 "Use Browserdoor as your default browser?" = "Browserdoor als Standardbrowser verwenden?";

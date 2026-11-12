@@ -143,16 +143,21 @@ The file is at `~/.config/browserdoor/config.json`. It is optional; if it is mis
 
 ## 6. Menu bar, settings, updates
 
+**Menu bar icon** (`StatusMenu`): the door as a template image. While Browserdoor isn't the default browser, it carries a dot (part of the template image, so macOS tints it like the door); the state is checked when the menu opens, when the app becomes active, after "Make Default Browser" and every 60 s. The icon can be hidden with "Show in menu bar" in the settings or by ⌘-dragging it out of the menu bar; both are the same setting, which macOS keeps in the user defaults with the icon's position. Opening Browserdoor again then shows the settings.
+
 **Menu bar menu** (rebuilt every time it opens, only cheap queries):
-- "Update to Browserdoor X…", if an update is known
-- Notice "Browserdoor isn't your default browser" plus "Make Default Browser", only when needed
-- "Settings…" (⌘,), "Check for Updates…", version line, "Quit Browserdoor"
+- "About Browserdoor" (standard About panel with a link to the repository and the license); with ⌥ "Report an Issue…", which opens GitHub's bug form with the Browserdoor and macOS versions filled in (`IssueReport`) and nothing else
+- "Open Link from Clipboard…": shows the picker for the links on the clipboard (URL objects and every word of the text that parses as a URL, filtered like any incoming link). Enabled only if the clipboard holds a web link; from macOS 15.4 the system answers that without Browserdoor reading the clipboard (no privacy notice), before that any text enables it.
+- "Make Default Browser" with a warning sign, only when needed
+- "Update to Browserdoor X…" if an update is known, else "Check for Updates…"
+- "Settings…" (⌘,); with ⌥ "Show Configuration in Finder"
+- "Quit Browserdoor"
 
 **Settings window** (SwiftUI in an `NSWindow`; also opens when Browserdoor is started again while the app is running, e.g. via `browserdoor`):
-- *General:* default browser status and button, "Start at login" (LaunchAgent; the checkmark shows only whether it exists, not whether it is blocked in System Settings), updates.
+- *General:* default browser status and button, "Start at login" (LaunchAgent; the checkmark shows only whether it exists, not whether it is blocked in System Settings), "Show in menu bar", updates.
 - *Targets:* all discovered targets with icon, sortable by dragging, can be shown/hidden, renamable, custom key (the key actually assigned is shown in gray as a placeholder; if you assign a key that another target already has, the other target loses it), star for the default target. **+** adds apps via a selection dialog (`extraApps`; they appear even without an https registration), **−** removes such an app.
 - *Advanced:* additional apps, Zen profile, show the configuration file in Finder.
-- An invisible main menu provides ⌘C/⌘V/⌘A, ⌘W and ⌘, for the window.
+- An invisible main menu provides About, ⌘C/⌘V/⌘A, ⌘W, ⌘M, ⌘H and ⌘, for the window.
 
 **Updates:** `HEAD https://github.com/schowave/browserdoor/releases/latest`; the redirect to `…/releases/tag/<tag>` names the newest release (excluding drafts and pre-releases). The API (`api.github.com`) is deliberately not used, because without a token it allows only 60 requests per hour and IP. The automatic check runs at most once per 24 h (can be turned off) and on request. If the version is newer (`AppVersion` comparison; dev builds, version `0.0.0`, are never offered updates), a dialog appears. "Update in Terminal" opens a `.command` script: `brew update && brew upgrade browserdoor`, quit the old Browserdoor, start the new one via `browserdoor`. Without a Homebrew installation, the release page is offered instead. "Later" suppresses the automatic notice for this version. This is Browserdoor's only network access.
 
@@ -196,7 +201,7 @@ Terms: see [GLOSSARY.md](GLOSSARY.md). The logic lives in a few deep modules in 
 | `TargetIcons` | Icon per target: the app icon, only Zen spaces differ (emoji → SVG → initial letter); starts the extraction once per Zen version | `ZenIconCache`, extractor: `unzip` · Fake |
 | Parsers | `MozLz4`, `ZenSpaces`, `ZenProfile`, `ChromiumProfiles`, `FirefoxProfiles`, `WeblocParser` | in-process |
 
-App: `AppDelegate` (menu bar, onboarding dialog), `PickerController` (shows the session directly, runs effects), `Settings` (window, binds the edits of `CatalogState`), `UpdateChecker` (dialogs, opens the upgrade script), `IconProvider` (loads NSImages; observable, so open windows reload the Zen icons as soon as they are extracted), adapters (`SystemEnvironment`, `SystemLaunchPort`, `SystemStartupPort`, `SMAppServiceLoginItem`).
+App: `AppDelegate` (main menu, onboarding dialog), `StatusMenu` (menu bar icon and menu), `About`, `PickerController` (shows the session directly, runs effects), `Settings` (window, binds the edits of `CatalogState`), `UpdateChecker` (dialogs, opens the upgrade script), `IconProvider` (loads NSImages; observable, so open windows reload the Zen icons as soon as they are extracted), adapters (`SystemEnvironment`, `SystemLaunchPort`, `SystemStartupPort`, `SMAppServiceLoginItem`).
 
 ## 9. Build, distribution, CI
 
