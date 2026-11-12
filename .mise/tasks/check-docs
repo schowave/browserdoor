@@ -20,7 +20,8 @@ sections="$(grep -E '^#{2,4} [0-9]+(\.[0-9]+)*\.? ' SPEC.md | sed -E 's/^#+ ([0-
 for dup in $(printf '%s\n' "$sections" | sort | uniq -d); do
   problem "SPEC.md: section $dup appears more than once"
 done
-for ref in $(grep -oE 'siehe [0-9]+(\.[0-9]+)*' SPEC.md | sed 's/siehe //' | sort -u); do
+refs="$(grep -oE 'siehe [0-9]+(\.[0-9]+)*' SPEC.md | sed 's/siehe //' | sort -u)"
+for ref in $refs; do
   printf '%s\n' "$sections" | grep -qx "$ref" || problem "SPEC.md: \"siehe $ref\" points at no section"
 done
 

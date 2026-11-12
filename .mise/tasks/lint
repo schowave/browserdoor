@@ -3,9 +3,6 @@
 # shellcheck source=_lib.sh
 . "$(dirname "$0")/_lib.sh"
 actionlint
-# Tasks have no extension; list them explicitly (sourced helper first).
-shellcheck .mise/tasks/_lib.sh .mise/tasks/test .mise/tasks/app .mise/tasks/install .mise/tasks/run \
-  .mise/tasks/lint .mise/tasks/format .mise/tasks/render-formula .mise/tasks/check-formula \
-  .mise/tasks/next-patch-version .mise/tasks/ci .mise/tasks/clean \
-  .mise/tasks/app-changed-since-release .mise/tasks/test-scripts .mise/tasks/bottle .mise/tasks/check-strings .mise/tasks/demo-gif .mise/tasks/social-preview
+# Every shell task (they have no extension), so a new one can't be missed.
+{ echo .mise/tasks/_lib.sh; grep -l '^#!/bin/sh' .mise/tasks/*; } | sort -u | xargs shellcheck
 swiftformat --lint .
