@@ -47,7 +47,7 @@ class Browserdoor < Formula
     assert_equal version.to_s,
                  shell_output("/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' " \
                               "#{prefix}/Browserdoor.app/Contents/Info.plist").strip
-    assert_equal "io.github.schowave.doorman",
+    assert_equal "io.github.schowave.browserdoor",
                  shell_output("/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' " \
                               "#{prefix}/Browserdoor.app/Contents/Info.plist").strip
   end

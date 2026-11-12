@@ -3,7 +3,7 @@
 # shellcheck source=_lib.sh
 . "$(dirname "$0")/_lib.sh"
 : "${PREFIX:?set PREFIX, e.g. PREFIX=/usr/local}"
-"$(dirname "$0")/app"
+DEV_BUILD=0 "$(dirname "$0")/app"
 mkdir -p "$PREFIX/bin"
 rm -rf "${PREFIX:?}/$APP_NAME.app"
 cp -R "$APP" "$PREFIX/$APP_NAME.app"

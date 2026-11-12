@@ -14,7 +14,7 @@
 	<key>CFBundleExecutable</key>
 	<string>Browserdoor</string>
 	<key>CFBundleIdentifier</key>
-	<string>io.github.schowave.doorman</string>
+	<string>io.github.schowave.browserdoor</string>
 	<key>CFBundleName</key>
 	<string>Browserdoor</string>
 	<key>CFBundleDisplayName</key>

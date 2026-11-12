@@ -53,7 +53,7 @@ Ein **Ziel** ist ein Eintrag im Panel. Jedes Ziel hat eine stabile `id`, einen A
   - Die Datei wird **bei jedem Öffnen des Panels** neu gelesen.
 - **Icons**: `icon` ist eine `chrome://browser/skin/zen-icons/selectable/<name>.svg`-URL, ein Emoji oder leer.
   - Die SVGs liegen in `<Zen.app>/Contents/Resources/browser/omni.ja` (ein Zip) unter `chrome/browser/skin/classic/browser/zen-icons/selectable/`.
-  - Sie werden einmalig pro Zen-Version nach `~/Library/Caches/io.github.schowave.doorman/zen-icons/<version>/` extrahiert.
+  - Sie werden einmalig pro Zen-Version nach `~/Library/Caches/io.github.schowave.browserdoor/zen-icons/<version>/` extrahiert.
   - Fallback: Ist das Icon ein Emoji, wird es direkt angezeigt. Sonst erscheint der Anfangsbuchstabe auf der Theme-Farbe.
 - **Versionsprüfung**: `--space` gibt es ab Zen 1.24 (PR zen-browser/desktop#15074). Ist die Version älter (`CFBundleShortVersionString`) oder kann die Datei nicht gelesen werden, erscheint Zen als ein einzelnes `app:`-Ziel.
 - **Zen läuft nicht**: Browserdoor startet Zen über LaunchServices (`open -a … --args --space …`), damit Zen kein Kindprozess von Browserdoor wird. Zen merkt sich den Space für den Start (`zen.workspaces.cmdline-initial-workspace`).
@@ -163,8 +163,14 @@ Beim ersten Start passiert Folgendes:
 
 **Stabil über `brew upgrade`:** Homebrew installiert in ein versioniertes Cellar-Verzeichnis, das `brew cleanup` nach einem Upgrade löscht. Deshalb:
 - Läuft Browserdoor aus einem Cellar, legt es bei jedem Start `~/Applications/Browserdoor.app` als Symlink auf `<brew prefix>/opt/browserdoor/Browserdoor.app` an (bzw. korrigiert einen veralteten eigenen Symlink). Eine echte App an dieser Stelle bleibt unangetastet.
-- Der Autostart ist ein LaunchAgent `~/Library/LaunchAgents/io.github.schowave.doorman.plist`, der `open -a ~/Applications/Browserdoor.app` ausführt. `SMAppService.mainApp` würde sich den versionierten Pfad merken; ein solches Login-Item aus früheren Builds wird beim Start entfernt und ersetzt.
+- Der Autostart ist ein LaunchAgent `~/Library/LaunchAgents/io.github.schowave.browserdoor.plist`, der `open -a ~/Applications/Browserdoor.app` ausführt. `SMAppService.mainApp` würde sich den versionierten Pfad merken; ein solches Login-Item aus früheren Builds wird beim Start entfernt und ersetzt.
 - Der Standardbrowser hängt an der Bundle-ID und ist damit pfadunabhängig; jeder Start registriert die laufende Kopie neu (`LSRegisterURL`).
+- **Bundle-ID-Wechsel** (bis 0.4.x `io.github.schowave.doorman`, seit 0.5.0 `io.github.schowave.browserdoor`): Der erste Start eines Release-Builds übernimmt, was unter der alten ID lag (`IdentityMigration`), und zwar vor allem anderen, damit Update-Check und Aufräumen schon die übernommenen Werte sehen:
+  - Die UserDefaults der alten Domain werden in die neue kopiert (vorhandene Schlüssel bleiben), danach wird die alte Domain gelöscht. Damit kommen Onboarding-Status, Update-Check, letzter Bundle-Pfad und die Menüleisten-Position mit.
+  - `~/Library/Caches/io.github.schowave.doorman` wird gelöscht.
+  - Ein LaunchAgent unter dem alten Label wird durch einen unter dem neuen ersetzt (`Installation.prepare`). Wer keinen hatte, bekommt keinen.
+  - War die alte ID als `https`-Handler eingetragen (gelesen aus `com.apple.launchservices.secure.plist`, weil die alte App nach `brew cleanup` nicht mehr existiert), fragt Browserdoor sofort per `setDefaultApplication` nach, macOS zeigt den Bestätigungsdialog. Lehnt der Nutzer ab, bleibt der Hinweis im Menü.
+  - Dev-Builds (`….dev`) migrieren nichts.
 - Nach einem Update trägt Browserdoor den Pfad der Version, aus der es zuletzt lief, aus LaunchServices aus (`lsregister -u`), wenn er nicht mehr existiert (`brew cleanup` hat ihn gelöscht). Existiert er noch (z. B. ein Dev-Build), bleibt er.
 
 ## 8. Architektur
@@ -188,7 +194,7 @@ App: `AppDelegate` (Menüleiste, Onboarding), `PickerController` (rendert die Se
 
 - **Tooling:** mise. `mise.toml` pinnt `actionlint`, `shellcheck` und `swiftformat`. Swift selbst kommt aus Xcode bzw. den Command Line Tools, weil Browserdoor das macOS-SDK braucht.
 - **Tasks:** Sie liegen in `.mise/tasks/` als ausführbare Shell-Skripte mit `#MISE`-Kopfzeilen und ersetzen das frühere Makefile: `test`, `app`, `install`, `run`, `lint`, `format`, `render-formula`, `check-formula`, `next-patch-version`, `app-changed-since-release`, `test-scripts`, `bottle`, `ci`, `clean`. Gemeinsame Einstellungen kommen aus `_lib.sh`. Die Skripte laufen auch ohne mise.
-- `mise run app` erzeugt `build/Browserdoor.app`. Info.plist, App-Icon (`Resources/Icon/AppIcon.icns`) und Menüleisten-Glyph (`MenuBarIcon.svg`, Template-Bild) kommen aus `Resources/`. Das `.icns` wird mit `mise run icons` aus `AppIcon.svg` erzeugt und eingecheckt. Signiert wird ad hoc. Die Version kommt aus `VERSION` oder dem letzten `v*`-Tag.
+- `mise run app` erzeugt `build/Browserdoor.app`. Info.plist, App-Icon (`Resources/Icon/AppIcon.icns`) und Menüleisten-Glyph (`MenuBarIcon.svg`, Template-Bild) kommen aus `Resources/`. Das `.icns` wird mit `mise run icons` aus `AppIcon.svg` erzeugt und eingecheckt. Signiert wird ad hoc. Die Version kommt aus `VERSION` oder dem letzten `v*`-Tag. Solche Entwicklerbuilds bekommen die Bundle-ID `io.github.schowave.browserdoor.dev` und den Namen „Browserdoor Dev“, damit sie Standardbrowser, Einstellungen, Login-Item und Menüleiste nicht mit der installierten App teilen. Nur `install` (Homebrew) baut mit `DEV_BUILD=0` die echte ID.
 - **Homebrew:**
   - Die Formula `browserdoor` liegt im Tap `schowave/homebrew-tap` unter `Formula/`.
   - Nutzer ab macOS 15 bekommen eine Bottle (Apple Silicon und Intel) und brauchen dann kein Xcode. Ohne passende Bottle baut die Formula aus dem Release-Tarball (`depends_on xcode: 16` zum Bauen) und ruft `.mise/tasks/install` direkt auf, also ohne mise, mit `PREFIX`, `VERSION`, `SWIFT_BUILD_FLAGS=--disable-sandbox` und `BIN_APP_PATH` (der stabile `opt`-Pfad für `bin/browserdoor`, das `open -a` nutzt).

@@ -197,4 +197,20 @@ struct InstallationTests {
         #expect(try String(contentsOf: Config.fileURL(home: home), encoding: .utf8) == "{}")
         #expect(fm.fileExists(atPath: old.path))
     }
+
+    @Test func agentUnderTheOldLabelMovesToTheNewOne() throws {
+        let app = try installHomebrew("0.5.0")
+        let old = Installation(home: home, bundleURL: app, label: "old.doorman")
+        try old.setLaunchAtLogin(true)
+        let inst = Installation(home: home, bundleURL: app, label: "test.browserdoor", legacyLabel: "old.doorman")
+        inst.prepare()
+        #expect(!fm.fileExists(atPath: old.agentURL.path))
+        #expect(try agentTarget(inst) == home.appendingPathComponent("Applications/Browserdoor.app").path)
+    }
+
+    @Test func noOldAgentMeansNoNewOne() throws {
+        let inst = try Installation(home: home, bundleURL: installHomebrew("0.5.0"), label: "test.browserdoor", legacyLabel: "old.doorman")
+        inst.prepare()
+        #expect(!inst.launchesAtLogin)
+    }
 }

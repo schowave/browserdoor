@@ -9,6 +9,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private static let onboardedKey = "didOnboard"
 
     func applicationDidFinishLaunching(_: Notification) {
+        // First, so everything below reads the preferences carried over from the old bundle ID.
+        let migration = migrateFromLegacyIdentity()
         setUpStatusItem()
         setUpMainMenu()
         LSRegisterURL(Bundle.main.bundleURL as CFURL, true)
@@ -20,7 +22,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if !defaults.bool(forKey: Self.onboardedKey) {
             defaults.set(true, forKey: Self.onboardedKey)
             onboard()
+        } else if migration.reclaimDefaultBrowser {
+            // The old bundle ID was the default browser; macOS asks once to confirm the new one.
+            NSApp.activate()
+            DefaultBrowser.makeBrowserdoor()
         }
+    }
+
+    /// Release builds only: dev builds have their own ID and leave the installed app's data alone.
+    private func migrateFromLegacyIdentity() -> IdentityMigration.Outcome {
+        guard AppIdentity.bundleId == IdentityMigration.bundleId else { return .init() }
+        let outcome = IdentityMigration(home: FileManager.default.homeDirectoryForCurrentUser,
+                                        port: SystemIdentityMigrationPort()).run()
+        if outcome.migrated {
+            log.notice("moved data from \(IdentityMigration.legacyBundleId, privacy: .public)")
+        }
+        return outcome
     }
 
     /// Opening Browserdoor again (Finder, Spotlight, `browserdoor`) while it runs shows the settings.

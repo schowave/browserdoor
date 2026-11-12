@@ -9,7 +9,8 @@ enum CurrentInstallation {
         home: FileManager.default.homeDirectoryForCurrentUser,
         bundleURL: Bundle.main.bundleURL,
         label: AppIdentity.bundleId,
-        legacyLoginItem: SMAppServiceLoginItem()
+        legacyLoginItem: SMAppServiceLoginItem(),
+        legacyLabel: IdentityMigration.legacyLabel(for: AppIdentity.bundleId)
     )
 }
 
@@ -37,6 +38,31 @@ enum LaunchServicesCleanup {
             }
         }
         defaults.set(Bundle.main.bundlePath, forKey: key)
+    }
+}
+
+/// `IdentityMigrationPort` backed by `UserDefaults` and LaunchServices' preferences file.
+struct SystemIdentityMigrationPort: IdentityMigrationPort {
+    private let defaults = UserDefaults.standard
+
+    func legacyPreferences() -> [String: Any] {
+        defaults.persistentDomain(forName: IdentityMigration.legacyBundleId) ?? [:]
+    }
+
+    func importPreferences(_ values: [String: Any]) {
+        for (key, value) in values where defaults.object(forKey: key) == nil {
+            defaults.set(value, forKey: key)
+        }
+    }
+
+    func removeLegacyPreferences() {
+        defaults.removePersistentDomain(forName: IdentityMigration.legacyBundleId)
+    }
+
+    func httpsHandlerBundleId() -> String? {
+        let file = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Preferences/com.apple.LaunchServices/com.apple.launchservices.secure.plist")
+        return (try? Data(contentsOf: file)).flatMap(IdentityMigration.httpsHandler(launchServicesPlist:))
     }
 }
 

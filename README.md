@@ -51,7 +51,9 @@ brew trust --formula schowave/tap/browserdoor
 brew upgrade doorman && browserdoor
 ```
 
-`brew upgrade` moves the `doorman` install over by itself. Your default browser setting, your settings and `~/.config/doorman` (now `~/.config/browserdoor`) carry over, and the old command `doorman` keeps working.
+`brew upgrade` moves the `doorman` install over by itself. Your settings and `~/.config/doorman` (now `~/.config/browserdoor`) carry over, and the old command `doorman` keeps working.
+
+Version 0.5.0 also moved the app's bundle ID from `io.github.schowave.doorman` to `io.github.schowave.browserdoor`. The first start after updating from 0.4.x or earlier carries your settings, login item and menu bar position over. macOS ties the default browser to the bundle ID, so it asks you once to confirm Browserdoor again.
 
 On first launch Browserdoor asks whether it should become your default browser (macOS asks you to confirm), adds a login item and puts a link at `~/Applications/Browserdoor.app`. That link keeps working after `brew upgrade`. After an upgrade, quit Browserdoor from the menu bar and run `browserdoor` again.
 
@@ -168,8 +170,8 @@ brew upgrade browserdoor && browserdoor
 
 ```sh
 brew uninstall browserdoor
-rm -f ~/Applications/Browserdoor.app ~/Library/LaunchAgents/io.github.schowave.doorman.plist
-rm -rf ~/.config/browserdoor ~/Library/Caches/io.github.schowave.doorman
+rm -f ~/Applications/Browserdoor.app ~/Library/LaunchAgents/io.github.schowave.browserdoor.plist
+rm -rf ~/.config/browserdoor ~/Library/Caches/io.github.schowave.browserdoor
 ```
 
 Then pick another default browser in **System Settings → Desktop & Dock → Default web browser**.

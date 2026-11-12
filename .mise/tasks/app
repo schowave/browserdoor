@@ -14,5 +14,13 @@ cp Resources/Icon/AppIcon.icns Resources/Icon/MenuBarIcon.svg "$APP/Contents/Res
 cp -R Resources/Localization/*.lproj "$APP/Contents/Resources/"
 plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP/Contents/Info.plist"
 plutil -replace CFBundleVersion -string "$VERSION" "$APP/Contents/Info.plist"
+# Dev builds get their own bundle ID, so they never share the default browser, settings,
+# login item or menu bar slot with the installed app. Only `install` (Homebrew) passes DEV_BUILD=0.
+if [ "${DEV_BUILD:-1}" != 0 ]; then
+  id="$(plutil -extract CFBundleIdentifier raw "$APP/Contents/Info.plist")"
+  plutil -replace CFBundleIdentifier -string "$id.dev" "$APP/Contents/Info.plist"
+  plutil -replace CFBundleName -string "$APP_NAME Dev" "$APP/Contents/Info.plist"
+  plutil -replace CFBundleDisplayName -string "$APP_NAME Dev" "$APP/Contents/Info.plist"
+fi
 codesign --force --sign - "$APP"
 echo "built $APP ($VERSION)"

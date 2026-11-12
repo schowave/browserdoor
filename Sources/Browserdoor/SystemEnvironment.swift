@@ -46,6 +46,8 @@ struct SystemEnvironment: BrowserEnvironment {
 }
 
 enum AppIdentity {
-    static let bundleId = "io.github.schowave.doorman"
+    /// `io.github.schowave.browserdoor`, or `….dev` for builds from `mise run app`: the login item
+    /// label, cache folder and log subsystem follow it, so a dev build stays apart.
+    static let bundleId = Bundle.main.bundleIdentifier ?? "io.github.schowave.browserdoor"
     static let name = "Browserdoor"
 }

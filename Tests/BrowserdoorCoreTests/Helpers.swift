@@ -28,7 +28,7 @@ func mozLz4(json: String) -> Data {
 
 struct FakeEnvironment: BrowserEnvironment {
     var home = URL(fileURLWithPath: "/Users/test")
-    var ownBundleId = "io.github.schowave.doorman"
+    var ownBundleId = "io.github.schowave.browserdoor"
     var apps: [String: (url: URL, info: AppInfo)] = [:]
     var handlers: [String] = []
     var files: [String: Data] = [:]
@@ -66,7 +66,7 @@ struct FakeEnvironment: BrowserEnvironment {
 /// non-browsers, used by discovery and catalog tests.
 func sampleEnvironment(zenVersion: String = "1.24.1b") -> FakeEnvironment {
     var env = FakeEnvironment()
-    env.addApp("io.github.schowave.doorman", name: "Browserdoor")
+    env.addApp("io.github.schowave.browserdoor", name: "Browserdoor")
     env.addApp("com.apple.Safari", name: "Safari")
     env.addApp("app.zen-browser.zen", name: "Zen", version: zenVersion, executable: "zen")
     env.addApp("com.google.Chrome", name: "Google Chrome")
