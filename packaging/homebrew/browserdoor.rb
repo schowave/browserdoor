@@ -2,7 +2,7 @@
 # The release workflow (`mise run render-formula`) replaces the @…@ placeholders and
 # adds the `bottle do` block for the bottles it built (`mise run bottle`).
 class Browserdoor < Formula
-  desc "Pick the browser, Chrome profile or Zen workspace for every link you open"
+  desc "Pick the browser, Zen space, or Chrome or Firefox profile for every link"
   homepage "https://github.com/schowave/browserdoor"
   url "@URL@"
   sha256 "@SHA256@"

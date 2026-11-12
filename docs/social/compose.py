@@ -44,7 +44,7 @@ def main():
   <text x="80" y="346" font-family="Avenir Next, Helvetica Neue, sans-serif" font-size="88" font-weight="700" fill="#ffffff">Browserdoor</text>
   <text x="84" y="404" font-family="{FONT}" font-size="30" fill="#e9f1f2">A link picker for macOS.</text>
   <text x="84" y="456" font-family="{FONT}" font-size="25" fill="#b9d3da">Click a link, then choose the Zen space,</text>
-  <text x="84" y="490" font-family="{FONT}" font-size="25" fill="#b9d3da">Chrome profile or browser it opens in.</text>
+  <text x="84" y="490" font-family="{FONT}" font-size="25" fill="#b9d3da">Chrome or Firefox profile, or browser it opens in.</text>
   <rect x="80" y="530" width="452" height="50" rx="10" fill="#000000" fill-opacity="0.28"/>
   <text x="102" y="563" font-family="Menlo, monospace" font-size="21" fill="#e9f1f2">brew install schowave/tap/browserdoor</text>
 
