@@ -2,21 +2,10 @@ import AppKit
 import BrowserdoorCore
 import SwiftUI
 
+/// The picker on screen as it is after the last input; nil while it is closed.
 @MainActor @Observable
 final class PickerModel {
-    struct Row: Identifiable {
-        var entry: PickerEntry
-        var icon: EntryIcon
-        var id: String {
-            entry.id
-        }
-    }
-
-    var urls: [URL] = []
-    var rows: [Row] = []
-    var selection = 0
-    var warning: String?
-    var copied = false
+    var session: PickerSession?
 }
 
 /// Borderless floating panel that receives keys without activating other windows of the app.
@@ -38,33 +27,25 @@ final class PickerPanel: NSPanel {
 @MainActor
 final class PickerController: NSObject, NSWindowDelegate {
     private let model = PickerModel()
-    private let icons = IconProvider.shared
     private var panel: PickerPanel?
-    private var session: PickerSession?
 
     /// Resolves all icons once so slow work (extracting Zen's icons) starts before the first link.
     func prewarm() {
         for entry in TargetCatalog(environment: SystemEnvironment()).load().pickerEntries {
-            _ = icons.icon(for: entry.target)
+            _ = IconProvider.shared.icon(for: entry.target)
         }
     }
 
     /// Shows the picker for `urls`, or adds them to the picker that is already open.
     func show(urls: [URL]) {
         guard !urls.isEmpty else { return }
-        if var session, let panel, panel.isVisible {
-            session.add(urls)
-            self.session = session
-            render()
+        if let panel, panel.isVisible, model.session != nil {
+            model.session?.add(urls)
             resize(panel)
             return
         }
 
-        let catalog = TargetCatalog(environment: SystemEnvironment()).load()
-        session = PickerSession(links: urls, catalog: catalog)
-        model.warning = catalog.configIsUnreadable ? L("config.json is invalid; using defaults") : nil
-        model.rows = catalog.pickerEntries.map { PickerModel.Row(entry: $0, icon: icons.icon(for: $0.target)) }
-        render()
+        model.session = PickerSession(links: urls, catalog: TargetCatalog(environment: SystemEnvironment()).load())
 
         let panel = panel ?? makePanel()
         self.panel = panel
@@ -76,9 +57,8 @@ final class PickerController: NSObject, NSWindowDelegate {
     /// Feeds input to the session and performs the resulting effects. False: not the picker's.
     @discardableResult
     private func handle(_ input: PickerInput) -> Bool {
-        guard var session, let effects = session.handle(input) else { return false }
-        self.session = session
-        render()
+        guard var session = model.session, let effects = session.handle(input) else { return false }
+        model.session = session
         for effect in effects {
             switch effect {
             case .close:
@@ -91,13 +71,6 @@ final class PickerController: NSObject, NSWindowDelegate {
             }
         }
         return true
-    }
-
-    private func render() {
-        guard let session else { return }
-        model.urls = session.links
-        model.selection = session.selection
-        model.copied = session.copied
     }
 
     private func makePanel() -> PickerPanel {
@@ -132,23 +105,14 @@ final class PickerController: NSObject, NSWindowDelegate {
     private func resize(_ panel: NSPanel) {
         guard let content = panel.contentView else { return }
         content.layoutSubtreeIfNeeded()
-        let size = content.fittingSize
-        var frame = panel.frame
-        frame.origin.y += frame.height - size.height // keep the top edge in place
-        frame.size = size
-        panel.setFrame(frame, display: true)
+        let visible = (panel.screen ?? NSScreen.main)?.visibleFrame ?? .zero
+        panel.setFrame(PickerPlacement.resized(panel.frame, to: content.fittingSize, visible: visible), display: true)
     }
 
-    /// Top-left corner slightly below-right of the mouse, clamped to the screen.
     private func position(_ panel: NSPanel) {
         let mouse = NSEvent.mouseLocation
         let screen = NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) } ?? NSScreen.main
-        let visible = screen?.visibleFrame ?? .zero
-        let size = panel.frame.size
-        var origin = NSPoint(x: mouse.x - 24, y: mouse.y - size.height + 12)
-        origin.x = min(max(origin.x, visible.minX + 8), visible.maxX - size.width - 8)
-        origin.y = min(max(origin.y, visible.minY + 8), visible.maxY - size.height - 8)
-        panel.setFrameOrigin(origin)
+        panel.setFrameOrigin(PickerPlacement.origin(mouse: mouse, size: panel.frame.size, visible: screen?.visibleFrame ?? .zero))
     }
 
     private static func modifiers(_ flags: NSEvent.ModifierFlags) -> KeyModifiers {
@@ -173,7 +137,7 @@ final class PickerController: NSObject, NSWindowDelegate {
 
     private func close() {
         panel?.orderOut(nil)
-        session = nil
+        model.session = nil
         // Hand focus back to wherever the click came from.
         if NSApp.isActive {
             NSApp.hide(nil)
@@ -192,12 +156,18 @@ struct PickerView: View {
     var onInput: (PickerInput) -> Void
 
     var body: some View {
+        if let session = model.session {
+            content(session)
+        }
+    }
+
+    private func content(_ session: PickerSession) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            header
+            header(session)
             Divider()
             VStack(spacing: 2) {
-                ForEach(Array(model.rows.enumerated()), id: \.element.id) { index, row in
-                    RowView(row: row, selected: index == model.selection)
+                ForEach(Array(session.entries.enumerated()), id: \.element.id) { index, entry in
+                    RowView(entry: entry, selected: index == session.selection)
                         .contentShape(Rectangle())
                         .onTapGesture { onInput(.click(row: index)) }
                         .onHover { inside in
@@ -207,8 +177,8 @@ struct PickerView: View {
                         }
                 }
             }
-            if let warning = model.warning {
-                Text(warning).font(.caption).foregroundStyle(.orange)
+            if session.configIsUnreadable {
+                Text(L("config.json is invalid; using defaults")).font(.caption).foregroundStyle(.orange)
             }
         }
         .padding(10)
@@ -217,23 +187,23 @@ struct PickerView: View {
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(.separator))
     }
 
-    private var header: some View {
+    private func header(_ session: PickerSession) -> some View {
         HStack(spacing: 6) {
             Group {
-                if model.urls.count == 1, let url = model.urls.first {
+                if session.links.count == 1, let url = session.links.first {
                     Text(url.absoluteString)
                 } else {
-                    Text(L("%ld links", model.urls.count))
+                    Text(L("%ld links", session.links.count))
                 }
             }
             .font(.callout)
             .foregroundStyle(.secondary)
             .lineLimit(1)
             .truncationMode(.middle)
-            .help(model.urls.map(\.absoluteString).joined(separator: "\n"))
+            .help(session.links.map(\.absoluteString).joined(separator: "\n"))
             Spacer(minLength: 4)
             Button { onInput(.copyButton) } label: {
-                Image(systemName: model.copied ? "checkmark" : "doc.on.doc")
+                Image(systemName: session.copied ? "checkmark" : "doc.on.doc")
             }
             .buttonStyle(.borderless)
             .help(L("Copy URL (⌘C)"))
@@ -243,15 +213,15 @@ struct PickerView: View {
 }
 
 struct RowView: View {
-    var row: PickerModel.Row
+    var entry: PickerEntry
     var selected: Bool
 
     var body: some View {
         HStack(spacing: 10) {
-            IconView(icon: row.icon).frame(width: 24, height: 24)
-            Text(row.entry.label).lineLimit(1)
+            IconView(icon: IconProvider.shared.icon(for: entry.target)).frame(width: 24, height: 24)
+            Text(entry.label).lineLimit(1)
             Spacer()
-            if let key = row.entry.hotkey {
+            if let key = entry.hotkey {
                 Text(String(key).uppercased())
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.secondary)

@@ -17,7 +17,7 @@ Domain terms used in Browserdoor's code, docs and reviews. Module names in `code
 | **Default target** | The target `Enter` opens (star in the settings). |
 | **Hotkey** | The key that picks a target in the picker: custom, or an automatic number key. |
 | **Picker** | The floating panel that appears for a link. |
-| **Picker session** | `PickerSession`: one appearance of the picker, its links, entries and selection; turns input into effects (close, open, copy). |
+| **Picker session** | `PickerSession`: one appearance of the picker, its links, entries and selection; turns input into effects (close, open, copy). The picker view shows it as is. |
 | **Link opening** | `LinkOpener`: links + target → launch, including Zen's running/cold handling, behind the `LaunchPort` seam. |
 | **Installation** | `Installation`: where Browserdoor lives, the stable link and the login item. |
 | **Stable link** | `~/Applications/Browserdoor.app`, a symlink to Homebrew's `opt` path that survives `brew upgrade`. |
@@ -27,7 +27,8 @@ Domain terms used in Browserdoor's code, docs and reviews. Module names in `code
 | **Zen icon cache** | `ZenIconCache`: Zen's space icons extracted from `omni.ja`, once per Zen version. |
 | **Target icon** | `TargetIcons`: what a target shows (app icon, or a Zen glyph on the space color), before any image is loaded. |
 | **Target ID** | `TargetID`: the stable ID of a target, formatted and parsed in one place. |
-| **Browser family** | Browsers whose apps split into several targets (Zen spaces, Chromium profiles, Firefox profiles): `ZenBrowser`, `ChromiumFamily`, `FirefoxFamily`. |
+| **Browser family** | Browsers whose apps split into several targets (Zen spaces, Chromium profiles, Firefox profiles): `ZenBrowser`, `ChromiumFamily`, `FirefoxFamily`. Each owns its discovery and its target kind. |
+| **Target kind** | `TargetKind`: how one target opens, owned by its browser family (`ZenSpaceKind`, `ChromiumProfileKind`, `FirefoxProfileKind`, `AppKind`): the launch commands for a running or closed app, and whether to bring the app forward afterwards. |
 | **Startup** | `Startup`: everything a launch does before any UI, ending in what to show next (onboarding, reclaiming the default browser, nothing). |
 | **Legacy** | What earlier versions left behind (SMAppService login item, the Doorman name, the old bundle ID), moved over by `Startup`, one step per version. |
 | **Release build / dev build** | `BundleIdentity`: the Homebrew build runs as `io.github.schowave.browserdoor` and owns the user's data; dev builds run as `….dev` and stay apart. |

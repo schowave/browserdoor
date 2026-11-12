@@ -48,14 +48,11 @@ struct DiscoveryTests {
 
     @Test func zenSpaceTargetUsesExecutable() throws {
         let zen = try #require(Discovery(environment: environment()).discover().first)
-        guard case let .zenSpace(_, executable, space, profile, version) = zen.kind else {
-            Issue.record("expected zen space")
-            return
-        }
-        #expect(executable.path == "/Applications/Zen.app/Contents/MacOS/zen")
-        #expect(space.uuid == "{aaaa}")
-        #expect(profile == nil)
-        #expect(version == "1.24.1b")
+        let kind = try #require(zen.kind as? ZenSpaceKind)
+        #expect(kind.executable.path == "/Applications/Zen.app/Contents/MacOS/zen")
+        #expect(kind.space.uuid == "{aaaa}")
+        #expect(kind.profile == nil)
+        #expect(kind.version == "1.24.1b")
     }
 
     @Test func oldZenFallsBackToPlainApp() {
@@ -70,16 +67,13 @@ struct DiscoveryTests {
         #expect(Discovery(environment: env).discover().first?.id == "app:app.zen-browser.zen")
     }
 
-    @Test func profileOverrideWins() {
+    @Test func profileOverrideWins() throws {
         var env = environment()
         env.files["/custom/zen-sessions.jsonlz4"] = mozLz4(json: #"{"spaces":[{"uuid":"{x}","name":"X"}]}"#)
         let targets = Discovery(environment: env, zenProfileOverride: URL(fileURLWithPath: "/custom")).discover()
         #expect(targets.first?.id == "zen:{x}")
-        guard case let .zenSpace(_, _, _, profile, _) = targets.first?.kind else {
-            Issue.record("expected zen space")
-            return
-        }
-        #expect(profile?.path == "/custom")
+        let kind = try #require(targets.first?.kind as? ZenSpaceKind)
+        #expect(kind.profile?.path == "/custom")
     }
 
     @Test func duplicateSpaceIDsAreDropped() {
@@ -90,7 +84,7 @@ struct DiscoveryTests {
         let targets = Discovery(environment: env).discover()
         #expect(targets.filter { $0.id == "zen:{d}" }.map(\.name) == ["A"])
         #expect(Set(targets.map(\.id)).count == targets.count)
-        #expect(Config().entries(for: targets + targets).count > 0) // must not trap
+        #expect(!CatalogState(base: Config(), targets: targets + targets, configIsUnreadable: false).pickerEntries.isEmpty) // must not trap
     }
 
     @Test func dataVolumePathsAreNotSystem() {

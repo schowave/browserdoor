@@ -61,57 +61,15 @@ public struct Config: Codable, Equatable, Sendable {
     }
 }
 
-/// A target as shown in the picker, with config applied.
-public struct PickerEntry: Equatable, Sendable, Identifiable {
-    public var target: Target
-    public var label: String
-    public var hotkey: Character?
-    public var id: String {
-        target.id
-    }
-}
-
-public extension Config {
-    internal static let autoHotkeys: [Character] = Array("1234567890")
-
-    /// Orders, filters, labels and assigns hotkeys.
-    func entries(for discovered: [Target]) -> [PickerEntry] {
-        let hiddenSet = Set(hidden ?? [])
-        let sorted = ordered(discovered).filter { !hiddenSet.contains($0.id) }
-
-        var entries = sorted.map { target in
-            let override = targets?[target.id]
-            let label = Self.customLabel(override?.label, detected: target.name) ?? target.name
-            return PickerEntry(target: target, label: label, hotkey: Self.customHotkey(override?.hotkey))
-        }
-
-        // Explicit hotkeys win; a duplicate explicit hotkey stays only on the first entry.
-        var used = Set<Character>()
-        for i in entries.indices {
-            if let key = entries[i].hotkey {
-                if used.contains(key) {
-                    entries[i].hotkey = nil
-                } else {
-                    used.insert(key)
-                }
-            }
-        }
-        var free = Self.autoHotkeys.filter { !used.contains($0) }.makeIterator()
-        for i in entries.indices where entries[i].hotkey == nil {
-            guard let key = free.next() else { break }
-            entries[i].hotkey = key
-        }
-        return entries
-    }
-
+extension Config {
     /// A label that differs from the detected name, or nil.
-    internal static func customLabel(_ label: String?, detected: String) -> String? {
+    static func customLabel(_ label: String?, detected: String) -> String? {
         guard let label, !label.isEmpty, label != detected else { return nil }
         return label
     }
 
     /// A single-character hotkey, lowercased, or nil.
-    internal static func customHotkey(_ hotkey: String?) -> Character? {
+    static func customHotkey(_ hotkey: String?) -> Character? {
         guard let hotkey, hotkey.count == 1, let key = hotkey.lowercased().first else { return nil }
         return key
     }
@@ -127,14 +85,5 @@ public extension Config {
             case (nil, nil): a.offset < b.offset
             }
         }.map(\.element)
-    }
-
-    /// Index of the entry preselected for Enter.
-    func defaultIndex(in entries: [PickerEntry]) -> Int? {
-        guard !entries.isEmpty else { return nil }
-        if let id = defaultTarget, let index = entries.firstIndex(where: { $0.id == id }) {
-            return index
-        }
-        return 0
     }
 }

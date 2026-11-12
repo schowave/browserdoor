@@ -89,4 +89,13 @@ struct PickerSessionTests {
         #expect(s.handle(key(36, "\r")) == [])
         #expect(s.handle(key(125, nil)) == [])
     }
+
+    @Test func takesRowsDefaultAndWarningFromTheCatalog() {
+        let targets = entries.map(\.target)
+        let catalog = CatalogState(base: Config(defaultTarget: "p", hidden: ["c"]), targets: targets, configIsUnreadable: true)
+        let s = PickerSession(links: [a], catalog: catalog)
+        #expect(s.entries.map(\.id) == ["w", "p", "s"])
+        #expect(s.selection == 1)
+        #expect(s.configIsUnreadable)
+    }
 }

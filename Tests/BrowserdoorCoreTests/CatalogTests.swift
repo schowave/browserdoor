@@ -1,5 +1,6 @@
 @testable import BrowserdoorCore
 import Foundation
+import SwiftUI
 import Testing
 
 /// The target catalog against a temporary config file and the sample machine.
@@ -33,11 +34,11 @@ struct CatalogTests {
     @Test func editsRoundTripIntoThePicker() throws {
         var state = catalog().load()
         let safari = try #require(state.rows.firstIndex { $0.id == "app:com.apple.Safari" })
-        state.rows.insert(state.rows.remove(at: safari), at: 0)
-        state.rows[1].hidden = true // Work
-        state.rows[2].label = "Zuhause" // Home
-        state.rows[2].hotkey = "h"
-        state.defaultTarget = "zen:{bbbb}"
+        state.move(fromOffsets: [safari], toOffset: 0)
+        state.setHidden("zen:{aaaa}", true) // Work
+        state.rename("zen:{bbbb}", to: "Zuhause") // Home
+        state.setHotkey("zen:{bbbb}", typed: "h")
+        state.toggleDefault("zen:{bbbb}")
         try catalog().save(state)
 
         let reloaded = catalog().load()
@@ -61,7 +62,7 @@ struct CatalogTests {
     @Test func addingAnExtraAppRediscovers() throws {
         var state = catalog().load()
         #expect(!state.targets.contains { $0.id == "app:com.googlecode.iterm2" })
-        state.extraApps.append("com.googlecode.iterm2")
+        state.addExtraApps(["com.googlecode.iterm2"])
         let saved = try catalog().save(state)
         #expect(saved.targets.contains { $0.id == "app:com.googlecode.iterm2" })
         #expect(saved.pickerEntries.contains { $0.id == "app:com.googlecode.iterm2" })
@@ -71,7 +72,7 @@ struct CatalogTests {
         var env = sampleEnvironment()
         env.files["/Users/test/zen-alt/zen-sessions.jsonlz4"] = mozLz4(json: #"{"spaces":[{"uuid":"{alt}","name":"Alt"}]}"#)
         var state = catalog(env).load()
-        state.zenProfilePath = "~/zen-alt"
+        state.setZenProfile("~/zen-alt")
         let saved = try catalog(env).save(state)
         #expect(saved.pickerEntries.contains { $0.id == "zen:{alt}" })
         #expect(!saved.pickerEntries.contains { $0.id == "zen:{aaaa}" })
@@ -128,6 +129,49 @@ struct CatalogEditTests {
         #expect(state.defaultTarget == "zen:{bbbb}")
         state.toggleDefault("zen:{bbbb}")
         #expect(state.defaultTarget == nil)
+    }
+
+    @Test func movingRowsFollowsTheListsOffsets() {
+        var state = state()
+        let ids = state.rows.map(\.id)
+        state.move(fromOffsets: [0], toOffset: 3) // down: lands before the old third row
+        #expect(state.rows.map(\.id).prefix(3) == [ids[1], ids[2], ids[0]])
+        state.move(fromOffsets: [1, 2], toOffset: 0) // several, upwards, order kept
+        #expect(state.rows.map(\.id).prefix(3) == [ids[2], ids[0], ids[1]])
+        state.move(fromOffsets: [0], toOffset: 99)
+        #expect(state.rows.last?.id == ids[2])
+        #expect(Set(state.rows.map(\.id)) == Set(ids))
+    }
+
+    @Test func zenProfileIsSetAndReset() {
+        var state = state()
+        state.setZenProfile("/p/work")
+        #expect(state.zenProfilePath == "/p/work")
+        state.setZenProfile("")
+        #expect(state.zenProfilePath == nil)
+    }
+
+    @Test func aKeyMovesToTheTargetThatGetsItLast() {
+        var state = state()
+        state.setHotkey("zen:{aaaa}", typed: "x")
+        state.setHotkey("zen:{bbbb}", typed: "x")
+        #expect(state.rows.first { $0.id == "zen:{aaaa}" }?.hotkey == nil)
+        #expect(state.effectiveKeys["zen:{bbbb}"] == "x")
+        #expect(state.effectiveKeys["zen:{aaaa}"] == "1")
+    }
+
+    @Test func moveMatchesSwiftUIsListMove() {
+        let base = state()
+        let n = base.rows.count
+        for source in [[0], [1], [n - 1], [0, 2], [1, 2], [0, n - 1]] {
+            for destination in 0 ... n {
+                var state = base
+                state.move(fromOffsets: IndexSet(source), toOffset: destination)
+                var expected = base.rows.map(\.id)
+                expected.move(fromOffsets: IndexSet(source), toOffset: destination)
+                #expect(state.rows.map(\.id) == expected, "move \(source) to \(destination)")
+            }
+        }
     }
 
     @Test func extraAppsAreAddedOnceAndRemovable() {

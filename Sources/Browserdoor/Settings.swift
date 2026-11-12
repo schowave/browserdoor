@@ -80,8 +80,7 @@ final class SettingsModel {
     }
 
     func move(from source: IndexSet, to destination: Int) {
-        state.rows.move(fromOffsets: source, toOffset: destination)
-        save()
+        edit { $0.move(fromOffsets: source, toOffset: destination) }
     }
 
     func addExtraApp() {
@@ -107,13 +106,11 @@ final class SettingsModel {
         panel.directoryURL = ZenProfile.defaultRoot(home: environment.home).appendingPathComponent("Profiles")
         NSApp.activate()
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        state.zenProfilePath = url.path
-        save()
+        edit { $0.setZenProfile(url.path) }
     }
 
     func resetZenProfile() {
-        state.zenProfilePath = nil
-        save()
+        edit { $0.setZenProfile(nil) }
     }
 
     func revealConfig() {
@@ -243,8 +240,9 @@ private struct TargetsTab: View {
                 .fixedSize(horizontal: false, vertical: true)
             VStack(spacing: 0) {
                 List(selection: $model.selection) {
-                    ForEach($model.state.rows) { $row in
-                        TargetRow(row: $row, model: model).tag(row.id as String?)
+                    let keys = model.state.effectiveKeys
+                    ForEach(model.state.rows) { row in
+                        TargetRow(row: row, key: keys[row.id], model: model).tag(row.id as String?)
                     }
                     .onMove { model.move(from: $0, to: $1) }
                 }
@@ -275,7 +273,9 @@ private struct TargetsTab: View {
 }
 
 private struct TargetRow: View {
-    @Binding var row: TargetSetting
+    let row: TargetSetting
+    /// The key the picker shows for this row; nil when hidden or out of keys.
+    let key: Character?
     let model: SettingsModel
 
     private var isDefault: Bool {
@@ -301,7 +301,7 @@ private struct TargetRow: View {
             .opacity(row.hidden ? 0.5 : 1)
             .help(row.label == nil ? L("Click to rename") : L("Renamed from “%@”", row.target.name))
             Spacer(minLength: 8)
-            TextField(row.hidden ? "–" : (model.state.effectiveKeys[row.id].map { String($0).uppercased() } ?? "–"), text: Binding(
+            TextField(key.map { $0.uppercased() } ?? "–", text: Binding(
                 get: { row.hotkey?.uppercased() ?? "" },
                 set: { typed in model.edit { $0.setHotkey(row.id, typed: typed) } }
             ))

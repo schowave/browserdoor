@@ -13,25 +13,47 @@ enum EntryIcon {
     }
 }
 
-/// Loads the images for the icons `TargetIcons` decides on, and keeps them.
-@MainActor
+/// Loads the images for the icons `TargetIcons` decides on, and keeps them. Observable: a view
+/// that asked for an icon is drawn again when Zen's icons become available, so an open picker
+/// swaps the initials for the glyphs.
+@MainActor @Observable
 final class IconProvider {
     static let shared = IconProvider()
 
-    private var images: [URL: NSImage] = [:]
-    private let icons: TargetIcons = {
+    /// Bumped when an extraction ends; `icon(for:)` reads it so views depend on it.
+    private var revision = 0 {
+        didSet { resolved = [:] }
+    }
+
+    @ObservationIgnored private var images: [URL: NSImage] = [:]
+    /// Icons already worked out, by target ID, so redrawing a row (hover, arrow keys) doesn't
+    /// ask the file system again. Cleared when Zen's icons arrive.
+    @ObservationIgnored private var resolved: [String: (target: Target, icon: EntryIcon)] = [:]
+    @ObservationIgnored private let icons: TargetIcons
+
+    private init() {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first ?? FileManager.default.temporaryDirectory
-        let icons = TargetIcons(cache: ZenIconCache(root: caches.appendingPathComponent("\(AppIdentity.bundleId)/zen-icons", isDirectory: true)))
-        icons.onPrepared = { version, state in
+        icons = TargetIcons(cache: ZenIconCache(root: caches.appendingPathComponent("\(AppIdentity.bundleId)/zen-icons", isDirectory: true)))
+        icons.onPrepared = { [weak self] version, state in
             if state == .failed {
                 log.error("could not extract Zen icons for Zen \(version, privacy: .public)")
             }
+            self?.revision += 1
         }
-        return icons
-    }()
+    }
 
     func icon(for target: Target) -> EntryIcon {
-        switch icons.icon(for: target) {
+        _ = revision
+        if let hit = resolved[target.id], hit.target == target {
+            return hit.icon
+        }
+        let icon = load(icons.icon(for: target))
+        resolved[target.id] = (target, icon)
+        return icon
+    }
+
+    private func load(_ icon: TargetIcon) -> EntryIcon {
+        switch icon {
         case let .app(app):
             return .image(image(app) { NSWorkspace.shared.icon(forFile: $0.path) })
         case let .zenSpace(glyph, rgb):

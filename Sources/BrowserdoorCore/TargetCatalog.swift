@@ -50,17 +50,17 @@ public struct TargetCatalog {
     }
 }
 
-/// A loaded catalog plus pending edits. Edit the `var`s, read the derived values, hand it to
-/// `TargetCatalog.save`.
+/// A loaded catalog plus pending edits. Change it through the edits below, read the derived
+/// values, hand it to `TargetCatalog.save`.
 public struct CatalogState {
     /// Every discovered target, hidden ones included.
     public private(set) var targets: [Target]
     /// Editable rows in picker order, hidden ones included.
-    public var rows: [TargetSetting]
-    public var defaultTarget: String?
+    public internal(set) var rows: [TargetSetting]
+    public internal(set) var defaultTarget: String?
     /// Bundle IDs of apps the user added.
-    public var extraApps: [String]
-    public var zenProfilePath: String?
+    public internal(set) var extraApps: [String]
+    public internal(set) var zenProfilePath: String?
     /// The config file exists but couldn't be parsed; defaults are in use and saving replaces it.
     public let configIsUnreadable: Bool
 
@@ -86,19 +86,42 @@ public struct CatalogState {
         return config
     }
 
-    /// What the picker shows: visible targets, labelled, with hotkeys.
+    static let autoHotkeys: [Character] = Array("1234567890")
+
+    /// What the picker shows: the visible rows, labelled, with hotkeys. A custom key stays only on
+    /// the first row that has it; rows without one get the free number keys in order.
     public var pickerEntries: [PickerEntry] {
-        config.entries(for: targets)
+        var used = Set<Character>()
+        var entries = rows.filter { !$0.hidden }.map { row in
+            PickerEntry(target: row.target, label: row.displayName,
+                        hotkey: row.hotkey.flatMap { used.insert($0).inserted ? $0 : nil })
+        }
+        var free = Self.autoHotkeys.filter { !used.contains($0) }.makeIterator()
+        for i in entries.indices where entries[i].hotkey == nil {
+            guard let key = free.next() else { break }
+            entries[i].hotkey = key
+        }
+        return entries
     }
 
-    /// The entry `Enter` opens.
+    /// The entry `Enter` opens: the default target if it is visible, else the first.
     public var defaultIndex: Int? {
-        config.defaultIndex(in: pickerEntries)
+        defaultIndex(in: pickerEntries)
+    }
+
+    /// `defaultIndex` for entries already taken from `pickerEntries`.
+    func defaultIndex(in entries: [PickerEntry]) -> Int? {
+        guard !entries.isEmpty else { return nil }
+        return defaultTarget.flatMap { id in entries.firstIndex { $0.id == id } } ?? 0
     }
 
     /// The key each visible target gets in the picker (custom or automatic), by target ID.
     public var effectiveKeys: [String: Character] {
-        Dictionary(pickerEntries.compactMap { entry in entry.hotkey.map { (entry.id, $0) } },
+        Self.keys(of: pickerEntries)
+    }
+
+    static func keys(of entries: [PickerEntry]) -> [String: Character] {
+        Dictionary(entries.compactMap { entry in entry.hotkey.map { (entry.id, $0) } },
                    uniquingKeysWith: { first, _ in first })
     }
 }
@@ -111,9 +134,16 @@ public extension CatalogState {
         edit(id) { row in row.label = (name.isEmpty || name == row.target.name) ? nil : name }
     }
 
-    /// Sets a target's key from what was typed (the last character); empty removes it.
+    /// Sets a target's key from what was typed (the last character); empty removes it. A key
+    /// belongs to one target: another target that had it loses it.
     mutating func setHotkey(_ id: String, typed input: String) {
-        edit(id) { row in row.hotkey = TargetSetting.normalizeHotkey(input) }
+        let key = TargetSetting.normalizeHotkey(input)
+        if let key {
+            for i in rows.indices where rows[i].id != id && rows[i].hotkey == key {
+                rows[i].hotkey = nil
+            }
+        }
+        edit(id) { row in row.hotkey = key }
     }
 
     mutating func setHidden(_ id: String, _ hidden: Bool) {
@@ -142,6 +172,24 @@ public extension CatalogState {
         return bundleId
     }
 
+    /// Moves rows as a list's drag and drop reports it: `destination` is an offset in the list
+    /// before the move. Same rules as SwiftUI's `MutableCollection.move(fromOffsets:toOffset:)`,
+    /// which `List.onMove` assumes (a test compares the two).
+    mutating func move(fromOffsets source: IndexSet, toOffset destination: Int) {
+        let offsets = source.sorted().filter(rows.indices.contains)
+        let moving = offsets.map { rows[$0] }
+        for offset in offsets.reversed() {
+            rows.remove(at: offset)
+        }
+        let target = max(0, destination) - offsets.filter { $0 < destination }.count
+        rows.insert(contentsOf: moving, at: min(target, rows.count))
+    }
+
+    /// Uses another Zen profile's spaces; nil or empty goes back to Zen's default profile.
+    mutating func setZenProfile(_ path: String?) {
+        zenProfilePath = path.flatMap { $0.isEmpty ? nil : $0 }
+    }
+
     private mutating func edit(_ id: String, _ change: (inout TargetSetting) -> Void) {
         guard let index = rows.firstIndex(where: { $0.id == id }) else { return }
         change(&rows[index])
@@ -153,5 +201,15 @@ public extension TargetCatalog {
     func extraAppInfo(_ bundleId: String) -> (url: URL?, name: String) {
         let url = environment.applicationURL(bundleId: bundleId)
         return (url, url.flatMap { environment.appInfo(at: $0)?.name } ?? bundleId)
+    }
+}
+
+/// A target as shown in the picker, with config applied.
+public struct PickerEntry: Equatable, Sendable, Identifiable {
+    public var target: Target
+    public var label: String
+    public var hotkey: Character?
+    public var id: String {
+        target.id
     }
 }

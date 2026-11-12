@@ -146,7 +146,7 @@ Die Datei liegt unter `~/.config/browserdoor/config.json`. Sie ist optional; feh
 
 **Einstellungsfenster** (SwiftUI in einem `NSWindow`; öffnet sich auch, wenn Browserdoor bei laufender App erneut gestartet wird, z. B. per `browserdoor`):
 - *Allgemein:* Standardbrowser-Status und -Button, „Beim Anmelden starten“ (LaunchAgent; der Haken zeigt nur, ob er existiert, nicht ob er in den Systemeinstellungen blockiert ist), Updates.
-- *Ziele:* alle erkannten Ziele mit Icon, per Ziehen sortierbar, ein-/ausblendbar, umbenennbar, eigene Taste (die tatsächlich vergebene Taste steht grau als Platzhalter), Stern für das Standardziel. **+** fügt Apps über einen Auswahldialog hinzu (`extraApps`; sie erscheinen auch ohne https-Registrierung), **−** entfernt eine solche App.
+- *Ziele:* alle erkannten Ziele mit Icon, per Ziehen sortierbar, ein-/ausblendbar, umbenennbar, eigene Taste (die tatsächlich vergebene Taste steht grau als Platzhalter; vergibt man eine Taste, die schon ein anderes Ziel hat, verliert das andere Ziel sie), Stern für das Standardziel. **+** fügt Apps über einen Auswahldialog hinzu (`extraApps`; sie erscheinen auch ohne https-Registrierung), **−** entfernt eine solche App.
 - *Erweitert:* weitere Apps, Zen-Profil, Konfigurationsdatei im Finder zeigen.
 - Ein unsichtbares Hauptmenü liefert ⌘C/⌘V/⌘A, ⌘W und ⌘, für das Fenster.
 
@@ -181,18 +181,18 @@ Begriffe: siehe [GLOSSARY.md](GLOSSARY.md). Die Logik steckt in wenigen tiefen M
 
 | Modul (BrowserdoorCore) | Besitzt | Seam / Adapter |
 |---|---|---|
-| `TargetCatalog` | Config-Datei (inkl. unlesbar), Zen-Profilpfad, Discovery, Picker-Einträge, Bearbeitungen (umbenennen, Taste, ausblenden, Standard, Extra-Apps), effektive Tasten, Speichern | `BrowserEnvironment`: `SystemEnvironment` · `FakeEnvironment` |
+| `TargetCatalog` | Config-Datei (inkl. unlesbar), Zen-Profilpfad, Discovery, Picker-Einträge (aus den Zeilen abgeleitet: Reihenfolge, Ausblenden, Namen, Tasten), Bearbeitungen (sortieren, umbenennen, Taste, ausblenden, Standard, Extra-Apps, Zen-Profil; nur über diese ändert sich der Zustand), effektive Tasten, Speichern. `Config` ist nur das Dateiformat mit Laden, Zusammenführen beim Speichern und Reihenfolge | `BrowserEnvironment`: `SystemEnvironment` · `FakeEnvironment` |
 | `Discovery` | Ziele finden (Allowlist, Pfadfilter, Zen-Versionsprüfung, Chromium- und Firefox-Profile, Extra-Apps) | `BrowserEnvironment` |
-| `PickerSession` | Links, Einträge, Auswahl; Eingabe → Effekte (close/open/copy) | in-process |
-| `LinkOpener` | Eingehende Items → erlaubte Links; Link + Ziel → Start inkl. Zen läuft/kalt und Aktivierung | `LaunchPort`: `SystemLaunchPort` · `RecordingPort` |
+| `PickerSession` | Links, Einträge, Auswahl, Hinweis auf unlesbare Config; Eingabe → Effekte (close/open/copy). `PickerPlacement`: Position an der Maus, im sichtbaren Bildschirm gehalten | in-process |
+| `LinkOpener` | Eingehende Items → erlaubte Links; Link + Ziel → die Befehle der Familie ausführen, danach aktivieren, wenn die Familie das verlangt | `LaunchPort`: `SystemLaunchPort` · `RecordingPort` |
 | `Startup` | Ablauf jedes Starts: Altlasten (`Legacy`, nach Version geordnet), Registrierung, Installation, Aufräumen nach Updates, Onboarding oder Standardbrowser zurückholen; Release- gegen Dev-Build (`BundleIdentity`) | `StartupPort`: `SystemStartupPort` · Fake; `LegacyLoginItem`: `SMAppServiceLoginItem` · Fake |
 | `Installation` | Homebrew-Fakten, stabiler Link, LaunchAgent, Upgrade-Skript | echtes Dateisystem (Temp-Home in Tests) |
-| Browser-Familien | `ZenBrowser`, `ChromiumFamily`, `FirefoxFamily`: je Familie Datenort, Ziele, Namen, Startbefehle; `TargetID` formatiert und parst die IDs | über `Discovery` |
+| Browser-Familien | `ZenBrowser`, `ChromiumFamily`, `FirefoxFamily`: je Familie Datenort, Ziele und Namen; dazu je eine Zielart (`ZenSpaceKind`, `ChromiumProfileKind`, `FirefoxProfileKind`, für einfache Browser `AppKind`) mit Startbefehlen (läuft/kalt) und Aktivierung. Eine neue Familie ist eine Datei plus Eintrag in `Discovery.families`; `TargetID` formatiert und parst die IDs | `BrowserFamily` (Discovery), `TargetKind` (Start) |
 | `UpdatePolicy` | Wann prüfen, was melden, Später, Fehler, angezeigter Status | `ReleaseSource`: `GitHubReleaseSource` · Stub; `UpdatePreferences`: `UserDefaultsUpdatePreferences` · In-Memory |
-| `TargetIcons` | Icon je Ziel (Emoji → SVG → Anfangsbuchstabe), startet die Extraktion einmal je Zen-Version | `ZenIconCache`, Extraktor: `unzip` · Fake |
+| `TargetIcons` | Icon je Ziel: App-Icon, nur Zen-Spaces anders (Emoji → SVG → Anfangsbuchstabe); startet die Extraktion einmal je Zen-Version | `ZenIconCache`, Extraktor: `unzip` · Fake |
 | Parser | `MozLz4`, `ZenSpaces`, `ZenProfile`, `ChromiumProfiles`, `FirefoxProfiles`, `WeblocParser` | in-process |
 
-App: `AppDelegate` (Menüleiste, Onboarding-Dialog), `PickerController` (rendert die Session, führt Effekte aus), `Settings` (Fenster, bindet die Bearbeitungen von `CatalogState`), `UpdateChecker` (Dialoge, öffnet das Upgrade-Skript), `IconProvider` (lädt NSImages), Adapter (`SystemEnvironment`, `SystemLaunchPort`, `SystemStartupPort`, `SMAppServiceLoginItem`).
+App: `AppDelegate` (Menüleiste, Onboarding-Dialog), `PickerController` (zeigt die Session direkt an, führt Effekte aus), `Settings` (Fenster, bindet die Bearbeitungen von `CatalogState`), `UpdateChecker` (Dialoge, öffnet das Upgrade-Skript), `IconProvider` (lädt NSImages; beobachtbar, damit offene Fenster die Zen-Icons nachladen, sobald sie extrahiert sind), Adapter (`SystemEnvironment`, `SystemLaunchPort`, `SystemStartupPort`, `SMAppServiceLoginItem`).
 
 ## 9. Build, Distribution, CI
 

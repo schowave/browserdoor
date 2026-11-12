@@ -5,8 +5,8 @@ public struct TargetSetting: Equatable, Sendable, Identifiable {
     public var target: Target
     /// Custom name; nil shows the detected name.
     public var label: String?
-    /// Custom single-key shortcut; nil gets an automatic number key.
-    public var hotkey: String?
+    /// Custom single-key shortcut, lowercase; nil gets an automatic number key.
+    public var hotkey: Character?
     public var hidden: Bool
 
     public var id: String {
@@ -17,7 +17,7 @@ public struct TargetSetting: Equatable, Sendable, Identifiable {
         label ?? target.name
     }
 
-    public init(target: Target, label: String? = nil, hotkey: String? = nil, hidden: Bool = false) {
+    public init(target: Target, label: String? = nil, hotkey: Character? = nil, hidden: Bool = false) {
         self.target = target
         self.label = label
         self.hotkey = hotkey
@@ -25,9 +25,9 @@ public struct TargetSetting: Equatable, Sendable, Identifiable {
     }
 
     /// Normalizes user input for the hotkey field: the last typed character, lowercased; empty → nil.
-    public static func normalizeHotkey(_ input: String) -> String? {
+    public static func normalizeHotkey(_ input: String) -> Character? {
         guard let last = input.trimmingCharacters(in: .whitespaces).last else { return nil }
-        return String(last).lowercased()
+        return String(last).lowercased().first
     }
 }
 
@@ -40,7 +40,7 @@ extension Config {
             return TargetSetting(
                 target: target,
                 label: Config.customLabel(override?.label, detected: target.name),
-                hotkey: Config.customHotkey(override?.hotkey).map(String.init),
+                hotkey: Config.customHotkey(override?.hotkey),
                 hidden: hiddenSet.contains(target.id)
             )
         }
@@ -57,7 +57,7 @@ extension Config {
 
         var overrides = (targets ?? [:]).filter { !ids.contains($0.key) }
         for row in rows where row.label != nil || row.hotkey != nil {
-            overrides[row.id] = TargetOverride(label: row.label, hotkey: row.hotkey)
+            overrides[row.id] = TargetOverride(label: row.label, hotkey: row.hotkey.map(String.init))
         }
         targets = overrides
     }

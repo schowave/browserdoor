@@ -26,15 +26,20 @@ public struct PickerSession: Equatable, Sendable {
     public private(set) var selection: Int
     /// The links were copied during this session (the copy button shows a checkmark).
     public private(set) var copied = false
+    /// The config couldn't be read and defaults are in use; the picker says so.
+    public let configIsUnreadable: Bool
 
-    public init(links: [URL], entries: [PickerEntry], defaultIndex: Int?) {
+    public init(links: [URL], entries: [PickerEntry], defaultIndex: Int?, configIsUnreadable: Bool = false) {
         self.links = links
         self.entries = entries
+        self.configIsUnreadable = configIsUnreadable
         selection = defaultIndex.flatMap { entries.indices.contains($0) ? $0 : nil } ?? 0
     }
 
     public init(links: [URL], catalog: CatalogState) {
-        self.init(links: links, entries: catalog.pickerEntries, defaultIndex: catalog.defaultIndex)
+        let entries = catalog.pickerEntries
+        self.init(links: links, entries: entries, defaultIndex: catalog.defaultIndex(in: entries),
+                  configIsUnreadable: catalog.configIsUnreadable)
     }
 
     /// More links arrived while the picker is open; one choice opens them all.

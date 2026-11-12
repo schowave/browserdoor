@@ -96,7 +96,7 @@ Everything ends up in `~/.config/browserdoor/config.json`, so you can also edit 
 | `hidden` | Targets left out of the picker. |
 | `extraApps` | Bundle IDs of apps that aren't known browsers but should appear anyway. |
 | `targets.<id>.label` | Display name for the target. |
-| `targets.<id>.hotkey` | A single key that opens this target. Targets without one get number keys. |
+| `targets.<id>.hotkey` | A single key that opens this target. Targets without one get number keys. If two targets have the same key, the first one in the list keeps it. |
 | `zen.profilePath` | Zen profile to use when it isn't the default profile from `profiles.ini`. |
 
 Target IDs come in four forms:

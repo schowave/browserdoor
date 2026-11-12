@@ -39,8 +39,8 @@ public struct LinkOpener {
         }
     }
 
-    /// Opens `links` in `target`. A running Zen gets the command via its remote service and is
-    /// then brought forward; a closed Zen starts through LaunchServices.
+    /// Opens `links` in `target` with the commands its browser family gives, and brings the app
+    /// forward afterwards if the family asks for it.
     public func open(_ links: [URL], in target: Target) {
         let running = port.isRunning(app: target.appURL)
         let commands = target.launchCommands(for: links, appIsRunning: running)
@@ -50,7 +50,6 @@ public struct LinkOpener {
             case let .open(urls, app): port.open(urls, with: app)
             }
         }
-        // The remote command may leave Zen in the background.
         if running, !commands.isEmpty, target.activatesAfterRemoteCommand {
             port.activate(target.appURL)
         }

@@ -151,13 +151,24 @@ struct FirefoxFamily: BrowserFamily {
             )
         }
     }
+}
 
-    /// A second instance hands the URLs to a running one for the same profile and quits;
-    /// otherwise Firefox starts with that profile.
-    static func launchCommands(app: URL, profile: URL, urls: [URL]) -> [LaunchCommand] {
+/// A Firefox profile, opened with `--profile <dir>`. A second instance hands the URLs to a
+/// running one for the same profile and quits; otherwise Firefox starts with that profile.
+struct FirefoxProfileKind: TargetKind {
+    var app: URL
+    var profile: URL
+
+    func launchCommands(for urls: [URL], appIsRunning _: Bool) -> [LaunchCommand] {
         [.run(
             executable: URL(fileURLWithPath: "/usr/bin/open"),
             arguments: ["-na", app.path, "--args", "--profile", profile.path] + urls.map(\.absoluteString)
         )]
+    }
+}
+
+extension TargetKind where Self == FirefoxProfileKind {
+    static func firefox(app: URL, profile: URL) -> FirefoxProfileKind {
+        FirefoxProfileKind(app: app, profile: profile)
     }
 }

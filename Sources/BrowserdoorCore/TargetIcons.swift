@@ -30,19 +30,19 @@ public final class TargetIcons {
         self.cache = cache
     }
 
+    /// Every target shows its app's icon, except a Zen space.
     public func icon(for target: Target) -> TargetIcon {
-        switch target.kind {
-        case let .app(app), let .chromium(app, _), let .firefox(app, _):
-            return .app(app)
-        case let .zenSpace(app, _, space, _, version):
-            if let emoji = space.emojiIcon {
-                return .zenSpace(glyph: .text(emoji), color: space.color)
-            }
-            if let name = space.bundledIconName, let file = svg(name, zenApp: app, version: version.isEmpty ? "unknown" : version) {
-                return .zenSpace(glyph: .svg(file), color: space.color)
-            }
-            return .zenSpace(glyph: .text(String(space.name.prefix(1)).uppercased()), color: space.color)
+        guard let zen = target.kind as? ZenSpaceKind else { return .app(target.appURL) }
+        let space = zen.space
+        if let emoji = space.emojiIcon {
+            return .zenSpace(glyph: .text(emoji), color: space.color)
         }
+        if let name = space.bundledIconName,
+           let file = svg(name, zenApp: zen.app, version: zen.version.isEmpty ? "unknown" : zen.version)
+        {
+            return .zenSpace(glyph: .svg(file), color: space.color)
+        }
+        return .zenSpace(glyph: .text(String(space.name.prefix(1)).uppercased()), color: space.color)
     }
 
     private func svg(_ name: String, zenApp: URL, version: String) -> URL? {

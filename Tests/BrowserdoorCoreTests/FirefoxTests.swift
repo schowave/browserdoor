@@ -120,12 +120,9 @@ struct FirefoxDiscoveryTests {
         #expect(try #require(ids.firstIndex(of: "chromium:com.google.Chrome.beta:Default")) < #require(ids.firstIndex(of: firefox[0].id)))
         #expect(try #require(ids.firstIndex(of: firefox[1].id)) < #require(ids.firstIndex(of: "app:com.apple.Safari")))
 
-        guard case let .firefox(app, profile) = firefox[1].kind else {
-            Issue.record("expected a Firefox profile")
-            return
-        }
-        #expect(app.path == "/Applications/Firefox.app")
-        #expect(profile.path == "\(root)/Profiles/c3.Client")
+        let kind = try #require(firefox[1].kind as? FirefoxProfileKind)
+        #expect(kind.app.path == "/Applications/Firefox.app")
+        #expect(kind.profile.path == "\(root)/Profiles/c3.Client")
     }
 
     @Test func profileGroupComesFromItsDatabase() throws {

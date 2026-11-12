@@ -92,11 +92,23 @@ struct ChromiumFamily: BrowserFamily {
             )
         }
     }
+}
 
-    static func launchCommands(app: URL, profileDirectory: String, urls: [URL]) -> [LaunchCommand] {
+/// A Chromium profile, opened with `--profile-directory`.
+struct ChromiumProfileKind: TargetKind {
+    var app: URL
+    var profileDirectory: String
+
+    func launchCommands(for urls: [URL], appIsRunning _: Bool) -> [LaunchCommand] {
         [.run(
             executable: URL(fileURLWithPath: "/usr/bin/open"),
             arguments: ["-na", app.path, "--args", "--profile-directory=\(profileDirectory)"] + urls.map(\.absoluteString)
         )]
+    }
+}
+
+extension TargetKind where Self == ChromiumProfileKind {
+    static func chromium(app: URL, profileDirectory: String) -> ChromiumProfileKind {
+        ChromiumProfileKind(app: app, profileDirectory: profileDirectory)
     }
 }

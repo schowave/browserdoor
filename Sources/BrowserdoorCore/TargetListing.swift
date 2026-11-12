@@ -6,8 +6,9 @@ public extension CatalogState {
     /// with. Nothing is launched.
     /// - Parameter isRunning: whether an app runs right now; decides Zen's command.
     func listing(isRunning: (URL) -> Bool) -> String {
-        let keys = effectiveKeys
-        let defaultID = defaultIndex.map { pickerEntries[$0].id }
+        let entries = pickerEntries
+        let keys = Self.keys(of: entries)
+        let defaultID = defaultIndex(in: entries).map { entries[$0].id }
         let sample = URL(string: "https://example.com")!
 
         var lines = configIsUnreadable ? ["# config file unreadable, defaults in use"] : []
