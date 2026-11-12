@@ -220,16 +220,23 @@ private struct PickerHeader: View {
         HStack(spacing: 6) {
             Group {
                 if displays.count == 1, let link = displays.first {
-                    (Text(link.primary).fontWeight(.semibold).foregroundStyle(.primary)
-                        + Text(link.secondary).foregroundStyle(.secondary))
-                        .accessibilityLabel(link.line)
+                    // The host gets the room first and, if it doesn't fit, loses its middle, so
+                    // the end that says where the link goes (…attacker.ru) stays visible.
+                    HStack(spacing: 0) {
+                        Text(link.primary).fontWeight(.semibold).foregroundStyle(.primary)
+                            .truncationMode(.middle)
+                            .layoutPriority(1)
+                        Text(link.secondary).foregroundStyle(.secondary)
+                            .truncationMode(.tail)
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(link.line)
                 } else {
                     Text(L("%ld links", displays.count)).foregroundStyle(.secondary)
                 }
             }
             .font(.callout)
             .lineLimit(1)
-            .truncationMode(.tail)
             .help(displays.map(\.line).joined(separator: "\n"))
             Spacer(minLength: 4)
             Button { onInput(.copyButton) } label: {

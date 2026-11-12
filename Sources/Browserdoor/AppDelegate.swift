@@ -22,7 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onboard()
         case .reclaimDefaultBrowser:
             NSApp.activate()
-            DefaultBrowser.makeBrowserdoor { StatusMenu.shared.refreshIcon() }
+            DefaultBrowser.makeBrowserdoor()
         case .nothing:
             break
         }
@@ -54,7 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             alert.addButton(withTitle: L("Make Default"))
             alert.addButton(withTitle: L("Later"))
             if alert.runModal() == .alertFirstButtonReturn {
-                DefaultBrowser.makeBrowserdoor { StatusMenu.shared.refreshIcon() }
+                DefaultBrowser.makeBrowserdoor()
             }
         }
         if !CurrentInstallation.shared.launchesAtLogin {

@@ -39,13 +39,12 @@ public struct LinkOpener {
         }
     }
 
-    /// URLs in a text, e.g. the clipboard: each word that parses as a URL with a scheme.
-    /// Pass the result through `links(from:)`.
+    /// Links in a text, e.g. the clipboard, as the system's link detector finds them: without
+    /// surrounding punctuation, and `example.com/x` as `http://example.com/x` (what macOS also
+    /// counts as a web URL on the clipboard). Pass the result through `links(from:)`.
     public static func urls(inText text: String) -> [URL] {
-        text.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).compactMap { word in
-            guard let url = URL(string: String(word)), url.scheme != nil else { return nil }
-            return url
-        }
+        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else { return [] }
+        return detector.matches(in: text, range: NSRange(text.startIndex..., in: text)).compactMap(\.url)
     }
 
     /// Opens `links` in `target` with the commands its browser family gives, and brings the app

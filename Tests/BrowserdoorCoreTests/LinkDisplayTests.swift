@@ -27,6 +27,11 @@ struct LinkDisplayTests {
         #expect(display("https://bank.com@evil.io/login").primary == "evil.io")
     }
 
+    @Test func keepsEscapesThatWouldFakeAPathInTheHost() {
+        #expect(display("https://apple.com%2Fsignin.evil.io/").primary == "apple.com%2Fsignin.evil.io")
+        #expect(display("https://apple.com%40evil.io/").primary == "apple.com%40evil.io")
+    }
+
     @Test func namesFilesByNameAndFolder() {
         let inHome = LinkDisplay(URL(fileURLWithPath: "/Users/test/Downloads/a b.html"), home: home)
         #expect(inHome == LinkDisplay(primary: "a b.html", secondary: "~/Downloads"))

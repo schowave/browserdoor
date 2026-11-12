@@ -66,6 +66,14 @@ struct CatalogTests {
         let saved = try catalog().save(state)
         #expect(saved.targets.contains { $0.id == "app:com.googlecode.iterm2" })
         #expect(saved.pickerEntries.contains { $0.id == "app:com.googlecode.iterm2" })
+        #expect(saved.unlistedExtraApps.isEmpty)
+    }
+
+    @Test func extraAppsWithoutATargetAreListedForRemoval() throws {
+        var state = catalog().load()
+        state.addExtraApps(["com.example.gone", "com.googlecode.iterm2"])
+        let saved = try catalog().save(state)
+        #expect(saved.unlistedExtraApps == ["com.example.gone"])
     }
 
     @Test func zenProfileOverrideExpandsTildeAgainstHome() throws {

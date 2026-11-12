@@ -28,6 +28,9 @@ final class SettingsModel {
 
     init() {
         state = TargetCatalog(environment: SystemEnvironment()).load()
+        NotificationCenter.default.addObserver(forName: DefaultBrowser.mayHaveChanged, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.isDefaultBrowser = DefaultBrowser.isBrowserdoor }
+        }
     }
 
     func reload() {
@@ -136,10 +139,7 @@ final class SettingsModel {
     }
 
     func makeDefaultBrowser() {
-        DefaultBrowser.makeBrowserdoor { [weak self] in
-            self?.isDefaultBrowser = DefaultBrowser.isBrowserdoor
-            StatusMenu.shared.refreshIcon()
-        }
+        DefaultBrowser.makeBrowserdoor()
     }
 
     func setLaunchAtLogin(_ enabled: Bool) {
@@ -174,6 +174,8 @@ final class SettingsWindowController: NSObject, NSToolbarDelegate {
 
     static let shared = SettingsWindowController()
     private static let targetsSizeKey = "SettingsTargetsSize"
+    /// Where the window was; the pane decides its size.
+    private static let frameName = "BrowserdoorSettings"
     private static let targetsMinSize = NSSize(width: 560, height: 400)
 
     private let model = SettingsModel()
@@ -222,8 +224,12 @@ final class SettingsWindowController: NSObject, NSToolbarDelegate {
             }
         }
         self.window = window
+        let restored = window.setFrameUsingName(Self.frameName)
+        window.setFrameAutosaveName(Self.frameName)
         select(.general, animated: false)
-        window.center()
+        if !restored {
+            window.center()
+        }
     }
 
     private static func host(_ view: some View) -> NSView {
@@ -404,6 +410,15 @@ private struct TargetsTab: View {
                 .padding(4)
             }
             .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.separator))
+            ForEach(model.state.unlistedExtraApps, id: \.self) { bundleId in
+                HStack {
+                    Text(L("Added app %@ isn't a target (not installed, or listed by its profiles).", bundleId))
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button(L("Remove")) { model.removeExtraApp(bundleId) }
+                }
+            }
             if let error = model.configError {
                 Text(error).font(.callout).foregroundStyle(.red)
             } else if let notice = model.notice {
@@ -424,10 +439,6 @@ private struct TargetRow: View {
 
     private var isDefault: Bool {
         model.state.defaultTarget == row.id
-    }
-
-    private var isExtraApp: Bool {
-        model.state.extraApp(forTarget: row.id) != nil
     }
 
     var body: some View {
@@ -519,7 +530,10 @@ private struct HotkeyRecorder: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .focusable(recording)
+        // Always focusable: a focus request in the same update that made it focusable can be
+        // dropped, which would leave the field waiting for a key that never arrives.
+        .focusable()
+        .focusEffectDisabled()
         .focused($focused)
         .onKeyPress(phases: .down) { press in handle(press) }
         .onChange(of: focused) { _, isFocused in

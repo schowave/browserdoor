@@ -33,6 +33,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         item.behavior = .removalAllowed
         let menu = NSMenu()
+        // Items are enabled by hand (the clipboard item); AppKit would enable every item with a target.
+        menu.autoenablesItems = false
         menu.delegate = self
         item.menu = menu
         self.item = item
@@ -46,17 +48,25 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.refreshIcon() }
         }.tolerance = 30
-        NotificationCenter.default.addObserver(
-            forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.refreshIcon() }
+        for name in [NSApplication.didBecomeActiveNotification, DefaultBrowser.mayHaveChanged] {
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.refreshIcon() }
+            }
         }
     }
 
-    /// Redraws the icon if the default-browser state changed. Cheap: one LaunchServices query.
-    func refreshIcon() {
-        let dot = !DefaultBrowser.isBrowserdoor
+    /// Redraws the icon if the default-browser state changed, and tells the settings window.
+    /// Cheap: one LaunchServices query.
+    private func refreshIcon() {
+        refreshIcon(isDefault: DefaultBrowser.isBrowserdoor)
+    }
+
+    private func refreshIcon(isDefault: Bool) {
+        let dot = !isDefault
         guard let button = item?.button, button.image == nil || dot != showsDot else { return }
+        if button.image != nil {
+            NotificationCenter.default.post(name: DefaultBrowser.mayHaveChanged, object: nil)
+        }
         showsDot = dot
         button.image = Self.image(withDot: dot)
         button.setAccessibilityLabel(dot ? L("Browserdoor – not the default browser") : AppIdentity.name)
@@ -102,7 +112,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     /// Rebuilt on every open so the status lines are current. Kept to cheap calls only.
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
-        refreshIcon()
+        let isDefault = DefaultBrowser.isBrowserdoor
+        refreshIcon(isDefault: isDefault)
 
         menu.addItem(item(L("About Browserdoor"), #selector(aboutAction)))
         menu.addItem(alternate(item(L("Report an Issue…"), #selector(reportIssueAction))))
@@ -115,7 +126,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         updateClipboardItem()
         menu.addItem(.separator())
 
-        if !DefaultBrowser.isBrowserdoor {
+        if !isDefault {
             let makeDefault = item(L("Make Default Browser"), #selector(setDefaultAction))
             makeDefault.image = NSImage(systemSymbolName: "exclamationmark.triangle.fill",
                                         accessibilityDescription: L("Browserdoor isn't your default browser"))
@@ -189,7 +200,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     @objc private func setDefaultAction() {
-        DefaultBrowser.makeBrowserdoor { [weak self] in self?.refreshIcon() }
+        DefaultBrowser.makeBrowserdoor()
     }
 
     @objc private func settingsAction() {

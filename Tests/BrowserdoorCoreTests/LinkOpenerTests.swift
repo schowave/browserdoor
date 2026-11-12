@@ -134,9 +134,14 @@ struct LinkOpenerTests {
 struct ClipboardLinkTests {
     @Test func findsURLsInText() {
         let urls = LinkOpener.urls(inText: "https://a.example\n  see https://b.example/x?y=1 and words\tjavascript:alert(1)")
-        #expect(urls.map(\.absoluteString) == ["https://a.example", "https://b.example/x?y=1", "javascript:alert(1)"])
-        #expect(URLPolicy.filter(urls).count == 2)
+        #expect(URLPolicy.filter(urls).map(\.absoluteString) == ["https://a.example", "https://b.example/x?y=1"])
         #expect(LinkOpener.urls(inText: "no links here").isEmpty)
+    }
+
+    @Test func leavesPunctuationAroundURLsOut() {
+        let urls = LinkOpener.urls(inText: "See https://example.com/page. Or (https://x.example/a), <https://y.example>")
+        #expect(urls.map(\.absoluteString) == ["https://example.com/page", "https://x.example/a", "https://y.example"])
+        #expect(LinkOpener.urls(inText: "example.com/foo").map(\.absoluteString) == ["http://example.com/foo"])
     }
 
     @Test func issueReportPrefillsVersionsOnly() {

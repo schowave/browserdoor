@@ -66,6 +66,7 @@
 "Remove as Default Target" = "Nicht mehr Standardziel";
 "Rename" = "Umbenennen";
 "Remove App" = "App entfernen";
+"Added app %@ isn't a target (not installed, or listed by its profiles)." = "Hinzugefügte App %@ ist kein Ziel (nicht installiert oder über ihre Profile gelistet).";
 "Name" = "Name";
 "On" = "Ein";
 "Off" = "Aus";

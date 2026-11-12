@@ -4,6 +4,8 @@ import Foundation
 /// name) prominently, the rest quietly. A host shows as Foundation parsed it, so a name with
 /// non-ASCII letters appears in Punycode (`xn--…`) and a look-alike such as `аpple.com` with a
 /// Cyrillic а doesn't pass for the real one. User info (`https://bank.com@evil.io`) isn't shown.
+/// A host whose decoded form has characters a host name can't have (`apple.com%2Fsignin.evil.io`)
+/// stays percent-encoded, so it can't fake a path or user info.
 public struct LinkDisplay: Equatable, Sendable {
     /// Host (with port), or the file name.
     public var primary: String
@@ -32,7 +34,9 @@ public struct LinkDisplay: Equatable, Sendable {
             self.init(primary: url.absoluteString, secondary: "")
             return
         }
-        let host = decoded.contains(":") ? "[\(decoded)]" : decoded
+        let plain = decoded.unicodeScalars.allSatisfy(Self.hostCharacters.contains)
+        let shown = plain ? decoded : (url.host(percentEncoded: true) ?? decoded)
+        let host = plain && decoded.contains(":") ? "[\(decoded)]" : shown
         var rest = components.percentEncodedPath
         if let query = components.percentEncodedQuery {
             rest += "?" + query
@@ -43,6 +47,11 @@ public struct LinkDisplay: Equatable, Sendable {
         self.init(primary: url.port.map { "\(host):\($0)" } ?? host,
                   secondary: rest == "/" ? "" : rest)
     }
+
+    /// What a host name (or an IPv6 address) consists of after IDNA: ASCII letters, digits,
+    /// `-`, `.`, `_` and `:`.
+    static let hostCharacters = CharacterSet(charactersIn:
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._:")
 
     /// One line, e.g. for a tooltip.
     public var line: String {

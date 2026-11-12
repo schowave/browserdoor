@@ -29,14 +29,19 @@ enum DefaultBrowser {
         return Bundle(url: handler)?.bundleIdentifier == Bundle.main.bundleIdentifier
     }
 
-    /// macOS asks the user to confirm; `completion` runs on the main actor afterwards.
-    static func makeBrowserdoor(completion: (@MainActor () -> Void)? = nil) {
+    /// Posted on the main actor when the default browser may have changed (after
+    /// `makeBrowserdoor`, or when the menu bar icon notices a change). The menu bar icon and the
+    /// settings window both follow it.
+    static let mayHaveChanged = Notification.Name("BrowserdoorDefaultBrowserMayHaveChanged")
+
+    /// macOS asks the user to confirm; `mayHaveChanged` is posted afterwards.
+    static func makeBrowserdoor() {
         let app = Bundle.main.bundleURL
         NSWorkspace.shared.setDefaultApplication(at: app, toOpenURLsWithScheme: "http") { error in
             if let error {
                 log.error("set default browser: \(error.localizedDescription, privacy: .public)")
             }
-            Task { @MainActor in completion?() }
+            Task { @MainActor in NotificationCenter.default.post(name: mayHaveChanged, object: nil) }
         }
         NSWorkspace.shared.setDefaultApplication(at: app, toOpen: .html) { error in
             if let error {

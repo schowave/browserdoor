@@ -174,6 +174,13 @@ public extension CatalogState {
         extraApps.removeAll { $0 == bundleId }
     }
 
+    /// Apps the user added that no target stands for: uninstalled ones, or a browser whose
+    /// targets are its profiles. The settings list them so they can still be removed.
+    var unlistedExtraApps: [String] {
+        let listed = Set(rows.map(\.id))
+        return extraApps.filter { !listed.contains(TargetID.app(bundleId: $0).string) }
+    }
+
     /// The bundle ID behind a target the user added as an extra app (removable with −).
     func extraApp(forTarget id: String) -> String? {
         guard case let .app(bundleId) = TargetID(id), extraApps.contains(bundleId) else { return nil }
