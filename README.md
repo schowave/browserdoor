@@ -9,6 +9,7 @@ A link picker for macOS. Click a link anywhere, then choose the Zen space, Chrom
 [![CI](https://github.com/schowave/browserdoor/actions/workflows/ci.yml/badge.svg)](https://github.com/schowave/browserdoor/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/schowave/browserdoor?sort=semver)](https://github.com/schowave/browserdoor/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/16647/badge)](https://www.bestpractices.dev/projects/16647)
 
 <img src="docs/demo.gif" width="720" alt="Animated demo: a link is clicked in a chat app, the Browserdoor picker appears at the pointer listing Zen spaces, Chrome profiles and Safari; the down arrow selects the Client space, Return opens it, and Zen shows the new tab in the Client space">
 
