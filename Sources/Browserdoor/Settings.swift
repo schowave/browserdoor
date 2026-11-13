@@ -183,6 +183,10 @@ final class SettingsWindowController: NSObject, NSToolbarDelegate {
     private var panes: [Tab: Pane] = [:]
     private var shown: Tab?
 
+    var isShowing: Bool {
+        window?.isVisible == true
+    }
+
     func show(tab: Tab? = nil) {
         model.reload()
         if window == nil {

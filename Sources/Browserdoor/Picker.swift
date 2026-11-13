@@ -29,6 +29,11 @@ final class PickerController: NSObject, NSWindowDelegate {
     private let model = PickerModel()
     private var panel: PickerPanel?
 
+    /// Whether the picker is open, waiting for the user to choose.
+    var isShowing: Bool {
+        panel?.isVisible == true
+    }
+
     /// Resolves all icons once so slow work (extracting Zen's icons) starts before the first link.
     func prewarm() {
         for entry in TargetCatalog(environment: SystemEnvironment()).load().pickerEntries {

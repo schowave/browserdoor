@@ -32,7 +32,8 @@ class Browserdoor < Formula
       links itself to ~/Applications/Browserdoor.app and adds a login item:
         browserdoor
 
-      After `brew upgrade browserdoor`, quit Browserdoor from the menu bar and run `browserdoor` again.
+      Browserdoor restarts itself after `brew upgrade browserdoor`. Coming from 0.6.1 or
+      earlier, quit it from the menu bar once and run `browserdoor` again.
       Configuration: ~/.config/browserdoor/config.json (menu bar → Konfiguration öffnen…)
     EOS
   end

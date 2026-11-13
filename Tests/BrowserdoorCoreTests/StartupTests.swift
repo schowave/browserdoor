@@ -227,12 +227,15 @@ struct StartupTests {
 
     // MARK: Updating
 
-    @Test func upgradeScriptQuitsThisProcessOnly() throws {
+    @Test func upgradeScriptLeavesTheRestartToTheAppAndQuitsThisProcessOnly() throws {
         let homebrew = try #require(HomebrewInstall.detect(bundlePath: "/opt/my brew/Cellar/browserdoor/0.5.0/Browserdoor.app"))
         let script = homebrew.upgradeScript(runningPID: 4242)
         #expect(script.contains("'/opt/my brew/bin/brew' update --quiet && '/opt/my brew/bin/brew' upgrade browserdoor"))
-        #expect(script.contains("kill 4242 2>/dev/null\nwhile kill -0 4242 2>/dev/null; do sleep 0.2; done"))
-        #expect(script.contains("\n'/opt/my brew/bin/browserdoor'\n"))
+        #expect(script.contains("before=\"$(readlink '/opt/my brew/opt/browserdoor')\""))
+        #expect(script.contains("if [ \"$(readlink '/opt/my brew/opt/browserdoor')\" = \"$before\" ]; then"))
+        #expect(script.contains("while kill -0 4242 2>/dev/null && [ $i -lt 75 ]; do sleep 0.2;"))
+        #expect(script.contains("if kill -0 4242 2>/dev/null; then\n  kill 4242 2>/dev/null\n"))
+        #expect(script.contains("\n  '/opt/my brew/bin/browserdoor'\nfi\n"))
         #expect(!script.contains("pkill"))
     }
 }

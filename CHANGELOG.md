@@ -2,6 +2,11 @@
 
 What changed for people using Browserdoor. Each release on GitHub starts with its section from this file.
 
+## v0.7.0 – 2026-11-13
+
+- Browserdoor restarts itself a few seconds after `brew upgrade browserdoor`; no more quitting it and running `browserdoor` by hand. An open picker or settings window is left alone until it's closed. This starts with the upgrade *from* this version, so the step from 0.6.1 still needs it once.
+- When Homebrew has no newer version yet, "Update in Terminal" says so and leaves Browserdoor running instead of restarting it.
+
 ## v0.6.1 – 2026-11-13
 
 - v0.6.0 didn't build with the Swift of macOS 15's Xcode, so it never reached Homebrew. 0.6.1 is the same release, building on macOS 15 and later. Its changes are listed under v0.6.0 below.

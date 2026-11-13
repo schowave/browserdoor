@@ -18,18 +18,31 @@ public struct HomebrewInstall: Equatable, Sendable {
         prefix.appendingPathComponent("bin")
     }
 
-    /// A `.command` script for Terminal: upgrade the formula, quit the running app by its PID (a
-    /// dev build with the same executable name keeps running), start the new version.
+    /// A `.command` script for Terminal: upgrade the formula. When that moved `opt` to a new
+    /// version, the running app (by its PID; a dev build with the same executable name keeps
+    /// running) restarts itself (`Installation.upgradedBundle`); only if it is still running
+    /// 15 s later, the script quits it and starts the formula's command. When `opt` stayed, there
+    /// was nothing to install and the app keeps running.
     public func upgradeScript(runningPID pid: Int32) -> String {
         let brew = Shell.quote(brew.path)
         let start = Shell.quote(bin.appendingPathComponent(formula).path)
+        let opt = Shell.quote(prefix.appendingPathComponent("opt/\(formula)").path)
         return """
         #!/bin/sh
         echo "Updating Browserdoor…"
+        before="$(readlink \(opt))"
         \(brew) update --quiet && \(brew) upgrade \(formula) || { echo; echo "Update failed."; exit 1; }
-        kill \(pid) 2>/dev/null
-        while kill -0 \(pid) 2>/dev/null; do sleep 0.2; done
-        \(start)
+        if [ "$(readlink \(opt))" = "$before" ]; then
+          echo; echo "Homebrew has no newer Browserdoor yet. Try again later; you can close this window."
+          exit 0
+        fi
+        i=0
+        while kill -0 \(pid) 2>/dev/null && [ $i -lt 75 ]; do sleep 0.2; i=$((i + 1)); done
+        if kill -0 \(pid) 2>/dev/null; then
+          kill \(pid) 2>/dev/null
+          while kill -0 \(pid) 2>/dev/null; do sleep 0.2; done
+          \(start)
+        fi
         echo; echo "Browserdoor updated and restarted. You can close this window."
 
         """
@@ -108,13 +121,36 @@ public struct Installation {
     }
 
     /// The LaunchServices registration an update left behind: the bundle Browserdoor ran from last
-    /// time, if that was elsewhere and is gone now (e.g. a Cellar version `brew cleanup` removed).
-    /// A previous copy that still exists, such as a dev build, is not stale.
+    /// time, if that was elsewhere and is gone now (e.g. a Cellar version `brew cleanup` removed),
+    /// or is another Cellar version of this formula (after a restart that came before the cleanup).
+    /// Another copy that still exists, such as a dev build, is not stale.
     public func staleRegistration(previousBundlePath: String?) -> URL? {
-        guard let previous = previousBundlePath, !previous.isEmpty,
-              previous != bundleURL.path, !fm.fileExists(atPath: previous)
+        guard let previous = previousBundlePath, !previous.isEmpty, previous != bundleURL.path
         else { return nil }
+        let olderVersion = homebrew.map { $0.owns(previous) && previous.contains("/Cellar/") } ?? false
+        guard olderVersion || !fm.fileExists(atPath: previous) else { return nil }
         return URL(fileURLWithPath: previous)
+    }
+
+    /// `/bin/sh` arguments that wait for process `pid` to end, then start the app at
+    /// `stableAppURL`. Starting it before this one has quit would only reach this one.
+    public func restartArguments(waitingFor pid: Int32) -> [String] {
+        [
+            "-c", "while kill -0 \(pid) 2>/dev/null; do sleep 0.2; done; exec /usr/bin/open -a \"$1\"",
+            "sh", stableAppURL.path,
+        ]
+    }
+
+    /// The newer bundle `brew upgrade` installed while this one keeps running from the old Cellar
+    /// version: where the `opt` link points now, if that is elsewhere and holds an app. Nil when
+    /// `opt` still points here, is gone (uninstalled), or this is no Homebrew install.
+    public var upgradedBundle: URL? {
+        guard let homebrew else { return nil }
+        let current = homebrew.optApp.resolvingSymlinksInPath()
+        guard current.path != bundleURL.resolvingSymlinksInPath().path,
+              fm.fileExists(atPath: current.appendingPathComponent("Contents/Info.plist").path)
+        else { return nil }
+        return current
     }
 
     public var launchesAtLogin: Bool {

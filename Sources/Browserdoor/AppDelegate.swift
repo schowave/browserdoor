@@ -17,6 +17,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setUpMainMenu()
         picker.prewarm()
         UpdateChecker.shared.startAutomaticChecks()
+        UpgradeWatcher.shared.isBusy = { [picker] in picker.isShowing || SettingsWindowController.shared.isShowing }
+        UpgradeWatcher.shared.start()
         switch next {
         case .onboard:
             onboard()

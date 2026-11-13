@@ -45,7 +45,7 @@ browserdoor
 
 `browserdoor` starts the app and always points at the installed version.
 
-On first launch Browserdoor asks whether it should become your default browser (macOS asks you to confirm), adds a login item and puts a link at `~/Applications/Browserdoor.app`. That link keeps working after `brew upgrade`. After an upgrade, quit Browserdoor from the menu bar and run `browserdoor` again.
+On first launch Browserdoor asks whether it should become your default browser (macOS asks you to confirm), adds a login item and puts a link at `~/Applications/Browserdoor.app`. That link keeps working after `brew upgrade`, and Browserdoor restarts itself once an upgrade is in. Upgrading from 0.6.1 or earlier, quit Browserdoor from the menu bar once and run `browserdoor` again.
 
 <details>
 <summary><b>Upgrading from Doorman (0.2.x) or Browserdoor 0.4.x</b></summary>
@@ -171,11 +171,13 @@ Something else? [Open an issue](https://github.com/schowave/browserdoor/issues/n
 
 ## Updates
 
-Browserdoor looks for a new release on GitHub once a day (you can switch that off in the settings). What changed is in [CHANGELOG.md](CHANGELOG.md). If there is one, **Update in Terminal** runs `brew upgrade browserdoor` and restarts the app. Or do it yourself:
+Browserdoor looks for a new release on GitHub once a day (you can switch that off in the settings). What changed is in [CHANGELOG.md](CHANGELOG.md). If there is one, **Update in Terminal** runs `brew upgrade browserdoor`. Or do it yourself:
 
 ```sh
-brew upgrade browserdoor && browserdoor
+brew upgrade browserdoor
 ```
+
+A running Browserdoor notices the new version a few seconds later and restarts itself.
 
 ## Uninstall
 

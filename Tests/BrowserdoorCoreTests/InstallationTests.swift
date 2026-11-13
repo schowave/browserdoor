@@ -63,6 +63,44 @@ struct InstallationTests {
         #expect(try agentTarget(upgraded) == upgraded.linkURL.path)
     }
 
+    // MARK: Restart after brew upgrade
+
+    func writeInfoPlist(_ app: URL) throws {
+        let contents = app.appendingPathComponent("Contents")
+        try fm.createDirectory(at: contents, withIntermediateDirectories: true)
+        try Data("<plist/>".utf8).write(to: contents.appendingPathComponent("Info.plist"))
+    }
+
+    @Test func noUpgradeWhileOptPointsAtTheRunningVersion() throws {
+        let app = try installHomebrew("0.1.0")
+        try writeInfoPlist(app)
+        #expect(installation(app).upgradedBundle == nil)
+    }
+
+    @Test func upgradeIsSeenOnceOptPointsAtANewVersion() throws {
+        let old = try installHomebrew("0.1.0")
+        try writeInfoPlist(old)
+        let new = try installHomebrew("0.2.0")
+        try writeInfoPlist(new)
+        #expect(installation(old).upgradedBundle?.path == new.resolvingSymlinksInPath().path)
+        #expect(installation(new).upgradedBundle == nil)
+    }
+
+    @Test func noUpgradeWithoutANewApp() throws {
+        let old = try installHomebrew("0.1.0")
+        try writeInfoPlist(old)
+        _ = try installHomebrew("0.2.0") // no Info.plist: not a complete app
+        #expect(installation(old).upgradedBundle == nil)
+        try fm.removeItem(at: prefix.appendingPathComponent("opt/browserdoor")) // brew uninstall
+        #expect(installation(old).upgradedBundle == nil)
+    }
+
+    @Test func noUpgradeOutsideHomebrew() throws {
+        let app = root.appendingPathComponent("Applications/Browserdoor.app")
+        try writeInfoPlist(app)
+        #expect(installation(app).upgradedBundle == nil)
+    }
+
     @Test func staleOwnLinkIsReplaced() throws {
         let inst = try installation(installHomebrew("0.2.0"))
         try fm.createDirectory(at: inst.linkURL.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -128,6 +166,22 @@ struct InstallationTests {
         try fm.createDirectory(at: dev, withIntermediateDirectories: true)
         let inst = try installation(installHomebrew("0.2.2"))
         #expect(inst.staleRegistration(previousBundlePath: dev.path) == nil)
+    }
+
+    @Test func anOlderCellarVersionIsStaleBeforeTheCleanup() throws {
+        let old = try installHomebrew("0.2.2")
+        let inst = try installation(installHomebrew("0.2.3")) // restarted before `brew cleanup`
+        #expect(inst.staleRegistration(previousBundlePath: old.path)?.path == old.path)
+    }
+
+    @Test func restartWaitsForThisProcessThenOpensTheStablePath() throws {
+        let inst = try installation(installHomebrew("0.2.3"))
+        inst.prepare()
+        let args = inst.restartArguments(waitingFor: 4242)
+        #expect(args == [
+            "-c", "while kill -0 4242 2>/dev/null; do sleep 0.2; done; exec /usr/bin/open -a \"$1\"",
+            "sh", inst.linkURL.path,
+        ])
     }
 
     @Test func detectsHomebrewPaths() {
