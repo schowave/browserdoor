@@ -29,6 +29,7 @@ jobs:
             os: ubuntu-latest
             build-mode: none
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
@@ -36,9 +37,13 @@ jobs:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
           queries: security-and-quality
+      # Only the core: it holds the logic that handles untrusted input (URLPolicy, LinkOpener,
+      # the .webloc, Zen and Firefox parsers, launch commands) and imports only Foundation.
+      # With the app target, CodeQL also extracts AppKit's and SwiftUI's interfaces, and one
+      # run takes most of an hour.
       - name: Build
         if: matrix.build-mode == 'manual'
-        run: swift build
+        run: swift build --target BrowserdoorCore
       - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           category: /language:${{ matrix.language }}

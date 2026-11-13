@@ -16,7 +16,7 @@ Development builds run as `io.github.schowave.browserdoor.dev` ("Browserdoor Dev
 ## Before a pull request
 
 - `mise run ci` passes. It is what GitHub CI runs: lint, unit tests, docs check, app bundle, formula check.
-- GitHub also runs CodeQL on the Swift code and the workflows; its findings show under Security → Code scanning.
+- GitHub also runs CodeQL on `BrowserdoorCore` and the workflows; its findings show under Security → Code scanning.
 - New behaviour has a test in `Tests/BrowserdoorCoreTests`. The logic lives in `Sources/BrowserdoorCore` so it can be tested without the UI.
 - A change in discovery, target IDs or launch commands updates [SPEC.md](SPEC.md) in the same commit.
 - A change users notice gets a line under "Unreleased" in [CHANGELOG.md](CHANGELOG.md).
