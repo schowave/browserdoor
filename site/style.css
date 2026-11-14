@@ -143,6 +143,7 @@ h1 {
 .copy:hover { background: #ffdb93; }
 
 .fine { font-size: 0.9rem; color: var(--frame); margin: 0.9rem 0 0; }
+.fine a { color: inherit; font-weight: 600; }
 
 /* The demo stands in the lit doorway, with its light spilling onto the floor. */
 .doorway {
@@ -202,7 +203,9 @@ kbd {
   background: var(--code-bg);
 }
 
-.get ol { padding-left: 1.25rem; margin: 0 0 1.25rem; }
+.get h3 { font-size: 1.15rem; margin: 1.75rem 0 0.6rem; }
+.get h3:first-of-type { margin-top: 0; }
+.get ol { padding-left: 1.25rem; margin: 0 0 1rem; }
 .get li { margin-bottom: 0.5rem; }
 
 footer {

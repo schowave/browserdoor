@@ -47,7 +47,9 @@ browserdoor
 
 `browserdoor` starts the app and always points at the installed version.
 
-On first launch Browserdoor asks whether it should become your default browser (macOS asks you to confirm), adds a login item and puts a link at `~/Applications/Browserdoor.app`. That link keeps working after `brew upgrade`, and Browserdoor restarts itself once an upgrade is in. Upgrading from 0.6.1 or earlier, quit Browserdoor from the menu bar once and run `browserdoor` again.
+**Without Homebrew:** download `Browserdoor-<version>.dmg` from the [latest release](https://github.com/schowave/browserdoor/releases/latest), open it and drag Browserdoor to Applications. The DMG is signed and notarized by Apple, so it opens without a warning. This build updates itself: it checks once a day (switch it off under *Settings*), shows what's new and installs the update when you agree.
+
+On first launch Browserdoor asks whether it should become your default browser (macOS asks you to confirm) and adds a login item. A Homebrew install also gets a link at `~/Applications/Browserdoor.app`. That link keeps working after `brew upgrade`, and Browserdoor restarts itself once an upgrade is in. Upgrading from 0.6.1 or earlier, quit Browserdoor from the menu bar once and run `browserdoor` again.
 
 <details>
 <summary><b>Upgrading from Doorman (0.2.x) or Browserdoor 0.4.x</b></summary>
@@ -183,8 +185,9 @@ A running Browserdoor notices the new version a few seconds later and restarts i
 
 ## Uninstall
 
+Quit Browserdoor from the menu bar, then remove the app: `brew uninstall browserdoor`, or for the download, move `/Applications/Browserdoor.app` to the Trash. Then remove what it left behind:
+
 ```sh
-brew uninstall browserdoor
 rm -f ~/Applications/Browserdoor.app ~/Library/LaunchAgents/io.github.schowave.browserdoor.plist
 rm -rf ~/.config/browserdoor ~/Library/Caches/io.github.schowave.browserdoor
 defaults delete io.github.schowave.browserdoor
