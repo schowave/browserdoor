@@ -118,6 +118,23 @@ h1 {
   max-width: 30rem;
 }
 
+.get-it { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1.25rem; }
+.download {
+  display: inline-block;
+  padding: 0.95rem 1.6rem;
+  border-radius: 10px;
+  background: var(--light);
+  color: var(--night);
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 0 40px rgb(255 207 112 / 0.3);
+}
+.download:hover { background: #ffdb93; }
+.download:focus-visible { outline: 3px solid var(--frame); outline-offset: 3px; }
+.download-note { margin: 0; font-size: 0.9rem; line-height: 1.4; color: var(--frame); }
+.or { margin: 1.75rem 0 0.5rem; font-size: 0.9rem; color: var(--frame); }
+
 .install {
   display: flex;
   align-items: stretch;
@@ -136,14 +153,13 @@ h1 {
   border: 0;
   border-left: 1px solid rgb(255 207 112 / 0.35);
   border-radius: 0 9px 9px 0;
-  background: var(--light);
-  color: var(--night);
+  background: transparent;
+  color: var(--light);
   cursor: pointer;
 }
-.copy:hover { background: #ffdb93; }
+.copy:hover { background: rgb(255 207 112 / 0.12); }
 
 .fine { font-size: 0.9rem; color: var(--frame); margin: 0.9rem 0 0; }
-.fine a { color: inherit; font-weight: 600; }
 
 /* The demo stands in the lit doorway, with its light spilling onto the floor. */
 .doorway {
