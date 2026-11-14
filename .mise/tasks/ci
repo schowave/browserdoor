@@ -1,9 +1,10 @@
 #!/bin/sh
 #MISE description="Everything CI checks: lint, test, docs, app bundle, formula"
-#MISE depends=["lint", "test", "check-formula", "test-scripts", "check-strings", "check-docs", "site"]
+#MISE depends=["lint", "test", "check-formula", "test-scripts", "check-strings", "check-docs", "site", "check-dmg"]
 # shellcheck source=_lib.sh
 . "$(dirname "$0")/_lib.sh"
 "$(dirname "$0")/app"
+test ! -d "$APP/Contents/Frameworks"
 test -x "$APP/Contents/MacOS/$APP_NAME"
 test -f "$APP/Contents/Resources/AppIcon.icns"
 test -f "$APP/Contents/Resources/MenuBarIcon.svg"

@@ -8,6 +8,12 @@ name: Release
 # Bottles already attached to the release (tarball plus JSON) are reused on a re-run, so the
 # formula's sha256 values stay valid; delete both assets to rebuild one.
 # Needs the secret TAP_GITHUB_TOKEN: a fine-grained token with contents:write on schowave/homebrew-tap.
+# The dmg job adds the download build (signed with Developer ID, notarized, updating itself with
+# Sparkle) and its appcast. It needs the secrets DEVELOPER_ID_CERT_P12 (base64 of the .p12),
+# DEVELOPER_ID_CERT_PASSWORD, NOTARY_API_KEY (the .p8 file's text), NOTARY_API_KEY_ID,
+# NOTARY_API_ISSUER and SPARKLE_PRIVATE_KEY, plus the variable SPARKLE_PUBLIC_KEY. Until all of
+# them exist it skips itself, and the release is Homebrew-only as before. If it fails, the
+# release gets the previous release's appcast, so download installs never see a 404.
 # Safe to re-run: an existing release is kept, an unchanged formula is not committed again.
 
 on:
@@ -22,6 +28,18 @@ on:
     secrets:
       TAP_GITHUB_TOKEN:
         required: true
+      DEVELOPER_ID_CERT_P12:
+        required: false
+      DEVELOPER_ID_CERT_PASSWORD:
+        required: false
+      NOTARY_API_KEY:
+        required: false
+      NOTARY_API_KEY_ID:
+        required: false
+      NOTARY_API_ISSUER:
+        required: false
+      SPARKLE_PRIVATE_KEY:
+        required: false
 
 permissions:
   contents: write
@@ -67,6 +85,126 @@ jobs:
           name: formula
           path: browserdoor.rb
           overwrite: true
+
+  dmg:
+    needs: release
+    runs-on: macos-26
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+      DEVELOPER_ID_CERT_P12: ${{ secrets.DEVELOPER_ID_CERT_P12 }}
+      DEVELOPER_ID_CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+      NOTARY_API_KEY: ${{ secrets.NOTARY_API_KEY }}
+      NOTARY_API_KEY_ID: ${{ secrets.NOTARY_API_KEY_ID }}
+      NOTARY_API_ISSUER: ${{ secrets.NOTARY_API_ISSUER }}
+      SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+      SPARKLE_PUBLIC_KEY: ${{ vars.SPARKLE_PUBLIC_KEY }}
+    steps:
+      - name: Decide whether to build
+        id: gate
+        run: |
+          for name in DEVELOPER_ID_CERT_P12 DEVELOPER_ID_CERT_PASSWORD NOTARY_API_KEY NOTARY_API_KEY_ID \
+                      NOTARY_API_ISSUER SPARKLE_PRIVATE_KEY SPARKLE_PUBLIC_KEY; do
+            if [ -z "$(printenv "$name")" ]; then
+              echo "::notice::$name is not set; no DMG for this release"
+              exit 0
+            fi
+          done
+          # The appcast is uploaded after the DMG, so its presence means both are complete.
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -qx appcast.xml; then
+            echo "The release already has appcast.xml; delete it (and the DMG) to rebuild."
+            exit 0
+          fi
+          echo "build=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        if: steps.gate.outputs.build == 'true'
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Build the download app
+        if: steps.gate.outputs.build == 'true'
+        run: SPARKLE=1 DEV_BUILD=0 VERSION="${TAG#v}" .mise/tasks/app
+
+      - name: Import the Developer ID certificate
+        id: keychain
+        if: steps.gate.outputs.build == 'true'
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password="$(uuidgen)"
+          printf '%s' "$DEVELOPER_ID_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" -P "$DEVELOPER_ID_CERT_PASSWORD" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain" login.keychain-db
+          identity="$(security find-identity -v -p codesigning "$keychain" | sed -n 's/.*"\(Developer ID Application: .*\)"/\1/p' | head -n 1)"
+          if [ -z "$identity" ]; then
+            echo "::error::No Developer ID Application identity in DEVELOPER_ID_CERT_P12"
+            exit 1
+          fi
+          echo "identity=$identity" >> "$GITHUB_OUTPUT"
+
+      - name: Sign and pack the DMG
+        if: steps.gate.outputs.build == 'true'
+        env:
+          IDENTITY: ${{ steps.keychain.outputs.identity }}
+        run: VERSION="${TAG#v}" .mise/tasks/dmg "$IDENTITY"
+
+      - name: Notarize and staple
+        if: steps.gate.outputs.build == 'true'
+        run: |
+          key="$RUNNER_TEMP/notary.p8"
+          trap 'rm -f "$key"' EXIT
+          printf '%s\n' "$NOTARY_API_KEY" > "$key"
+          notary() { xcrun notarytool "$@" --key "$key" --key-id "$NOTARY_API_KEY_ID" --issuer "$NOTARY_API_ISSUER"; }
+          result="$(notary submit build/Browserdoor.dmg --wait --timeout 30m --output-format json)"
+          echo "$result"
+          if [ "$(echo "$result" | jq -r .status)" != Accepted ]; then
+            notary log "$(echo "$result" | jq -r .id)" || true
+            echo "::error::Notarization failed"
+            exit 1
+          fi
+          xcrun stapler staple build/Browserdoor.dmg
+          spctl --assess --type open --context context:primary-signature --verbose build/Browserdoor.dmg
+
+      - name: Sign the update and write the appcast
+        if: steps.gate.outputs.build == 'true'
+        run: |
+          dmg="build/Browserdoor-${TAG#v}.dmg"
+          mv build/Browserdoor.dmg "$dmg"
+          signature="$(printf '%s' "$SPARKLE_PRIVATE_KEY" | .build/sparkle/artifacts/sparkle/Sparkle/bin/sign_update --ed-key-file - "$dmg")"
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/$(basename "$dmg")"
+          .mise/tasks/appcast "$TAG" "$url" "$signature" > build/appcast.xml
+          cat build/appcast.xml
+
+      - name: Attach DMG and appcast to the release
+        if: steps.gate.outputs.build == 'true'
+        run: |
+          gh release upload "$TAG" "build/Browserdoor-${TAG#v}.dmg" --clobber
+          gh release upload "$TAG" build/appcast.xml --clobber
+
+      # SUFeedURL is releases/latest/download/appcast.xml: a release without one would leave every
+      # download install with a 404. Carry the previous release's appcast over, so they stay on
+      # the previous DMG until a rerun of this job (or the next release) succeeds.
+      - name: Keep the previous appcast
+        if: failure() && steps.gate.outputs.build == 'true'
+        run: |
+          previous="$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --exclude-pre-releases \
+            --json tagName --jq ".[].tagName | select(. != \"$TAG\")" | head -n 1)"
+          if [ -n "$previous" ] && gh release download "$previous" --repo "$GITHUB_REPOSITORY" --pattern appcast.xml \
+            --dir "$RUNNER_TEMP/previous"; then
+            gh release upload "$TAG" "$RUNNER_TEMP/previous/appcast.xml" --repo "$GITHUB_REPOSITORY" --clobber
+            echo "::warning::No DMG for $TAG; attached the appcast of $previous. Delete it and rerun this job to build the DMG."
+          else
+            echo "::warning::No DMG for $TAG, and no earlier appcast to carry over."
+          fi
+
+      - name: Remove the signing keychain
+        if: always() && steps.keychain.outcome != 'skipped'
+        run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true
 
   bottle:
     needs: release

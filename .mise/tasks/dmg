@@ -1,0 +1,43 @@
+#!/bin/sh
+#MISE description="Sign build/sparkle/Browserdoor.app (SPARKLE=1 mise run app) and pack it into build/Browserdoor.dmg"
+# Usage: dmg [identity]
+#   identity  codesign identity, e.g. "Developer ID Application: Name (TEAMID)". Default "-"
+#             (ad hoc), which is enough to look at the DMG locally.
+# Signs inside out, as Sparkle's documentation asks for a non-sandboxed app: its XPC services,
+# Autoupdate and Updater.app, the framework, then the app, all with the hardened runtime that
+# notarization requires. Notarizing is release.yml's job; it needs Apple's credentials.
+SPARKLE=1
+# shellcheck source=_lib.sh
+. "$(dirname "$0")/_lib.sh"
+identity="${1:--}"
+dmg="$BUILD_DIR/$APP_NAME.dmg"
+sparkle="$APP/Contents/Frameworks/Sparkle.framework"
+fail() { echo "dmg: $1" >&2; exit 1; }
+
+[ -d "$sparkle" ] || fail "$APP has no Sparkle.framework; build it with: SPARKLE=1 mise run app"
+plutil -extract SUPublicEDKey raw "$APP/Contents/Info.plist" >/dev/null 2>&1 \
+  || echo "dmg: warning: no SUPublicEDKey in Info.plist (SPARKLE_PUBLIC_KEY was not set); this app can't update itself" >&2
+
+if [ "$identity" = - ]; then
+  timestamp=--timestamp=none
+else
+  timestamp=--timestamp
+fi
+sign() { codesign --force --sign "$identity" --options runtime "$timestamp" "$@"; }
+
+sign "$sparkle/Versions/B/XPCServices/Installer.xpc"
+sign --preserve-metadata=entitlements "$sparkle/Versions/B/XPCServices/Downloader.xpc"
+sign "$sparkle/Versions/B/Autoupdate"
+sign "$sparkle/Versions/B/Updater.app"
+sign "$sparkle"
+sign "$APP"
+codesign --verify --deep --strict "$APP"
+
+stage="$(mktemp -d)"
+trap 'rm -rf "$stage"' EXIT
+ditto "$APP" "$stage/$APP_NAME.app"
+ln -s /Applications "$stage/Applications"
+rm -f "$dmg"
+hdiutil create -quiet -volname "$APP_NAME" -srcfolder "$stage" -fs HFS+ -format UDZO "$dmg"
+codesign --force --sign "$identity" "$timestamp" "$dmg"
+echo "built $dmg ($VERSION, signed by $identity)"

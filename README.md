@@ -207,6 +207,7 @@ mise run ci         # lint, unit tests, docs check, release-script tests, app bu
 mise run demo-gif   # re-render docs/demo.gif from docs/demo/frames.py
 mise run social-preview  # re-render docs/social/preview.png (GitHub social preview)
 mise run site       # assemble the homepage (site/) in build/site; pages.yml publishes it
+mise run check-dmg  # the download build (Sparkle) as an ad-hoc signed DMG in build/
 ```
 
 The logic lives in `Sources/BrowserdoorCore` and is tested without the UI; `Sources/Browserdoor` is the app itself. [GLOSSARY.md](GLOSSARY.md) explains the terms used in the code. The tasks in `.mise/tasks/` are plain shell scripts, and the Homebrew formula calls `.mise/tasks/install` directly, so installing doesn't need mise.
@@ -214,6 +215,12 @@ The logic lives in `Sources/BrowserdoorCore` and is tested without the UI; `Sour
 ### Releases and dependencies
 
 `mise run release vX.Y.Z` checks that `main` is pushed and clean, runs `mise run ci`, pushes the tag and puts the version's section from [CHANGELOG.md](CHANGELOG.md) on top of the release notes. The tag runs [`release.yml`](.github/workflows/release.yml): tests, build, GitHub release, bottles for Apple Silicon and Intel (built on macOS 15) attached to the release, and an updated `Formula/browserdoor.rb` with a `bottle do` block in [schowave/homebrew-tap](https://github.com/schowave/homebrew-tap). CI also builds the formula from a source tarball as a bottle (`mise run bottle`), pours that bottle again and runs `brew test` and `brew audit --strict`.
+
+Next to the bottles, the release builds the download build: a DMG signed with Developer ID, notarized, and updating itself with [Sparkle](https://sparkle-project.org) from the `appcast.xml` attached to the release. Until its secrets exist it skips itself; [`release.yml`](.github/workflows/release.yml) lists them, and setting them up takes one Apple Developer account:
+
+1. **Developer ID certificate:** in Xcode, *Settings → Accounts → Manage Certificates → + → Developer ID Application*, then export it from Keychain Access as `.p12` with a password. Secrets `DEVELOPER_ID_CERT_P12` (`base64 -i cert.p12`) and `DEVELOPER_ID_CERT_PASSWORD`.
+2. **Notarization:** an App Store Connect API key (*Users and Access → Integrations → Team Keys*, role Developer). Secrets `NOTARY_API_KEY` (the `.p8` file's text), `NOTARY_API_KEY_ID` and `NOTARY_API_ISSUER`.
+3. **Sparkle keys:** after `mise run check-dmg`, `.build/sparkle/artifacts/sparkle/Sparkle/bin/generate_keys` puts a key pair into your login keychain and prints the public key: repository variable `SPARKLE_PUBLIC_KEY`. `generate_keys -x sparkle.key` exports the private key: secret `SPARKLE_PRIVATE_KEY`, then delete the file. Keep the keychain item: losing the private key means the installed apps can't update any more.
 
 Renovate opens a weekly pull request for GitHub Actions and one for the mise tools, waits seven days after a release before picking it up, and asks before major updates. It merges once CI is green. If a merge changes the app itself, [`auto-release.yml`](.github/workflows/auto-release.yml) tags and releases the next patch version.
 

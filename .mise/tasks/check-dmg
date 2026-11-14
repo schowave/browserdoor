@@ -1,0 +1,11 @@
+#!/bin/sh
+#MISE description="Build the download build (Sparkle) and pack it into an ad-hoc signed DMG, as release.yml does with Developer ID"
+export SPARKLE=1
+# shellcheck source=_lib.sh
+. "$(dirname "$0")/_lib.sh"
+"$(dirname "$0")/app"
+"$(dirname "$0")/dmg"
+hdiutil verify -quiet "$BUILD_DIR/$APP_NAME.dmg"
+test -d "$APP/Contents/Frameworks/Sparkle.framework"
+plutil -extract SUFeedURL raw "$APP/Contents/Info.plist" >/dev/null
+echo "check-dmg: ok"

@@ -5,7 +5,15 @@ set -eu
 cd "$(dirname "$0")/../.."
 APP_NAME=Browserdoor
 BUILD_DIR=build
-APP="$BUILD_DIR/$APP_NAME.app"
+REPO_URL=https://github.com/schowave/browserdoor
+# SPARKLE=1 selects the download build (Sparkle, DMG); it lives in its own folder, so both
+# builds can be made side by side.
+SPARKLE="${SPARKLE:-0}"
+if [ "$SPARKLE" = 1 ]; then
+  APP="$BUILD_DIR/sparkle/$APP_NAME.app"
+else
+  APP="$BUILD_DIR/$APP_NAME.app"
+fi
 # Homebrew passes --disable-sandbox: its own sandbox forbids SwiftPM's.
 SWIFT_BUILD_FLAGS="${SWIFT_BUILD_FLAGS:-}"
 if [ -z "${VERSION:-}" ]; then

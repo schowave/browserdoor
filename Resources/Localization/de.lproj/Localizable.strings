@@ -106,3 +106,4 @@
 "Remove the selected app (only apps you added)" = "Ausgewählte App entfernen (nur selbst hinzugefügte)";
 "Click to rename" = "Zum Umbenennen klicken";
 "Renamed from “%@”" = "Umbenannt, ursprünglich „%@“";
+"Development builds don't update themselves." = "Entwicklungs-Builds aktualisieren sich nicht selbst.";

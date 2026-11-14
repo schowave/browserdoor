@@ -40,6 +40,12 @@ public struct ReleaseInfo: Equatable, Sendable {
     public var version: AppVersion
     public var tag: String
     public var url: URL
+
+    public init(version: AppVersion, tag: String, url: URL) {
+        self.version = version
+        self.tag = tag
+        self.url = url
+    }
 }
 
 /// Where the latest release comes from.
@@ -70,6 +76,41 @@ public enum UpdateStatus: Equatable, Sendable {
     case upToDate
     case available(ReleaseInfo)
     case failed(String)
+}
+
+/// What happens during one check of an updater that brings its own windows (Sparkle, in the
+/// download build). The app translates the updater's callbacks into these.
+public enum UpdateCycleEvent: Equatable, Sendable {
+    /// The user asked for a check.
+    case started
+    case found(version: String)
+    case notFound
+    /// "Skip This Version": the user doesn't want this update.
+    case skipped
+    /// The check is over. Nil error: it ended normally, also when the user cancelled or dismissed.
+    case finished(error: String?)
+}
+
+public extension UpdateStatus {
+    /// The status after `event`. A cycle that ends without an answer clears "checking"; an error is
+    /// shown only for a check the user asked for, so a failed background check keeps what was known.
+    func after(_ event: UpdateCycleEvent) -> UpdateStatus {
+        switch event {
+        case .started:
+            return .checking
+        case let .found(version):
+            guard let version = AppVersion(version) else { return self }
+            let tag = "v\(version)"
+            return .available(ReleaseInfo(version: version, tag: tag, url: GitHubReleaseSource.releasePage(tag: tag)))
+        case .notFound:
+            return .upToDate
+        case .skipped:
+            return .idle
+        case let .finished(error):
+            guard self == .checking else { return self }
+            return error.map(UpdateStatus.failed) ?? .idle
+        }
+    }
 }
 
 /// Decides when to check for updates, what to announce and what status to show. Automatic checks
@@ -157,7 +198,13 @@ public final class UpdatePolicy {
 /// release's tag page (drafts and pre-releases excluded). Unlike api.github.com it has no
 /// per-IP rate limit (60 requests an hour without a token, often used up behind shared IPs).
 public struct GitHubReleaseSource: ReleaseSource {
-    public static let browserdoor = URL(string: "https://github.com/schowave/browserdoor/releases/latest")!
+    public static let repository = URL(string: "https://github.com/schowave/browserdoor")!
+    public static let browserdoor = repository.appendingPathComponent("releases/latest")
+
+    /// A release's page on GitHub, e.g. `…/releases/tag/v1.2.3`.
+    public static func releasePage(tag: String) -> URL {
+        repository.appendingPathComponent("releases/tag/\(tag)")
+    }
 
     public var url: URL
     public var userAgent: String

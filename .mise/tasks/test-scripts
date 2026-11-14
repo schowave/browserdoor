@@ -17,6 +17,7 @@ echo a > "$repo/Sources/a.swift"
 git -C "$repo" add -A && git -C "$repo" commit -qm init
 
 run() { (cd "$repo" && ".mise/tasks/$1"); }
+run_appcast() { (cd "$repo" && .mise/tasks/appcast "$@"); }
 run_release() { (cd "$repo" && git checkout -q -B not-main && .mise/tasks/release "$1"); }
 
 [ -z "$(run next-patch-version)" ] || fail "next-patch-version without tags should print nothing"
@@ -43,4 +44,24 @@ echo "$out" | grep -q "not on main" || fail "release should accept v1.2.3 and st
 
 rendered="$("$tasks/render-formula" 1.2.3 abc file:///tmp/x.tar.gz)"
 echo "$rendered" | grep -q 'url "file:///tmp/x.tar.gz"' || fail "render-formula ignores the url argument"
+# appcast: the tag's CHANGELOG section as HTML, the enclosure with sign_update's attributes.
+mkdir -p "$repo/Resources"
+cp "$tasks/appcast" "$repo/.mise/tasks/"
+cp Resources/Info.plist "$repo/Resources/"
+# shellcheck disable=SC2016 # Markdown backticks, not command substitution
+printf '%s\n' '# Changelog' '' '## v1.2.4 – 2026-01-02' '' '- Opens `a<b` *now*' '- Second & last' '' '## v1.2.3' '' '- old' > "$repo/CHANGELOG.md"
+signature='sparkle:edSignature="QUJD+/=" length="42"'
+feed="$(run_appcast v1.2.4 https://example.invalid/B.dmg "$signature")" || fail "appcast failed: $feed"
+echo "$feed" | xmllint --noout - || fail "appcast is not well-formed XML"
+echo "$feed" | grep -qF '<li>Opens <code>a&lt;b</code> <em>now</em></li>' || fail "appcast notes: $feed"
+echo "$feed" | grep -qF '<li>Second &amp; last</li>' || fail "appcast should escape &"
+echo "$feed" | grep -q 'old' && fail "appcast took notes from another version"
+echo "$feed" | grep -qF "<enclosure url=\"https://example.invalid/B.dmg\" type=\"application/octet-stream\" $signature/>" \
+  || fail "appcast enclosure: $feed"
+echo "$feed" | grep -qF '<sparkle:version>1.2.4</sparkle:version>' || fail "appcast version"
+feed="$(run_appcast v1.2.5 https://x.invalid/B.dmg "$signature")" || fail "appcast without CHANGELOG section failed: $feed"
+echo "$feed" | xmllint --noout - || fail "appcast without notes is not well-formed XML"
+echo "$feed" | grep -qF 'releases/tag/v1.2.5">Release notes on GitHub' || fail "appcast without CHANGELOG section should link the release: $feed"
+run_appcast v1.2.4 https://x.invalid/B.dmg 'length="1"' >/dev/null 2>&1 && fail "appcast must reject odd sign_update output"
+
 echo "test-scripts: ok"

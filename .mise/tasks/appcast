@@ -1,0 +1,52 @@
+#!/bin/sh
+#MISE description="Print the Sparkle appcast for one release (used by release.yml)"
+# Usage: appcast <tag> <dmg-url> <sign_update output>
+#   sign_update output  what Sparkle's sign_update prints for the DMG:
+#                       sparkle:edSignature="…" length="…"
+# The release notes are the tag's section of CHANGELOG.md as simple HTML. A release without one
+# (the patch releases auto-release.yml makes for dependency updates) points to its GitHub page.
+# The appcast is attached to each release, so releases/latest/download/appcast.xml (SUFeedURL) is
+# always the newest one.
+# shellcheck source=_lib.sh
+. "$(dirname "$0")/_lib.sh"
+fail() { echo "appcast: $1" >&2; exit 1; }
+[ $# -eq 3 ] || fail "usage: appcast <tag> <dmg-url> <sign_update output>"
+tag="$1" url="$2" signature="$3"
+version="${tag#v}"
+echo "$version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$' || fail "tag must look like v1.2.3, got $tag"
+echo "$signature" | grep -qE '^sparkle:edSignature="[A-Za-z0-9+/=]+" length="[0-9]+"$' \
+  || fail "unexpected sign_update output: $signature"
+minimum="$(plutil -extract LSMinimumSystemVersion raw Resources/Info.plist)"
+
+# "- item" lines become list items, `code` <code> and *text* <em>; &, < and > are escaped.
+# shellcheck disable=SC2016 # the backticks are sed patterns, not command substitution
+notes="$(awk -v tag="$tag" '/^## /{inside = ($2 == tag)} inside && !/^## /' CHANGELOG.md | sed '/./,$!d' |
+  sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/`\([^`]*\)`/<code>\1<\/code>/g' \
+    -e 's/\*\([^*]*\)\*/<em>\1<\/em>/g' |
+  awk '/^- /{ if (!open) { print "<ul>"; open = 1 } sub(/^- /, ""); print "<li>" $0 "</li>"; next }
+       { if (open) { print "</ul>"; open = 0 } if (NF) print "<p>" $0 "</p>" }
+       END { if (open) print "</ul>" }')"
+page="$REPO_URL/releases/tag/$tag"
+[ -n "$notes" ] || notes="<p>Updated dependencies. <a href=\"$page\">Release notes on GitHub</a></p>"
+
+cat <<EOF
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>Browserdoor</title>
+    <link>$REPO_URL</link>
+    <language>en</language>
+    <item>
+      <title>Browserdoor $version</title>
+      <sparkle:version>$version</sparkle:version>
+      <sparkle:shortVersionString>$version</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>$minimum</sparkle:minimumSystemVersion>
+      <sparkle:fullReleaseNotesLink>$page</sparkle:fullReleaseNotesLink>
+      <description><![CDATA[
+$notes
+      ]]></description>
+      <enclosure url="$url" type="application/octet-stream" $signature/>
+    </item>
+  </channel>
+</rss>
+EOF

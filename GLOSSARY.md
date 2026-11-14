@@ -33,3 +33,4 @@ Domain terms used in Browserdoor's code, docs and reviews. Module names in `code
 | **Startup** | `Startup`: everything a launch does before any UI, ending in what to show next (onboarding, reclaiming the default browser, nothing). |
 | **Legacy** | What earlier versions left behind (SMAppService login item, the Doorman name, the old bundle ID), moved over by `Startup`, one step per version. |
 | **Release build / dev build** | `BundleIdentity`: the Homebrew build runs as `io.github.schowave.browserdoor` and owns the user's data; dev builds run as `….dev` and stay apart. |
+| **Homebrew build / download build** | Two release builds with the same bundle ID. The Homebrew build updates through `brew upgrade`; the download build (DMG, `SPARKLE`) is signed with Developer ID, notarized and updates itself with Sparkle from the **appcast** attached to the latest release. |

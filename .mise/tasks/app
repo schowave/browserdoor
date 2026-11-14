@@ -1,7 +1,16 @@
 #!/bin/sh
-#MISE description="Build build/Browserdoor.app (release, ad-hoc signed)"
+#MISE description="Build build/Browserdoor.app (release, ad-hoc signed; SPARKLE=1 for the download build)"
+# SPARKLE=1 builds the download (DMG) variant into build/sparkle/: it links Sparkle, embeds
+# Sparkle.framework and adds the appcast URL and SPARKLE_PUBLIC_KEY (the EdDSA public key) to
+# Info.plist. It builds in its own scratch path, so it never swaps the packages of the Homebrew
+# build in .build. One switch, three names: SPARKLE here, BROWSERDOOR_SPARKLE for Package.swift
+# (which only sees the environment, hence the prefix), and the Swift compile condition SPARKLE.
 # shellcheck source=_lib.sh
 . "$(dirname "$0")/_lib.sh"
+if [ "$SPARKLE" = 1 ]; then
+  export BROWSERDOOR_SPARKLE=1
+  SWIFT_BUILD_FLAGS="$SWIFT_BUILD_FLAGS --scratch-path .build/sparkle"
+fi
 # shellcheck disable=SC2086
 swift build -c release $SWIFT_BUILD_FLAGS
 # shellcheck disable=SC2086
@@ -10,6 +19,17 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$bin_path/$APP_NAME" "$APP/Contents/MacOS/$APP_NAME"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+if [ "$SPARKLE" = 1 ]; then
+  mkdir -p "$APP/Contents/Frameworks"
+  ditto "$bin_path/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
+  install_name_tool -add_rpath @executable_path/../Frameworks "$APP/Contents/MacOS/$APP_NAME"
+  plist="$APP/Contents/Info.plist"
+  plutil -insert SUFeedURL -string "$REPO_URL/releases/latest/download/appcast.xml" "$plist"
+  plutil -insert SUEnableAutomaticChecks -bool YES "$plist"
+  if [ -n "${SPARKLE_PUBLIC_KEY:-}" ]; then
+    plutil -insert SUPublicEDKey -string "$SPARKLE_PUBLIC_KEY" "$plist"
+  fi
+fi
 cp Resources/Icon/AppIcon.icns Resources/Icon/MenuBarIcon.svg "$APP/Contents/Resources/"
 cp -R Resources/Localization/*.lproj "$APP/Contents/Resources/"
 plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP/Contents/Info.plist"

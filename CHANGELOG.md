@@ -2,6 +2,10 @@
 
 What changed for people using Browserdoor. Each release on GitHub starts with its section from this file.
 
+## Unreleased
+
+- Browserdoor is also available as a download for Macs without Homebrew: a DMG signed with Developer ID and notarized by Apple, so it opens without a warning. It updates itself; the Homebrew install keeps updating through `brew upgrade`.
+
 ## v0.7.0 – 2026-11-13
 
 - Browserdoor restarts itself a few seconds after `brew upgrade browserdoor`; no more quitting it and running `browserdoor` by hand. An open picker or settings window is left alone until it's closed. This starts with the upgrade *from* this version, so the step from 0.6.1 still needs it once.
