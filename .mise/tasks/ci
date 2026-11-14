@@ -1,6 +1,6 @@
 #!/bin/sh
 #MISE description="Everything CI checks: lint, test, docs, app bundle, formula"
-#MISE depends=["lint", "test", "check-formula", "test-scripts", "check-strings", "check-docs"]
+#MISE depends=["lint", "test", "check-formula", "test-scripts", "check-strings", "check-docs", "site"]
 # shellcheck source=_lib.sh
 . "$(dirname "$0")/_lib.sh"
 "$(dirname "$0")/app"

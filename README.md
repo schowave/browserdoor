@@ -6,6 +6,8 @@
 
 A link picker for macOS. Click a link anywhere, then choose the Zen space, Chrome or Firefox profile, or browser it opens in.
 
+[schowave.github.io/browserdoor](https://schowave.github.io/browserdoor/)
+
 [![CI](https://github.com/schowave/browserdoor/actions/workflows/ci.yml/badge.svg)](https://github.com/schowave/browserdoor/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/schowave/browserdoor?sort=semver)](https://github.com/schowave/browserdoor/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -204,6 +206,7 @@ mise run targets    # print the targets found on this Mac and the command each o
 mise run ci         # lint, unit tests, docs check, release-script tests, app bundle, formula check
 mise run demo-gif   # re-render docs/demo.gif from docs/demo/frames.py
 mise run social-preview  # re-render docs/social/preview.png (GitHub social preview)
+mise run site       # assemble the homepage (site/) in build/site; pages.yml publishes it
 ```
 
 The logic lives in `Sources/BrowserdoorCore` and is tested without the UI; `Sources/Browserdoor` is the app itself. [GLOSSARY.md](GLOSSARY.md) explains the terms used in the code. The tasks in `.mise/tasks/` are plain shell scripts, and the Homebrew formula calls `.mise/tasks/install` directly, so installing doesn't need mise.

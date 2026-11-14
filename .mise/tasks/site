@@ -1,0 +1,18 @@
+#!/bin/sh
+#MISE description="Assemble the homepage in build/site from site/ and the shared images (deployed by pages.yml)"
+# shellcheck source=_lib.sh
+. "$(dirname "$0")/_lib.sh"
+out="$BUILD_DIR/site"
+rm -rf "$out"
+mkdir -p "$out"
+cp site/index.html site/style.css site/copy.js "$out/"
+# The images stay where README and the social preview use them; the page gets copies.
+cp Resources/Icon/AppIcon.svg "$out/icon.svg"
+cp docs/demo.gif "$out/demo.gif"
+cp docs/social/preview.png "$out/preview.png"
+# Every local file the page refers to must exist.
+grep -oE '(src|href)="[^":#]+"' "$out/index.html" | sed -E 's/^[a-z]+="//; s/"$//' | grep -v '^\./$' | sort -u |
+  while read -r ref; do
+    test -f "$out/$ref" || { echo "site: index.html refers to missing $ref" >&2; exit 1; }
+  done
+echo "site: $out"

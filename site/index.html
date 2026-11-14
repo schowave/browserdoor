@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>Browserdoor – a link picker for macOS</title>
+  <meta name="description" content="Click a link anywhere on your Mac, then choose the Zen space, Chrome or Firefox profile, or browser it opens in. Free and open source.">
+  <link rel="canonical" href="https://schowave.github.io/browserdoor/">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#0a2f3a">
+  <meta name="color-scheme" content="light dark">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Browserdoor – a link picker for macOS">
+  <meta property="og:description" content="Open every link in the right Zen space, Chrome or Firefox profile, or browser.">
+  <meta property="og:url" content="https://schowave.github.io/browserdoor/">
+  <meta property="og:image" content="https://schowave.github.io/browserdoor/preview.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+  <meta property="og:image:alt" content="The Browserdoor icon, a door standing ajar, next to the picker listing Zen spaces and browsers">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="stylesheet" href="style.css">
+  <script src="copy.js" defer></script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Browserdoor",
+    "operatingSystem": "macOS 14 or later",
+    "applicationCategory": "UtilitiesApplication",
+    "description": "A link picker for macOS: choose the Zen space, Chrome or Firefox profile, or browser a link opens in.",
+    "url": "https://schowave.github.io/browserdoor/",
+    "downloadUrl": "https://github.com/schowave/browserdoor/releases/latest",
+    "license": "https://opensource.org/licenses/MIT",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" }
+  }
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="hero">
+    <nav class="bar" aria-label="Main">
+      <a class="brand" href="./"><img src="icon.svg" alt="" width="32" height="32">Browserdoor</a>
+      <a href="https://github.com/schowave/browserdoor">GitHub</a>
+    </nav>
+
+    <div class="hero-body">
+      <div class="hero-text">
+        <h1>Every link through the right door.</h1>
+        <p class="lede">Click a link anywhere on your Mac. Browserdoor asks where it should go: a Zen space, a Chrome or Firefox profile, or any browser you have.</p>
+        <div class="install" id="install">
+          <pre><code id="brew">brew install schowave/tap/browserdoor</code></pre>
+          <button type="button" class="copy" data-copy="brew" hidden>Copy</button>
+        </div>
+        <p class="fine">Free and open source. macOS 14 or later, Apple Silicon and Intel.</p>
+      </div>
+
+      <figure class="doorway">
+        <img src="demo.gif" width="720" height="450" alt="A link is clicked in a chat app. The Browserdoor picker appears at the pointer, listing Zen spaces, Chrome profiles and Safari. The down arrow selects the Client space, Return opens it, and Zen shows the new tab in that space.">
+      </figure>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="why" aria-labelledby="why">
+      <h2 id="why">One space per client, and links that land in it</h2>
+      <p>Links from Slack, Mail or Teams open in whatever browser window happens to be in front. If you keep work, clients and private life in separate Zen spaces or browser profiles, that means the wrong account, again, and moving tabs by hand.</p>
+      <p>Browserdoor sits between the click and the browser. It shows each Zen space as its own entry, next to your Chrome and Firefox profiles and other browsers. Press a number key, or click, and the link opens there.</p>
+    </section>
+
+    <section class="features" aria-labelledby="features">
+      <h2 id="features">What it finds</h2>
+      <dl>
+        <div><dt>Zen spaces</dt><dd>With their names, icons and colors. Links open through Zen’s <code>--space</code> flag (Zen 1.24 or later).</dd></div>
+        <div><dt>Chromium profiles</dt><dd>Every profile of Chrome, Brave, Edge, Vivaldi and Chromium as its own entry.</dd></div>
+        <div><dt>Firefox profiles</dt><dd>Including the ones from Firefox’s new profile manager.</dd></div>
+        <div><dt>Only real browsers</dt><dd>Terminals, web-app wrappers and test builds stay out of the list. Add any other app yourself.</dd></div>
+        <div><dt>Several links at once</dt><dd>Links that arrive together share one picker, so one choice opens them all.</dd></div>
+        <div><dt>Quiet</dt><dd>A small native menu bar app. Its only network request is the daily update check, which you can switch off.</dd></div>
+      </dl>
+    </section>
+
+    <section class="keys" aria-labelledby="keys">
+      <h2 id="keys">Made for the keyboard</h2>
+      <table>
+        <tbody>
+          <tr><th scope="row"><kbd>1</kbd> … <kbd>9</kbd>, <kbd>0</kbd> or your own key</th><td>Open the link in that target</td></tr>
+          <tr><th scope="row"><kbd>↑</kbd> <kbd>↓</kbd> then <kbd>Return</kbd></th><td>Move the selection, then open</td></tr>
+          <tr><th scope="row"><kbd>⌘</kbd><kbd>C</kbd></th><td>Copy the link</td></tr>
+          <tr><th scope="row"><kbd>Esc</kbd></th><td>Cancel</td></tr>
+        </tbody>
+      </table>
+      <p>Order, names, keys and hidden entries live in <code>~/.config/browserdoor/config.json</code>, so you can keep them in your dotfiles.</p>
+    </section>
+
+    <section class="get" aria-labelledby="get">
+      <h2 id="get">Install</h2>
+      <ol>
+        <li>Install with <a href="https://brew.sh">Homebrew</a>: <code>brew install schowave/tap/browserdoor</code></li>
+        <li>Start it: <code>browserdoor</code></li>
+        <li>Confirm Browserdoor as your default browser when macOS asks.</li>
+      </ol>
+      <p>Updates arrive through <code>brew upgrade</code>, and Browserdoor restarts itself afterwards. The <a href="https://github.com/schowave/browserdoor#readme">README</a> covers configuration, troubleshooting and uninstalling, the <a href="https://github.com/schowave/browserdoor/blob/main/CHANGELOG.md">changelog</a> what changed.</p>
+    </section>
+  </main>
+
+  <footer>
+    <p>Made by David Schowalter. <a href="https://github.com/schowave/browserdoor/blob/main/LICENSE">MIT license</a>. Thanks to <a href="https://github.com/will-stone/browserosaurus">Browserosaurus</a> and <a href="https://github.com/johnste/finicky">Finicky</a> for the idea, and to the <a href="https://zen-browser.app">Zen</a> team for <code>--space</code>.</p>
+    <p>This page sets no cookies and loads nothing from other sites.</p>
+  </footer>
+</body>
+</html>
