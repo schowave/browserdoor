@@ -12,8 +12,9 @@ name: Release
 # Sparkle) and its appcast. It needs the secrets DEVELOPER_ID_CERT_P12 (base64 of the .p12),
 # DEVELOPER_ID_CERT_PASSWORD, NOTARY_API_KEY (the .p8 file's text), NOTARY_API_KEY_ID,
 # NOTARY_API_ISSUER and SPARKLE_PRIVATE_KEY, plus the variable SPARKLE_PUBLIC_KEY. Until all of
-# them exist it skips itself, and the release is Homebrew-only as before. If it fails, the
-# release gets the previous release's appcast, so download installs never see a 404.
+# them exist it skips itself. Without a DMG (a secret is missing, or the job failed), the release
+# gets the previous release's appcast, so download installs never see a 404. The release becomes
+# "latest" only at the end (job latest).
 # Safe to re-run: an existing release is kept, an unchanged formula is not committed again.
 
 on:
@@ -71,7 +72,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view "$TAG" >/dev/null 2>&1 \
-            || gh release create "$TAG" --generate-notes --verify-tag
+            || gh release create "$TAG" --generate-notes --verify-tag --latest=false
 
       - name: Render formula
         run: |
@@ -103,18 +104,19 @@ jobs:
       - name: Decide whether to build
         id: gate
         run: |
-          for name in DEVELOPER_ID_CERT_P12 DEVELOPER_ID_CERT_PASSWORD NOTARY_API_KEY NOTARY_API_KEY_ID \
-                      NOTARY_API_ISSUER SPARKLE_PRIVATE_KEY SPARKLE_PUBLIC_KEY; do
-            if [ -z "$(printenv "$name")" ]; then
-              echo "::notice::$name is not set; no DMG for this release"
-              exit 0
-            fi
-          done
           # The appcast is uploaded after the DMG, so its presence means both are complete.
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -qx appcast.xml; then
             echo "The release already has appcast.xml; delete it (and the DMG) to rebuild."
             exit 0
           fi
+          for name in DEVELOPER_ID_CERT_P12 DEVELOPER_ID_CERT_PASSWORD NOTARY_API_KEY NOTARY_API_KEY_ID \
+                      NOTARY_API_ISSUER SPARKLE_PRIVATE_KEY SPARKLE_PUBLIC_KEY; do
+            if [ -z "$(printenv "$name")" ]; then
+              echo "::warning::$name is not set; no DMG for this release"
+              echo "carry=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
           echo "build=true" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -187,10 +189,10 @@ jobs:
           gh release upload "$TAG" build/appcast.xml --clobber
 
       # SUFeedURL is releases/latest/download/appcast.xml: a release without one would leave every
-      # download install with a 404. Carry the previous release's appcast over, so they stay on
-      # the previous DMG until a rerun of this job (or the next release) succeeds.
+      # download install with a 404. Carry the previous release's appcast over (DMG failed, or a
+      # secret is missing), so they stay on the previous DMG until a rerun or the next release.
       - name: Keep the previous appcast
-        if: failure() && steps.gate.outputs.build == 'true'
+        if: ${{ !cancelled() && (steps.gate.outputs.carry == 'true' || (failure() && steps.gate.outputs.build == 'true')) }}
         run: |
           previous="$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --exclude-pre-releases \
             --json tagName --jq ".[].tagName | select(. != \"$TAG\")" | head -n 1)"
@@ -325,3 +327,17 @@ jobs:
           fi
           git commit -m "browserdoor ${TAG#v}"
           git push
+
+  # The release is created with --latest=false and only becomes "latest" here, once its DMG and
+  # appcast (or the carried-over one) are attached: SUFeedURL and the Homebrew build's update
+  # check both follow releases/latest, so neither sees a half-finished release.
+  latest:
+    needs: [release, dmg, tap]
+    if: ${{ !cancelled() && needs.release.result == 'success' }}
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Mark the release as latest
+        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --latest

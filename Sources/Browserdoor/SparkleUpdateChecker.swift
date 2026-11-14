@@ -13,26 +13,34 @@
 
         private(set) var status: UpdateStatus = .idle
 
-        /// Sparkle keeps this setting itself; on by default through `SUEnableAutomaticChecks`.
-        var automatic = true {
-            didSet { controller?.updater.automaticallyChecksForUpdates = automatic }
+        /// The same setting as in the Homebrew build (same defaults key); Sparkle follows it.
+        var automatic: Bool {
+            didSet {
+                preferences.checksAutomatically = automatic
+                controller?.updater.automaticallyChecksForUpdates = automatic
+            }
         }
 
+        @ObservationIgnored private let preferences = UserDefaultsUpdatePreferences()
         @ObservationIgnored private var controller: SPUStandardUpdaterController?
 
         override private init() {
+            automatic = preferences.checksAutomatically
             super.init()
         }
 
         /// Starts Sparkle; it checks on its own schedule (daily) while `automatic` is on.
         func startAutomaticChecks() {
             guard controller == nil, BundleIdentity.isRelease(AppIdentity.bundleId) else { return }
-            let controller = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: self, userDriverDelegate: nil)
+            let controller = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: self, userDriverDelegate: self)
+            controller.updater.automaticallyChecksForUpdates = automatic
+            controller.startUpdater()
             self.controller = controller
-            automatic = controller.updater.automaticallyChecksForUpdates
         }
 
-        /// A check the user asked for: Sparkle shows the result in its own window. `async` only to
+        /// A check the user asked for: Sparkle shows the result in its own window. While it can't
+        /// start one (an update is already on screen, or it failed to start), `checkForUpdates`
+        /// brings its window back or does nothing, and the status stays as it is. `async` only to
         /// match `UpdateChecking`; Sparkle reports back through the delegate.
         func checkNow() async {
             guard let controller else {
@@ -42,7 +50,9 @@
                 alert.runModal()
                 return
             }
-            handle(.started)
+            if controller.updater.canCheckForUpdates {
+                handle(.started)
+            }
             controller.checkForUpdates(nil)
         }
 
@@ -75,6 +85,22 @@
             let noUpdate = error?.domain == SUSparkleErrorDomain && error?.code == Int(SUError.noUpdateError.rawValue)
             let message = error?.localizedDescription
             MainActor.assumeIsolated { handle(noUpdate ? .notFound : .finished(error: message)) }
+        }
+    }
+
+    /// Browserdoor runs in the background (menu bar only), so a scheduled check that finds an update
+    /// would open Sparkle's window behind other apps. Like the Homebrew build's dialog, it comes to
+    /// the front first.
+    extension UpdateChecker: SPUStandardUserDriverDelegate {
+        nonisolated var supportsGentleScheduledUpdateReminders: Bool {
+            true
+        }
+
+        nonisolated func standardUserDriverShouldHandleShowingScheduledUpdate(_: SUAppcastItem, andInImmediateFocus immediateFocus: Bool) -> Bool {
+            if !immediateFocus {
+                MainActor.assumeIsolated { NSApp.activate() }
+            }
+            return true
         }
     }
 #endif

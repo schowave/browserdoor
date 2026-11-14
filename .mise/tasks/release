@@ -48,7 +48,7 @@ if ! gh run watch "$run" --exit-status; then
   # A bottle may fail while the release and the tap update still go out (the tap job runs
   # unless the release job failed). Then only the missing bottles are worth a warning.
   jobs="$(gh run view "$run" --json jobs --jq '.jobs[] | "\(.name)\t\(.conclusion)"')"
-  for job in release tap; do
+  for job in release tap latest; do
     printf '%s\n' "$jobs" | grep -qx "$job	success" || fail "release workflow failed: gh run view $run --log-failed"
   done
   echo "release: warning: some bottles failed, users of those systems build from source:" >&2

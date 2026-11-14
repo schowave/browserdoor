@@ -81,7 +81,8 @@ public enum UpdateStatus: Equatable, Sendable {
 /// What happens during one check of an updater that brings its own windows (Sparkle, in the
 /// download build). The app translates the updater's callbacks into these.
 public enum UpdateCycleEvent: Equatable, Sendable {
-    /// The user asked for a check.
+    /// The user asked for a check. With an update already found, the updater brings that one
+    /// back instead of starting over.
     case started
     case found(version: String)
     case notFound
@@ -97,6 +98,9 @@ public extension UpdateStatus {
     func after(_ event: UpdateCycleEvent) -> UpdateStatus {
         switch event {
         case .started:
+            if case .available = self {
+                return self
+            }
             return .checking
         case let .found(version):
             guard let version = AppVersion(version) else { return self }

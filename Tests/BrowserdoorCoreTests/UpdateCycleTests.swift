@@ -25,6 +25,12 @@ struct UpdateCycleTests {
         #expect(UpdateStatus.available(release("v1.2.3")).after(.finished(error: "offline")) == .available(release("v1.2.3")))
     }
 
+    @Test func askingAgainForAFoundUpdateKeepsIt() {
+        let found = UpdateStatus.available(release("v1.2.3"))
+        #expect(found.after(.started) == found)
+        #expect(found.after(.started).after(.finished(error: nil)) == found)
+    }
+
     @Test func skippedUpdateIsNoLongerOffered() {
         #expect(UpdateStatus.available(release("v1.2.3")).after(.skipped) == .idle)
     }

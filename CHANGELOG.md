@@ -2,7 +2,7 @@
 
 What changed for people using Browserdoor. Each release on GitHub starts with its section from this file.
 
-## Unreleased
+## v0.8.0 – 2026-11-14
 
 - Browserdoor is also available as a download for Macs without Homebrew: a DMG signed with Developer ID and notarized by Apple, so it opens without a warning. It updates itself; the Homebrew install keeps updating through `brew upgrade`.
 

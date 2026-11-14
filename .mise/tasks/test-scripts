@@ -49,12 +49,13 @@ mkdir -p "$repo/Resources"
 cp "$tasks/appcast" "$repo/.mise/tasks/"
 cp Resources/Info.plist "$repo/Resources/"
 # shellcheck disable=SC2016 # Markdown backticks, not command substitution
-printf '%s\n' '# Changelog' '' '## v1.2.4 – 2026-01-02' '' '- Opens `a<b` *now*' '- Second & last' '' '## v1.2.3' '' '- old' > "$repo/CHANGELOG.md"
+printf '%s\n' '# Changelog' '' '## v1.2.4 – 2026-01-02' '' '- Opens `a<b` *now*' '- Second & last, see [docs](https://x.invalid/d) for **more**' '  and a wrapped line' '' '## v1.2.3' '' '- old' > "$repo/CHANGELOG.md"
 signature='sparkle:edSignature="QUJD+/=" length="42"'
 feed="$(run_appcast v1.2.4 https://example.invalid/B.dmg "$signature")" || fail "appcast failed: $feed"
 echo "$feed" | xmllint --noout - || fail "appcast is not well-formed XML"
 echo "$feed" | grep -qF '<li>Opens <code>a&lt;b</code> <em>now</em></li>' || fail "appcast notes: $feed"
-echo "$feed" | grep -qF '<li>Second &amp; last</li>' || fail "appcast should escape &"
+echo "$feed" | grep -qF '<li>Second &amp; last, see <a href="https://x.invalid/d">docs</a> for <strong>more</strong> and a wrapped line</li>' \
+  || fail "appcast should escape &, convert links and bold, and join wrapped lines: $feed"
 echo "$feed" | grep -q 'old' && fail "appcast took notes from another version"
 echo "$feed" | grep -qF "<enclosure url=\"https://example.invalid/B.dmg\" type=\"application/octet-stream\" $signature/>" \
   || fail "appcast enclosure: $feed"

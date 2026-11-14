@@ -4,3 +4,5 @@ build/
 .DS_Store
 *.xcodeproj
 docs/social/preview.svg
+# Package.swift pins Sparkle with exact:; a resolved file would make every build fetch it.
+Package.resolved
