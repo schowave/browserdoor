@@ -17,7 +17,7 @@ name: Release
 # them exist it skips itself. Without a DMG (a secret is missing, or the job failed), the release
 # gets the previous release's appcast and Browserdoor.dmg, so neither the update feed nor the
 # download link answers 404. The release becomes
-# "latest" only at the end (job latest).
+# "latest" only at the end (job latest); then job verify checks the DMG as users download it.
 # Safe to re-run: an existing release is kept, an unchanged formula is not committed again.
 
 on:
@@ -93,6 +93,8 @@ jobs:
   dmg:
     needs: release
     runs-on: macos-26
+    outputs:
+      built: ${{ steps.gate.outputs.build }}
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
       GH_TOKEN: ${{ github.token }}
@@ -348,3 +350,19 @@ jobs:
     steps:
       - name: Mark the release as latest
         run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --latest
+
+  # Downloads what users and installed apps get (appcast, both DMGs, the latest/ URLs) and checks it
+  # as Gatekeeper and Sparkle will: notarized, stapled, signed with the key the app trusts.
+  verify:
+    needs: [dmg, latest]
+    if: ${{ !cancelled() && needs.dmg.outputs.built == 'true' && needs.dmg.result == 'success' && needs.latest.result == 'success' }}
+    runs-on: macos-26
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      SPARKLE_PUBLIC_KEY: ${{ vars.SPARKLE_PUBLIC_KEY }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - name: Check the published download build
+        run: .mise/tasks/check-release "$TAG"

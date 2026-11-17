@@ -51,6 +51,9 @@ if ! gh run watch "$run" --exit-status; then
   for job in release tap latest; do
     printf '%s\n' "$jobs" | grep -qx "$job	success" || fail "release workflow failed: gh run view $run --log-failed"
   done
+  if printf '%s\n' "$jobs" | grep -qx "verify	failure"; then
+    fail "the published DMG failed its check (mise run check-release $tag): gh run view $run --log-failed"
+  fi
   echo "release: warning: some bottles failed, users of those systems build from source:" >&2
   printf '%s\n' "$jobs" | grep -v '	success$' >&2
 fi

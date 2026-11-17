@@ -211,6 +211,7 @@ mise run demo-gif   # re-render docs/demo.gif from docs/demo/frames.py
 mise run social-preview  # re-render docs/social/preview.png (GitHub social preview)
 mise run site       # assemble the homepage (site/) in build/site; pages.yml publishes it
 mise run check-dmg  # the download build (Sparkle) as an ad-hoc signed DMG in build/
+mise run check-release v1.2.3  # a published DMG as users get it: notarized, signed for Sparkle
 ```
 
 The logic lives in `Sources/BrowserdoorCore` and is tested without the UI; `Sources/Browserdoor` is the app itself. [GLOSSARY.md](GLOSSARY.md) explains the terms used in the code. The tasks in `.mise/tasks/` are plain shell scripts, and the Homebrew formula calls `.mise/tasks/install` directly, so installing doesn't need mise.

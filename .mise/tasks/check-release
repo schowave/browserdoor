@@ -1,0 +1,85 @@
+#!/bin/sh
+#MISE description="Check a published release's download build as users get it: appcast, both DMGs, Gatekeeper, Sparkle signature"
+# Usage: check-release <tag>
+# Downloads the release's appcast and DMGs from GitHub, marks the DMG as downloaded from the
+# internet (quarantine) and checks what Gatekeeper and Sparkle will check. When <tag> is the
+# latest release, also the URLs the app (SUFeedURL) and the homepage use. release.yml runs it
+# after the release became "latest". If SPARKLE_PUBLIC_KEY is set, the app's SUPublicEDKey must
+# match it.
+# shellcheck source=_lib.sh
+. "$(dirname "$0")/_lib.sh"
+fail() { echo "check-release: $1" >&2; exit 1; }
+[ $# -eq 1 ] || fail "usage: check-release <tag>"
+tag="$1"
+version="${tag#v}"
+base="$REPO_URL/releases/download/$tag"
+work="$(mktemp -d)"
+mnt=""
+cleanup() {
+  if [ -n "$mnt" ]; then hdiutil detach -quiet "$mnt" || true; fi
+  rm -rf "$work"
+}
+trap cleanup EXIT
+fetch() { curl -fsSL --retry 3 -o "$work/$2" "$1" || fail "can't download $1"; }
+attribute() { sed -n "s|.*$1=\"\\([^\"]*\\)\".*|\\1|p" "$work/appcast.xml"; }
+
+# The appcast names this version and the versioned DMG.
+fetch "$base/appcast.xml" appcast.xml
+listed="$(sed -n 's|.*<sparkle:version>\([^<]*\)</sparkle:version>.*|\1|p' "$work/appcast.xml")"
+[ "$listed" = "$version" ] || fail "$tag's appcast.xml is for ${listed:-nothing}: carried over, so its DMG was not built"
+url="$(attribute 'enclosure url')"
+signature="$(attribute 'sparkle:edSignature')"
+length="$(attribute length)"
+[ "$url" = "$base/$APP_NAME-$version.dmg" ] || fail "the appcast points at $url"
+
+# Both DMGs are the same file, of the length the appcast says.
+fetch "$url" versioned.dmg
+fetch "$base/$APP_NAME.dmg" fixed.dmg
+[ "$(stat -f %z "$work/versioned.dmg")" = "$length" ] || fail "the DMG's size differs from the appcast's length=$length"
+cmp -s "$work/versioned.dmg" "$work/fixed.dmg" || fail "$APP_NAME.dmg differs from $APP_NAME-$version.dmg"
+
+# Gatekeeper, as for a download from a browser.
+dmg="$work/versioned.dmg"
+xattr -w com.apple.quarantine "0081;$(printf %x "$(date +%s)");Safari;" "$dmg"
+# notarized <path> <spctl options>
+notarized() {
+  target="$1"
+  shift
+  out="$(spctl --assess -vv "$@" "$target" 2>&1)" || fail "Gatekeeper rejects $target: $out"
+  printf '%s\n' "$out" | grep -q 'source=Notarized Developer ID' || fail "$target is not notarized: $out"
+}
+notarized "$dmg" --type open --context context:primary-signature
+xcrun stapler validate "$dmg" >/dev/null || fail "no notarization ticket stapled to the DMG"
+
+# The app inside.
+mnt="$(hdiutil attach -nobrowse -readonly -noautoopen "$dmg" | awk -F '\t' 'END { print $NF }')"
+app="$mnt/$APP_NAME.app"
+[ -d "$app" ] || fail "the DMG has no $APP_NAME.app"
+codesign --verify --deep --strict "$app" || fail "the app's signature is broken"
+notarized "$app" --type execute
+plist="$app/Contents/Info.plist"
+key() { plutil -extract "$1" raw "$plist" 2>/dev/null || fail "Info.plist has no $1"; }
+[ "$(key CFBundleShortVersionString)" = "$version" ] || fail "the app is version $(key CFBundleShortVersionString)"
+[ "$(key CFBundleIdentifier)" = io.github.schowave.browserdoor ] || fail "the app's bundle ID is $(key CFBundleIdentifier)"
+[ "$(key SUFeedURL)" = "$REPO_URL/releases/latest/download/appcast.xml" ] || fail "SUFeedURL is $(key SUFeedURL)"
+public="$(key SUPublicEDKey)"
+if [ -n "${SPARKLE_PUBLIC_KEY:-}" ] && [ "$public" != "$SPARKLE_PUBLIC_KEY" ]; then
+  fail "the app's SUPublicEDKey is not SPARKLE_PUBLIC_KEY"
+fi
+
+# Sparkle accepts the update only with a valid EdDSA signature from the app's own key.
+swift .mise/tasks/_ed25519-verify.swift "$public" "$signature" "$dmg" \
+  || fail "the appcast's edSignature does not match the DMG and SUPublicEDKey"
+
+# The newest release: the URLs the installed apps and the homepage use lead to it.
+latest="$(curl -fsSI -o /dev/null -w '%{redirect_url}' "$REPO_URL/releases/latest")"
+if [ "${latest##*/}" = "$tag" ]; then
+  fetch "$REPO_URL/releases/latest/download/appcast.xml" latest-appcast.xml
+  cmp -s "$work/appcast.xml" "$work/latest-appcast.xml" || fail "releases/latest/download/appcast.xml is not $tag's"
+  fetch "$REPO_URL/releases/latest/download/$APP_NAME.dmg" latest.dmg
+  cmp -s "$work/fixed.dmg" "$work/latest.dmg" || fail "releases/latest/download/$APP_NAME.dmg is not $tag's"
+  echo "check-release: $tag is the latest release; feed and download link lead to it"
+else
+  echo "check-release: $tag is not the latest release (${latest##*/}); skipped the latest/ URLs"
+fi
+echo "check-release: $tag ok"
