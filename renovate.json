@@ -14,7 +14,7 @@
   "prConcurrentLimit": 0,
   "automerge": true,
   "automergeType": "pr",
-  "platformAutomerge": false,
+  "platformAutomerge": true,
   "packageRules": [
     {
       "description": "All patch/minor/pin/digest updates in one PR",
