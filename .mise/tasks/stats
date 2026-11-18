@@ -1,0 +1,32 @@
+#!/bin/sh
+#MISE description="Show how many people install Browserdoor: downloads per release, repo visitors, referrers"
+# Usage: stats [number of releases, default 8]
+# Neither Browserdoor nor Homebrew counts installs (Homebrew's analytics cover only its own
+# taps), so the release assets are the closest measure:
+# - brew: bottle downloads. Every `brew install` and `brew upgrade` on macOS 15 or later fetches
+#   one, so the latest release's count, once it has been out a few days, is roughly the number of
+#   active Homebrew installs. macOS 14 builds from source and isn't counted.
+# - dmg: downloads of Browserdoor.dmg (homepage, README) plus Browserdoor-<v>.dmg (Sparkle's
+#   updates). check-release downloads both, so each of its runs adds to them.
+# GitHub updates the counts with some delay, and the traffic numbers about once a day. Traffic
+# needs push access to the repository (gh's login).
+# shellcheck source=_lib.sh
+. "$(dirname "$0")/_lib.sh"
+repo="${REPO_URL#https://github.com/}"
+count="${1:-8}"
+
+printf '%-9s %-11s %5s %5s\n' release published brew dmg
+gh api --paginate "repos/$repo/releases" --jq '.[] | select(.draft | not) | [
+    .tag_name,
+    (.published_at // "" | .[0:10]),
+    ([.assets[] | select(.name | endswith(".bottle.tar.gz")) | .download_count] | add // 0),
+    ([.assets[] | select(.name | endswith(".dmg")) | .download_count] | add // 0)
+  ] | @tsv' | head -n "$count" | while IFS="$(printf '\t')" read -r tag date brew dmg; do
+  printf '%-9s %-11s %5s %5s\n' "$tag" "$date" "$brew" "$dmg"
+done
+
+echo
+gh api "repos/$repo" --jq '"Stars \(.stargazers_count), forks \(.forks_count), open issues \(.open_issues_count)"'
+gh api "repos/$repo/traffic/views" --jq '"Last 14 days: \(.count) views by \(.uniques) visitors"'
+gh api "repos/$repo/traffic/popular/referrers" \
+  --jq 'if length == 0 then "Referrers: none" else "Referrers: " + (map("\(.referrer) \(.count) (\(.uniques))") | join(", ")) end'
