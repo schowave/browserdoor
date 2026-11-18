@@ -4,7 +4,7 @@
 
 ## Checklist
 
-- [ ] `mise run ci` passes
+- [ ] `mise run check` passes
 - [ ] New behaviour has a test in `Tests/BrowserdoorCoreTests`
 - [ ] Discovery, target IDs or launch commands changed → `SPEC.md` updated
 - [ ] Users notice the change → a line under "Unreleased" in `CHANGELOG.md`

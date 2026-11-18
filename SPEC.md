@@ -246,7 +246,7 @@ App: `AppDelegate` (main menu, onboarding dialog), `StatusMenu` (menu bar icon a
 
 - mise: `mise.toml` pins `actionlint`, `shellcheck` and `swiftformat`. Swift comes from Xcode or the Command Line Tools, because Browserdoor needs the macOS SDK.
 - The tasks are POSIX shell scripts in `.mise/tasks/` with `#MISE` header lines (`mise tasks` lists them); shared settings come from `_lib.sh`. They also run without mise, which the Homebrew formula relies on.
-- `mise run ci` runs everything CI's `test` job runs (see 11.1).
+- `mise run setup` gets a fresh clone ready (pinned tools, Swift packages); `mise run check` (= `ci`) runs everything CI's `test` job runs (see 11.1). `fmt` and `build` are aliases of `format` and `app`.
 
 ### 10.2 Builds
 
@@ -273,13 +273,13 @@ App: `AppDelegate` (main menu, onboarding dialog), `StatusMenu` (menu bar icon a
 ### 11.1 CI
 
 `ci.yml`, on pushes to `main` and pull requests; a required check on `main`.
-- Job `test` (macOS 26): `mise run ci`: lint, unit tests, tests of the release scripts, docs and strings checks, the homepage, the Homebrew app bundle and the download build's DMG.
+- Job `test` (macOS 26): `mise run setup`, then `mise run check`: lint, unit tests, tests of the release scripts, docs and strings checks, the homepage, the Homebrew app bundle and the download build's DMG.
 - Job `formula` (macOS 15, whose Swift is the oldest the bottles are built with): renders the formula for a local tarball, builds it as a bottle (`.mise/tasks/bottle`), pours it again (checks `poured_from_bottle`), runs `brew test` and `brew audit --strict`: the path users take.
 - `retry.yml`: when a run of CI, Release, Auto release, CodeQL or Pages fails because GitHub had no runner for a job ("not acquired by Runner") or lost it midway, its failed jobs start again, at most twice. Other failures are left alone.
 
 ### 11.2 Release
 
-`mise run release vX.Y.Z` runs `ci`, pushes an annotated tag, waits for `release.yml` and puts the version's CHANGELOG section on top of the release notes. It fails if the release, the tap update, marking the release as latest or the DMG check failed; failed bottles only give a warning.
+`mise run release vX.Y.Z` runs `check`, pushes an annotated tag, waits for `release.yml` and puts the version's CHANGELOG section on top of the release notes. It fails if the release, the tap update, marking the release as latest or the DMG check failed; failed bottles only give a warning.
 
 `release.yml` runs on a `v*` tag or when `auto-release.yml` calls it. Every job is safe to rerun.
 1. `release`: tests, builds the app, checks the formula template and creates the GitHub release (if none exists) with `--latest=false`.

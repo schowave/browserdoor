@@ -16,8 +16,10 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
-      - name: Lint, test, build, check formula
-        run: mise run ci
+      - name: Setup
+        run: mise run setup
+      - name: Check (lint, test, build, check formula)
+        run: mise run check
 
   formula:
     # Builds the rendered formula the way users get it: from a source tarball, then as a

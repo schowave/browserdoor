@@ -28,7 +28,7 @@ if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
   git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null || fail "$tag exists only locally"
   echo "release: $tag is already pushed, picking up where the last run stopped"
 else
-  mise run ci
+  mise run check
   # The repo requires annotated tags.
   git tag -a "$tag" -m "$tag"
   git push -q origin "$tag"

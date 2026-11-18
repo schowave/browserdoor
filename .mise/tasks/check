@@ -1,0 +1,3 @@
+#!/bin/sh
+#MISE description="Everything that must be green before a push; what GitHub CI runs (the ci task)"
+#MISE depends=["ci"]
