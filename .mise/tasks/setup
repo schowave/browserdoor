@@ -1,0 +1,10 @@
+#!/bin/sh
+#MISE description="Fresh clone to ready for check: install the pinned tools and fetch the Swift packages"
+# Swift itself comes from Xcode / the Command Line Tools and is not installed here.
+# shellcheck source=_lib.sh
+. "$(dirname "$0")/_lib.sh"
+mise install
+# The Homebrew build has no packages; the download build (check-dmg) needs Sparkle, in its
+# own scratch path as in `app`.
+# shellcheck disable=SC2086 # flags are intentionally word-split
+BROWSERDOOR_SPARKLE=1 swift package resolve $SWIFT_BUILD_FLAGS --scratch-path .build/sparkle

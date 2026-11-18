@@ -200,13 +200,13 @@ Then pick another default browser in **System Settings → Desktop & Dock → De
 Tooling and tasks run through [mise](https://mise.jdx.dev); Swift comes from Xcode. [CONTRIBUTING.md](CONTRIBUTING.md) has the checklist for pull requests, and [SECURITY.md](SECURITY.md) how to report a vulnerability. Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ```sh
-mise install        # actionlint, shellcheck, swiftformat (pinned in mise.toml)
+mise run setup      # actionlint, shellcheck, swiftformat (pinned in mise.toml), Swift packages
 mise tasks          # list all tasks
 mise run test       # unit tests
 mise run run        # build build/Browserdoor.app and start it
-mise run format     # swiftformat
+mise run fmt        # swiftformat (alias of format)
 mise run targets    # print the targets found on this Mac and the command each opens a link with
-mise run ci         # lint, unit tests, docs check, release-script tests, app bundle, formula check
+mise run check      # everything CI runs (the ci task): lint, unit tests, docs check, release-script tests, app bundle, formula check
 mise run demo-gif   # re-render docs/demo.gif from docs/demo/frames.py
 mise run social-preview  # re-render docs/social/preview.png (GitHub social preview)
 mise run site       # assemble the homepage (site/) in build/site; pages.yml publishes it
@@ -219,7 +219,7 @@ The logic lives in `Sources/BrowserdoorCore` and is tested without the UI; `Sour
 
 ### Releases and dependencies
 
-`mise run release vX.Y.Z` checks that `main` is pushed and clean, runs `mise run ci`, pushes the tag and puts the version's section from [CHANGELOG.md](CHANGELOG.md) on top of the release notes. The tag runs [`release.yml`](.github/workflows/release.yml): tests, build, GitHub release, bottles for Apple Silicon and Intel (built on macOS 15) attached to the release, and an updated `Formula/browserdoor.rb` with a `bottle do` block in [schowave/homebrew-tap](https://github.com/schowave/homebrew-tap). CI also builds the formula from a source tarball as a bottle (`mise run bottle`), pours that bottle again and runs `brew test` and `brew audit --strict`.
+`mise run release vX.Y.Z` checks that `main` is pushed and clean, runs `mise run check`, pushes the tag and puts the version's section from [CHANGELOG.md](CHANGELOG.md) on top of the release notes. The tag runs [`release.yml`](.github/workflows/release.yml): tests, build, GitHub release, bottles for Apple Silicon and Intel (built on macOS 15) attached to the release, and an updated `Formula/browserdoor.rb` with a `bottle do` block in [schowave/homebrew-tap](https://github.com/schowave/homebrew-tap). CI also builds the formula from a source tarball as a bottle (`mise run bottle`), pours that bottle again and runs `brew test` and `brew audit --strict`.
 
 Next to the bottles, the release builds the download build: a DMG signed with Developer ID, notarized, and updating itself with [Sparkle](https://sparkle-project.org) from the `appcast.xml` attached to the release. Until its secrets exist it skips itself; [`release.yml`](.github/workflows/release.yml) lists them, and setting them up takes one Apple Developer account:
 

@@ -1,5 +1,6 @@
 #!/bin/sh
 #MISE description="Format Swift sources"
+#MISE alias="fmt"
 # shellcheck source=_lib.sh
 . "$(dirname "$0")/_lib.sh"
 swiftformat .
