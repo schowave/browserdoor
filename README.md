@@ -227,7 +227,7 @@ Next to the bottles, the release builds the download build: a DMG signed with De
 2. **Notarization:** an App Store Connect API key (*Users and Access → Integrations → Team Keys*, role Developer). Secrets `NOTARY_API_KEY` (the `.p8` file's text), `NOTARY_API_KEY_ID` and `NOTARY_API_ISSUER`.
 3. **Sparkle keys:** after `mise run check-dmg`, `.build/sparkle/artifacts/sparkle/Sparkle/bin/generate_keys` puts a key pair into your login keychain and prints the public key: repository variable `SPARKLE_PUBLIC_KEY`. `generate_keys -x sparkle.key` exports the private key: secret `SPARKLE_PRIVATE_KEY`, then delete the file. Keep the keychain item: losing the private key means the installed apps can't update any more.
 
-Renovate opens a weekly pull request for GitHub Actions and one for the mise tools, waits seven days after a release before picking it up, and asks before major updates. It merges once CI is green. If a merge changes the app itself, [`auto-release.yml`](.github/workflows/auto-release.yml) tags and releases the next patch version.
+Renovate opens a weekly pull request with all minor and patch updates, one for the mise tools and one per major update, and waits seven days after a release before picking it up. GitHub merges each of them once CI is green. If a merge changes the app itself, [`auto-release.yml`](.github/workflows/auto-release.yml) tags and releases the next patch version.
 
 ## Acknowledgements
 
