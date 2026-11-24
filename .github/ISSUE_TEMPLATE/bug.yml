@@ -13,7 +13,7 @@ body:
     id: versions
     attributes:
       label: Versions
-      description: Browserdoor (menu bar → Settings → General), macOS, and the browser involved.
+      description: Browserdoor (Settings → General), macOS or Windows, and the browser involved.
       placeholder: Browserdoor 0.5.1, macOS 15.4, Zen 1.24.1b
     validations:
       required: true
@@ -23,12 +23,13 @@ body:
       label: Targets
       description: |
         For a missing target or a link opening in the wrong place: the output of
-        `"$(brew --prefix)/opt/browserdoor/Browserdoor.app/Contents/MacOS/Browserdoor" --list-targets`.
+        `"$(brew --prefix)/opt/browserdoor/Browserdoor.app/Contents/MacOS/Browserdoor" --list-targets`,
+        on Windows of `browserdoor --list-targets`.
         It lists every target and the command it opens a link with. Remove names you'd rather not share.
       render: text
   - type: textarea
     id: config
     attributes:
       label: Config
-      description: Your `~/.config/browserdoor/config.json`, if you changed anything.
+      description: Your `~/.config/browserdoor/config.json` (Windows `%APPDATA%\Browserdoor\config.json`), if you changed anything.
       render: json
