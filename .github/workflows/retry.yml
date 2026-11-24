@@ -7,7 +7,7 @@ name: Retry on runner shortage
 
 on:
   workflow_run:
-    workflows: [CI, Release, Auto release, CodeQL, Pages]
+    workflows: [CI, Release, Auto release, CodeQL, Pages, Release (Windows), Zen contract]
     types: [completed]
 
 permissions:

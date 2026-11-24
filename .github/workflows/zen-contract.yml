@@ -1,0 +1,111 @@
+name: Zen contract
+
+# Checks, against the newest Zen on macOS, Windows x64 and Windows ARM, what both Browserdoor apps
+# rely on (SPEC 3.1): `--space` opens a link in the given space on a cold start and hands it to a
+# running Zen (by UUID and by name), and zen-sessions.jsonlz4 keeps spaces[] with uuid, name, icon
+# and theme.gradientColors. The session file Zen wrote is then read with Browserdoor's own parser
+# (windows/core, the same rules as the Swift one) and must give the spaces Zen reported.
+# Runs weekly and when the contract or a Zen parser changes. Zen runs on a throwaway profile.
+
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - contract/**
+      - fixtures/**
+      - windows/core/src/families.rs
+      - Sources/BrowserdoorCore/Zen*.swift
+      - .github/workflows/zen-contract.yml
+  pull_request:
+    paths:
+      - contract/**
+      - fixtures/**
+      - windows/core/src/families.rs
+      - Sources/BrowserdoorCore/Zen*.swift
+      - .github/workflows/zen-contract.yml
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            installer: ""
+          - os: windows-latest
+            installer: zen.installer.exe
+          - os: windows-11-arm
+            installer: zen.installer-arm64.exe
+    runs-on: ${{ matrix.os }}
+    env:
+      MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
+      GH_TOKEN: ${{ github.token }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
+        with:
+          install_args: rust uv
+
+      - name: Install Zen (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install --cask zen
+          echo "ZEN=/Applications/Zen.app/Contents/MacOS/zen" >> "$GITHUB_ENV"
+
+      - name: Install Zen (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          gh release download --repo zen-browser/desktop --pattern "${{ matrix.installer }}" --dir "$RUNNER_TEMP"
+          powershell -NoProfile -Command "Start-Process -FilePath '$(cygpath -w "$RUNNER_TEMP/${{ matrix.installer }}")' -ArgumentList '/S' -Wait"
+          zen=$(find "/c/Program Files" -maxdepth 2 -iname zen.exe 2>/dev/null | head -1)
+          [ -n "$zen" ] || { echo "::error::zen.exe not found after installing"; ls "/c/Program Files"; exit 1; }
+          echo "ZEN=$zen" >> "$GITHUB_ENV"
+
+      - name: Zen version
+        run: |
+          dir=$(dirname "$ZEN")
+          ini="$dir/application.ini"
+          [ -f "$ini" ] || ini="$dir/../Resources/application.ini"
+          grep -E '^Version=' "$ini"
+
+      - name: Contract
+        run: >
+          uv run contract/zen_contract.py --zen "$ZEN"
+          --spaces-out "$RUNNER_TEMP/spaces.json"
+          --profile-out "$RUNNER_TEMP/zen-sessions.jsonlz4"
+
+      - name: Browserdoor reads the session file Zen wrote
+        run: |
+          cargo run --quiet --locked --manifest-path windows/Cargo.toml -p browserdoor-core --example zen-spaces \
+            -- "$RUNNER_TEMP/zen-sessions.jsonlz4" > "$RUNNER_TEMP/parsed.json"
+          uv run --no-project -- python -I - "$RUNNER_TEMP/spaces.json" "$RUNNER_TEMP/parsed.json" <<'PY'
+          import json, sys
+          zen = json.load(open(sys.argv[1], encoding="utf-8"))
+          parsed = json.load(open(sys.argv[2], encoding="utf-8"))
+          want = [(s["uuid"], s["name"], s["icon"] or None) for s in zen]
+          got = [(s["uuid"], s["name"], s["icon"]) for s in parsed]
+          if want != got:
+              print(f"::error::Browserdoor's parser disagrees with Zen\nZen:  {want}\nRead: {got}")
+              sys.exit(1)
+          print(f"ok: {len(got)} spaces read as Zen reported them")
+          PY
+
+      - name: Keep the session file
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: zen-session-${{ matrix.os }}
+          path: |
+            ${{ runner.temp }}/zen-sessions.jsonlz4
+            ${{ runner.temp }}/spaces.json
+            ${{ runner.temp }}/parsed.json
+          if-no-files-found: ignore

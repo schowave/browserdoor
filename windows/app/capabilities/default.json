@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Both windows talk to the app's own commands only; events for state pushes.",
+  "windows": ["picker", "settings"],
+  "permissions": ["core:event:default"]
+}

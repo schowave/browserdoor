@@ -1,0 +1,49 @@
+#!/bin/sh
+#MISE description="Smoke test a built browserdoor.exe on Windows (Git Bash): discovery, hand-over to the resident instance, quit, unregister"
+# Usage: windows-smoke <path to browserdoor.exe>. Registers Browserdoor for the current user while
+# it runs and removes it again; meant for CI runners and test machines.
+set -eu
+exe=$(cd "$(dirname "$1")" && pwd)/$(basename "$1")
+out="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/browserdoor-smoke"
+mkdir -p "$out"
+appdata=$(cygpath -u "${APPDATA:?}")
+count() { tasklist //FI "IMAGENAME eq browserdoor.exe" //NH | grep -ci "browserdoor.exe" || true; }
+
+echo "== --list-targets"
+"$exe" --list-targets | tee "$out/targets.tsv"
+grep -q "Microsoft Edge" "$out/targets.tsv" || { echo "::error::discovery did not find Microsoft Edge"; exit 1; }
+if grep -q "chrome.exe" "$out/targets.tsv"; then echo "Chrome found"; fi
+
+echo "== resident instance"
+"$exe" --background &
+for _ in $(seq 1 30); do [ "$(count)" -ge 1 ] && break; sleep 1; done
+sleep 5
+[ "$(count)" -eq 1 ] || { echo "::error::the resident instance is not running"; cat "$appdata/Browserdoor/browserdoor.log" 2>/dev/null || true; exit 1; }
+
+echo "== a second launch hands its link over and exits"
+start=$(date +%s)
+"$exe" "https://example.com/?from=smoke"
+elapsed=$(( $(date +%s) - start ))
+echo "hand-over took ${elapsed}s"
+[ "$elapsed" -le 10 ] || { echo "::error::the second launch did not exit quickly"; exit 1; }
+sleep 3
+[ "$(count)" -eq 1 ] || { echo "::error::expected exactly one Browserdoor process after the hand-over, got $(count)"; exit 1; }
+powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms,System.Drawing; \$b=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds; \$i=New-Object System.Drawing.Bitmap \$b.Width,\$b.Height; [System.Drawing.Graphics]::FromImage(\$i).CopyFromScreen(\$b.Location,[System.Drawing.Point]::Empty,\$b.Size); \$i.Save('$(cygpath -w "$out")\\picker.png')" || true
+
+echo "== registration"
+reg query 'HKCU\Software\Clients\StartMenuInternet\Browserdoor\Capabilities\URLAssociations' | tee "$out/registration.txt"
+grep -q "BrowserdoorURL" "$out/registration.txt" || { echo "::error::Browserdoor is not registered as a browser"; exit 1; }
+reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' //v Browserdoor || { echo "::error::no login item after the first launch"; exit 1; }
+
+echo "== --quit ends the resident instance"
+"$exe" --quit
+for _ in $(seq 1 15); do [ "$(count)" -eq 0 ] && break; sleep 1; done
+[ "$(count)" -eq 0 ] || { echo "::error::--quit left Browserdoor running"; exit 1; }
+
+echo "== --unregister removes the registration"
+"$exe" --unregister
+if reg query 'HKCU\Software\Clients\StartMenuInternet\Browserdoor' >/dev/null 2>&1; then
+  echo "::error::--unregister left the StartMenuInternet key"; exit 1
+fi
+cp "$appdata/Browserdoor/browserdoor.log" "$out/" 2>/dev/null || true
+echo "smoke test passed"

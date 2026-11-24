@@ -1,0 +1,6 @@
+#!/bin/sh
+#MISE description="Render the Scoop manifest: render-scoop <version> <sha256 x64> <sha256 arm64>"
+set -eu
+[ $# -eq 3 ] || { echo "usage: render-scoop <version> <sha256 x64> <sha256 arm64>" >&2; exit 2; }
+root=$(cd "$(dirname "$0")/../.." && pwd)
+sed -e "s/@VERSION@/$1/g" -e "s/@SHA256_X64@/$2/g" -e "s/@SHA256_ARM64@/$3/g" "$root/packaging/scoop/browserdoor.json"

@@ -1,0 +1,29 @@
+#!/bin/sh
+#MISE description="Both apps change together: check-parity [base] fails if the domain changed on one side only"
+# The domain exists twice (ADR 0001): Sources/BrowserdoorCore (macOS) and windows/core (Windows).
+# A change to one side's domain code needs the other side's in the same push, or a line
+# "Parity: <why only one side>" in one of its commit messages (e.g. "Parity: macOS only, Sparkle").
+# base defaults to origin/main; CI passes the previous head of the branch or the PR base.
+set -eu
+base="${1:-origin/main}"
+if ! git rev-parse --verify --quiet "$base^{commit}" >/dev/null; then
+  echo "check-parity: base $base unknown (new branch or shallow clone), skipped"
+  exit 0
+fi
+changed="$(git diff --name-only "$base" HEAD; git diff --name-only HEAD)"
+mac=$(printf '%s\n' "$changed" | grep -c '^Sources/BrowserdoorCore/' || true)
+win=$(printf '%s\n' "$changed" | grep -c '^windows/core/src/' || true)
+if [ "$mac" -gt 0 ] && [ "$win" -gt 0 ] || [ "$mac" -eq 0 ] && [ "$win" -eq 0 ]; then
+  echo "check-parity: ok (macOS domain files changed: $mac, Windows: $win)"
+  exit 0
+fi
+if git log --format=%B "$base..HEAD" | grep -q '^Parity: '; then
+  echo "check-parity: one side only, explained:"
+  git log --format=%B "$base..HEAD" | grep '^Parity: '
+  exit 0
+fi
+side=$([ "$mac" -gt 0 ] && echo "Sources/BrowserdoorCore (macOS)" || echo "windows/core (Windows)")
+echo "check-parity: only $side changed since $base." >&2
+echo "  Change the other app's domain too (SPEC.md says how each platform behaves), or add a line" >&2
+echo "  'Parity: <why only this side>' to the commit message." >&2
+exit 1

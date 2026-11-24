@@ -1,0 +1,48 @@
+[package]
+name = "browserdoor"
+description = "Browserdoor for Windows: a link picker for Zen spaces, browser profiles and browsers"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[build-dependencies]
+tauri-build = { version = "2.7.6", features = [] }
+
+[dependencies]
+browserdoor-core = { path = "../core" }
+serde.workspace = true
+serde_json.workspace = true
+tauri = { version = "2.12.7", features = ["tray-icon", "image-png"] }
+tauri-plugin-dialog = "2.8.4"
+tauri-plugin-clipboard-manager = "2.5.0"
+base64 = "0.22.1"
+png = "0.18.1"
+# Windows' own TLS (Schannel) and root store: no C to compile, smaller binary.
+ureq = { version = "3.5.2", default-features = false, features = ["native-tls-no-default"] }
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.56.0"
+windows-sys = { version = "0.61.2", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_Security",
+  "Win32_Storage_FileSystem",
+  "Win32_System_Diagnostics_ToolHelp",
+  "Win32_System_Pipes",
+  "Win32_System_Threading",
+  "Win32_System_IO",
+  "Win32_System_Com",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_UI_HiDpi",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_Globalization",
+  "Win32_System_Console",
+] }
+
+[features]
+# Serve the built UI from the binary (what `tauri build` turns on); always on, there is no dev server mode.
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

@@ -1,0 +1,29 @@
+#!/bin/sh
+#MISE description="Render the Windows app icon (.ico) and tray icons from Resources/Icon (commit the result)"
+# Needs rsvg-convert and ImageMagick (brew install librsvg imagemagick).
+set -eu
+root=$(cd "$(dirname "$0")/../.." && pwd)
+out="$root/windows/app/icons"
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+mkdir -p "$out"
+
+for size in 16 20 24 32 40 48 64 256; do
+  rsvg-convert -w "$size" -h "$size" "$root/Resources/Icon/AppIcon.svg" -o "$tmp/icon-$size.png"
+done
+magick "$tmp"/icon-16.png "$tmp"/icon-20.png "$tmp"/icon-24.png "$tmp"/icon-32.png "$tmp"/icon-40.png \
+  "$tmp"/icon-48.png "$tmp"/icon-64.png "$tmp"/icon-256.png "$out/icon.ico"
+cp "$tmp/icon-256.png" "$out/icon.png"
+
+# Tray: the menu bar glyph in white (dark taskbar) and black (light taskbar), with and without
+# the dot that says Browserdoor isn't the default browser (cut out of the door, as on macOS).
+glyph='<rect x="4.25" y="2.25" width="9.5" height="13.5" rx="1" fill="none" stroke="C" stroke-width="1.5"/><path d="M4.25 2.25 L9 3.6 V14.4 L4.25 15.75 Z" fill="C"/>'
+for theme in dark light; do
+  color=$([ "$theme" = dark ] && echo "#ffffff" || echo "#1a1a1a")
+  g=$(printf '%s' "$glyph" | sed "s/\"C\"/\"$color\"/g")
+  printf '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18">%s</svg>' "$g" > "$tmp/t.svg"
+  rsvg-convert -w 32 -h 32 "$tmp/t.svg" -o "$out/tray-$theme.png"
+  printf '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><mask id="m"><rect width="18" height="18" fill="#fff"/><circle cx="14" cy="4" r="4.4" fill="#000"/></mask><g mask="url(#m)">%s</g><circle cx="14" cy="4" r="3" fill="%s"/></svg>' "$g" "$color" > "$tmp/d.svg"
+  rsvg-convert -w 32 -h 32 "$tmp/d.svg" -o "$out/tray-$theme-dot.png"
+done
+echo "wrote windows/app/icons"

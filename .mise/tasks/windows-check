@@ -1,0 +1,13 @@
+#!/bin/sh
+#MISE description="Windows app, everything (run on Windows, in Git Bash): core, UI checks and build, app lint, tests and release build"
+set -eu
+root=$(cd "$(dirname "$0")/../.." && pwd)
+"$root/.mise/tasks/windows-core"
+cd "$root/windows/ui"
+npm ci --no-audit --no-fund
+npm run check
+npm run build
+cd "$root/windows"
+cargo clippy -p browserdoor --all-targets --locked -- -D warnings
+cargo test -p browserdoor --locked
+cargo build -p browserdoor --release --locked

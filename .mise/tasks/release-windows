@@ -1,0 +1,20 @@
+#!/bin/sh
+#MISE description="Release the Windows app: release-windows windows-vX.Y.Z (needs its section in windows/CHANGELOG.md)"
+set -eu
+tag="${1:-}"
+case "$tag" in
+  windows-v[0-9]*.[0-9]*.[0-9]*) ;;
+  *) echo "usage: release-windows windows-vX.Y.Z" >&2; exit 2 ;;
+esac
+version="${tag#windows-v}"
+root=$(cd "$(dirname "$0")/../.." && pwd)
+grep -Eq "^## \[?$version\]?( |$)" "$root/windows/CHANGELOG.md" || {
+  echo "windows/CHANGELOG.md has no section for $version" >&2; exit 1; }
+[ -z "$(git -C "$root" status --porcelain)" ] || { echo "the working tree is not clean" >&2; exit 1; }
+"$root/.mise/tasks/windows-core"
+git -C "$root" tag -a "$tag" -m "Browserdoor for Windows $version"
+git -C "$root" push origin "$tag"
+sleep 10
+run=$(gh run list --workflow release-windows.yml --branch "$tag" --limit 1 --json databaseId --jq '.[0].databaseId')
+gh run watch "$run" --exit-status
+gh release view "$tag" --json url --jq .url

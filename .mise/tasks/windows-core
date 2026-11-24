@@ -1,0 +1,7 @@
+#!/bin/sh
+#MISE description="Windows app, platform-independent part: format, lint and test windows/core (runs on any OS)"
+set -eu
+cd "$(dirname "$0")/../../windows"
+cargo fmt --check
+cargo clippy -p browserdoor-core --all-targets --locked -- -D warnings
+cargo test -p browserdoor-core --locked

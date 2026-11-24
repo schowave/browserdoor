@@ -3,5 +3,11 @@
 # in .mise/tasks/ (`mise tasks` lists them). Renovate keeps these versions current.
 [tools]
 actionlint = "1.7.12"
+# The Windows app (windows/): Rust for both crates, Node for its UI. `mise run check` tests the
+# platform-independent core on macOS; the app itself is built and tested on Windows in CI.
+node = "24.22.3"
+rust = { version = "1.98.0", components = "clippy,rustfmt" }
+# Runs the Zen contract test (contract/zen_contract.py) with its pinned Python packages.
+uv = "0.13.9"
 shellcheck = "0.11.0"
 swiftformat = "0.64.6"

@@ -1,0 +1,145 @@
+name: Release (Windows)
+
+# Runs for a pushed tag like windows-v0.1.0 (`mise run release-windows windows-v0.1.0`).
+# → check and build the Windows app for x64 and arm64 on Windows runners, smoke-test each build,
+#   create the GitHub release windows-v<version> with both zips, and publish the Scoop manifest to
+#   schowave/scoop-bucket (browserdoor.json), which is what `scoop update` and the app's own update
+#   check read. The release is never marked "latest": the macOS app's update checks follow
+#   releases/latest, and that stays the newest macOS release (ADR 0001).
+# Needs the secret TAP_GITHUB_TOKEN with contents:write on schowave/scoop-bucket too.
+# Safe to re-run: an existing release keeps its zips, an unchanged manifest is not committed again.
+
+on:
+  push:
+    tags: ["windows-v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to release, e.g. windows-v0.1.0
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-windows-${{ inputs.tag || github.ref_name }}
+
+jobs:
+  build:
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: x64
+            os: windows-latest
+          - arch: arm64
+            os: windows-11-arm
+    runs-on: ${{ matrix.os }}
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
+        with:
+          install_args: rust node
+      - name: Version
+        run: |
+          version="${TAG#windows-v}"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::tag $TAG is not windows-vX.Y.Z"; exit 1; }
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - name: Check and build
+        env:
+          BROWSERDOOR_VERSION: ${{ env.VERSION }}
+        run: .mise/tasks/windows-check
+      - name: Smoke test
+        run: .mise/tasks/windows-smoke windows/target/release/browserdoor.exe
+      - name: Package
+        run: |
+          dir="$RUNNER_TEMP/pkg"
+          mkdir -p "$dir"
+          cp windows/target/release/browserdoor.exe LICENSE "$dir/"
+          zip="browserdoor-$VERSION-windows-${{ matrix.arch }}.zip"
+          (cd "$dir" && powershell -NoProfile -Command "Compress-Archive -Path browserdoor.exe,LICENSE -DestinationPath '$zip' -Force")
+          mv "$dir/$zip" .
+          sha256sum "$zip" | tee "$zip.sha256"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: windows-${{ matrix.arch }}
+          path: browserdoor-*.zip*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: windows-*
+          merge-multiple: true
+          path: dist
+      - name: Release notes from windows/CHANGELOG.md
+        run: |
+          version="${TAG#windows-v}"
+          awk -v v="$version" '
+            $0 ~ "^## \\[?" v "\\]?( |$)" { on = 1; next }
+            on && /^## / { exit }
+            on { print }
+          ' windows/CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "Browserdoor for Windows $version." > notes.md
+          # shellcheck disable=SC2016 # backticks are Markdown here
+          printf '\nInstall with [Scoop](https://scoop.sh): `scoop bucket add schowave https://github.com/schowave/scoop-bucket` and `scoop install schowave/browserdoor`.\n' >> notes.md
+          cat notes.md
+      - name: Create the release (never "latest")
+        run: |
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --verify-tag --latest=false --title "Browserdoor for Windows ${TAG#windows-v}" --notes-file notes.md
+          fi
+          gh release upload "$TAG" dist/*.zip dist/*.sha256 --clobber
+
+  bucket:
+    needs: release
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - name: Render the manifest from the released zips
+        run: |
+          version="${TAG#windows-v}"
+          mkdir dl
+          gh release download "$TAG" --pattern '*.zip' --dir dl
+          x64=$(sha256sum "dl/browserdoor-$version-windows-x64.zip" | cut -d' ' -f1)
+          arm64=$(sha256sum "dl/browserdoor-$version-windows-arm64.zip" | cut -d' ' -f1)
+          .mise/tasks/render-scoop "$version" "$x64" "$arm64" > browserdoor.json
+          jq . browserdoor.json
+      - name: Push to schowave/scoop-bucket
+        env:
+          TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+        run: |
+          [ -n "$TOKEN" ] || { echo "::error::secret TAP_GITHUB_TOKEN is empty"; exit 1; }
+          git clone --depth 1 "https://x-access-token:$TOKEN@github.com/schowave/scoop-bucket.git" bucket
+          cp browserdoor.json bucket/browserdoor.json
+          cd bucket
+          if git diff --quiet -- browserdoor.json && git ls-files --error-unmatch browserdoor.json >/dev/null 2>&1; then
+            echo "manifest unchanged"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add browserdoor.json
+          git commit -m "browserdoor ${TAG#windows-v}"
+          git push origin HEAD
