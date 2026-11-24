@@ -115,13 +115,20 @@ class Zen:
         return result["ok"]
 
     def state(self) -> dict:
+        """Every tab of every browser window, with its space and its window's active space. Zen's
+        gBrowser.tabs leaves out the tabs of other spaces, so this asks the space manager."""
         return self.script(
             """
-            const tabs = gBrowser.tabs.map(t => ({
-              url: t.linkedBrowser.currentURI.spec,
-              space: t.getAttribute('zen-workspace-id'),
-            }));
-            return {active: gZenWorkspaces.activeWorkspace, tabs,
+            const windows = [...Services.wm.getEnumerator('navigator:browser')];
+            const tabs = [];
+            windows.forEach((w, i) => {
+              const all = w.gZenWorkspaces?.allStoredTabs ?? w.gBrowser.tabs;
+              for (const t of all) {
+                tabs.push({url: t.linkedBrowser?.currentURI?.spec ?? '', space: t.getAttribute('zen-workspace-id'),
+                           window: i, active: w.gZenWorkspaces?.activeWorkspace});
+              }
+            });
+            return {windows: windows.length, active: gZenWorkspaces.activeWorkspace, tabs,
                     spaces: gZenWorkspaces.getWorkspaces().map(s => ({uuid: s.uuid, name: s.name}))};
             """
         )
@@ -154,11 +161,13 @@ class Zen:
 
 def expect_in_space(st: dict, url: str, space: dict, case: str) -> None:
     tab = next(t for t in st["tabs"] if t["url"] == url)
+    names = {s["uuid"]: s["name"] for s in st["spaces"]}
     if tab["space"] != space["uuid"]:
-        names = {s["uuid"]: s["name"] for s in st["spaces"]}
         fail(f"{case}: {url} opened in {names.get(tab['space'], tab['space'])}, not {space['name']}")
-    if st["active"] != space["uuid"]:
-        fail(f"{case}: active space is {st['active']}, not {space['name']}")
+    if tab["active"] != space["uuid"]:
+        fail(f"{case}: its window shows {names.get(tab['active'], tab['active'])}, not {space['name']}")
+    if st["windows"] != 1:
+        fail(f"{case}: Zen has {st['windows']} windows; the link should open in the existing one")
     log(f"ok: {case}")
 
 
@@ -240,9 +249,8 @@ def main() -> None:
         zen.script("await gZenWorkspaces.changeWorkspaceWithID(args[0]); return true;", [alpha["uuid"]])
         if zen.state()["active"] != alpha["uuid"]:
             fail("could not switch the running Zen to Alpha")
-        handoff = subprocess.run(zen.args("--space", beta["uuid"], WARM_URL), timeout=60,
-                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        log(f"hand-off process exited with {handoff.returncode}")
+        handoff = subprocess.run(zen.args("--space", beta["uuid"], WARM_URL), timeout=60, capture_output=True, text=True)
+        log(f"hand-off process exited with {handoff.returncode}: {(handoff.stdout + handoff.stderr).strip()[:500]}")
         zen.wait_for_tab(WARM_URL)
         st = wait_active(zen, beta)
         expect_in_space(st, WARM_URL, beta, "running Zen with --space <uuid>")
