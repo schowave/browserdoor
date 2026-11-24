@@ -1,8 +1,10 @@
 # Browserdoor
 
+- **Two apps, one product**: the macOS app (Swift, `Sources/`) and the Windows app (Rust/Tauri, `windows/`) share `SPEC.md`, `GLOSSARY.md` and `fixtures/` ([ADR 0001](docs/adr/0001-windows-port-in-rust-tauri.md)). Every behaviour change lands in **both** apps in the same push: the domain in `Sources/BrowserdoorCore` and in `windows/core`, plus the spec (shared rule, or the platform's *Windows* section). `check-parity` (CI job `parity`) fails when only one domain changed; if a change really is one-sided (Sparkle, the Windows registry), say why in a commit message line `Parity: …`.
 - **Spec**: `SPEC.md` is authoritative for discovery, target IDs and launch commands. A behaviour change updates it in the same commit.
-- **Terms**: `GLOSSARY.md` names the concepts used in code and reviews.
-- **Setup**: `mise run setup` on a fresh clone (pinned tools, Swift packages).
-- **Check**: `mise run check` before every commit; it is what GitHub CI runs.
-- **Release**: review the changes since the last tag (`/code-review high <last tag>`), turn "Unreleased" in `CHANGELOG.md` into the version's section, push main, then `mise run release vX.Y.Z`. A change users notice gets a CHANGELOG line when it lands.
-- **Real-machine check**: `mise run targets` prints the targets the app finds on this Mac and the command each would open a link with. Reach for it to verify discovery or launching; it launches nothing.
+- **Terms**: `GLOSSARY.md` names the concepts used in code and reviews, in both apps.
+- **Setup**: `mise run setup` on a fresh clone (pinned tools, Swift packages, Rust and Node for `windows/`).
+- **Check**: `mise run check` before every commit; it is what GitHub CI's macOS job runs, and it includes `windows-core` (the Windows domain's format, lint and tests, which run on macOS). The Windows app itself is built, tested and smoke-tested in CI's `windows` job (`.mise/tasks/windows-check`, `windows-smoke`); after changing `windows/app` or `windows/ui`, watch that job.
+- **Release (macOS)**: review the changes since the last tag (`/code-review high <last tag>`), turn "Unreleased" in `CHANGELOG.md` into the version's section, push main, then `mise run release vX.Y.Z`. A change users notice gets a CHANGELOG line when it lands.
+- **Release (Windows)**: the same with `windows/CHANGELOG.md` and `mise run release-windows windows-vX.Y.Z`. Windows versions count on their own; a change users notice on both platforms gets a line in both changelogs.
+- **Real-machine check**: `mise run targets` prints the targets the app finds on this Mac and the command each would open a link with; on Windows, `browserdoor.exe --list-targets`. Reach for them to verify discovery or launching; they launch nothing. `uv run contract/zen_contract.py --zen <zen executable>` checks what both apps rely on in Zen.

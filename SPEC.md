@@ -1,6 +1,6 @@
 # Browserdoor — Specification
 
-Browserdoor is a macOS link picker in the style of Browserosaurus. It is registered as the default browser. When you click a link, a panel appears at the mouse position. In it you choose the target: a **Zen space**, a **Chromium profile**, a **Firefox profile** or another installed browser.
+Browserdoor is a link picker for macOS and Windows in the style of Browserosaurus. It is registered as the default browser. When you click a link, a panel appears at the mouse position. In it you choose the target: a **Zen space**, a **Chromium profile**, a **Firefox profile** or another installed browser.
 
 ## 1. Scope
 
@@ -9,6 +9,7 @@ Browserdoor is a macOS link picker in the style of Browserosaurus. It is registe
 - Picker with a mixed target list: Zen spaces, Chromium browsers × profiles, Firefox profiles, other browsers
 - Settings window, backed by a JSON configuration file
 - Installation via a Homebrew formula from a dedicated tap, or as a notarized DMG that updates itself (see 10.2)
+- Windows: the same app for Windows 11, installed with Scoop (see 2.1). The sections marked *Windows* say where it differs; everything else applies to both.
 
 **Not included**
 - Rule engine (à la Finicky)
@@ -18,6 +19,7 @@ Browserdoor is a macOS link picker in the style of Browserosaurus. It is registe
 - More than one Zen profile at a time
 - Firefox containers as separate targets
 - Safari profiles (Safari has no command line for them)
+- Linux (a later step, see ADR 0001); Windows 10 and installers other than Scoop
 
 ## 2. Platform
 
@@ -26,6 +28,13 @@ Browserdoor is a macOS link picker in the style of Browserosaurus. It is registe
 - English and German according to the system language (`Resources/Localization/*.lproj/Localizable.strings`, key = English text). `mise run check-strings` checks that every key is translated.
 - Its only network access is the update check (see 7).
 - License: MIT. The repo is public on GitHub.
+
+### 2.1 Windows
+
+- Rust and Tauri 2 (WebView2), **Windows 11**, x64 and arm64 ([ADR 0001](docs/adr/0001-windows-port-in-rust-tauri.md)). `windows/core` is the domain without any Windows API; `windows/app` is the Windows shell; `windows/ui` holds the two pages (Svelte 5).
+- One **resident instance** per user runs in the background with a tray icon (see 6.4); autostart is a `Run` value in the registry (see 8.6).
+- English and German according to the Windows display language (`windows/app/src/i18n.rs`, `windows/ui/src/lib/i18n.ts`, key = English text).
+- Its only network access is the update check (see 7.3).
 
 ## 3. Targets
 
@@ -87,6 +96,18 @@ A **target** is an entry in the picker. Every target has a stable `id`, a displa
 
 URLs reach the browsers as command-line arguments, so Browserdoor lets only `http`, `https` and `file` through (`URLPolicy`); everything else, such as `--remote-debugging-port=…` or `javascript:`, is discarded. From `.webloc` files only `http` and `https` are accepted, so a downloaded file can't open a local one. The check runs on receipt and again when the launch commands are built.
 
+### 3.6 Windows
+
+- **App ID** instead of bundle ID: the browser's key under `Software\Clients\StartMenuInternet`, or the path of the `.exe` for an added app. Target IDs keep their schemes (`zen:{uuid}`, `chromium:<appId>:<dir>`, `firefox:<appId>:<path>`, `app:<appId>`), so a configuration only works on the computer it was made on.
+- **Discovery** reads the browsers registered under `StartMenuInternet` in HKCU, then HKLM (64- and 32-bit view); the first entry per App ID and per `.exe` wins, Browserdoor's own entry is skipped. That list holds browsers only, so there is no allowlist. Name: the key's default value, else `Capabilities\ApplicationName`; program: `shell\open\command`.
+- **Families** are recognized by the end of the `.exe` path:
+  - Chromium (data under `%LOCALAPPDATA%`): `\Google\Chrome\Application\chrome.exe` → `Google\Chrome\User Data`, likewise `Chrome Beta`, `Chrome Dev`, `Chrome SxS` (Canary), `BraveSoftware\Brave-Browser\Application\brave.exe`, `Microsoft\Edge…\Application\msedge.exe` (Edge, Beta, Dev), `Vivaldi\Application\vivaldi.exe`, `Chromium\Application\chrome.exe`. Profiles as in 3.2.
+  - Firefox: `\Mozilla Firefox\firefox.exe` with `%APPDATA%\Mozilla\Firefox`; profiles and profile groups as in 3.3.
+  - Zen: `zen.exe` with `%APPDATA%\zen`; its version is `[App] Version` of the `application.ini` next to `zen.exe`; spaces as in 3.1. The Zen contract test (see 12) checks `--space` and the session file on Windows too.
+- **Added apps** (`extraApps`) are `.exe` paths; the name is the file's `FileDescription`. An `.exe` that no longer exists is listed in the settings for removal.
+- **Opening** starts the browser directly (`CreateProcess`, detached, after `AllowSetForegroundWindow` so it may come forward): plain browsers `<exe> <url…>`, Chromium `--profile-directory=<dir>`, Firefox `-profile <dir>`, Zen `--space <uuid>` (one call per URL while Zen runs, all URLs in one call on a cold start; `--profile` as in 3.1). Zen is brought forward afterwards. "Zen runs" means a process with that image path exists; one whose path can't be read but whose name matches counts too.
+- **Incoming items** are the command-line arguments Windows passes: URLs, or paths of `.html`, `.htm` and `.xhtml` files, which become `file:` URLs. 3.5 applies unchanged.
+
 ## 4. Picker
 
 A floating, borderless `NSPanel` at the mouse position, kept within the visible screen area (`PickerPlacement`).
@@ -110,6 +131,14 @@ A floating, borderless `NSPanel` at the mouse position, kept within the visible 
 - For VoiceOver every row is a button with its name as label, its key and the `↩` mark as hint, and its selected state.
 - Links that arrive while the picker is open are collected; one choice opens all of them.
 
+### 4.1 Windows
+
+- A borderless, always-on-top window with an acrylic background, created hidden at startup so it appears without starting WebView2. It opens left of and above the mouse (24 × 12 px, scaled for the monitor) and stays 8 px inside the work area of the mouse's monitor (`placement`). The page reports its height, and the window is resized at the same spot.
+- Ctrl takes the place of ⌘ (Ctrl+C, Ctrl+,). Ctrl+Alt counts as AltGr, so a character typed with it can be a target's key.
+- Hover selects only after the mouse has moved 2 px from where it was first seen over the picker.
+- Focus: the launch that brought the link lets the resident instance take the foreground (see 8.6). If Windows still refuses, the picker flashes in the taskbar instead of waiting without focus.
+- The list is a listbox for screen readers (Narrator): each row an option with its name and key.
+
 ## 5. Configuration
 
 `~/.config/browserdoor/config.json`, optional; without it the defaults apply. Unknown fields are ignored.
@@ -131,6 +160,10 @@ A floating, borderless `NSPanel` at the mouse position, kept within the visible 
 - **`extraApps`**: bundle IDs of apps that aren't known browsers but should be targets.
 - **`targets.<id>.label`**: overrides the display name; in the file it is also the readable name next to the UUID.
 - Normally the settings window maintains the file (see 6.3). It rewrites it on every change (sorted keys, stable diffs) and keeps the settings of targets that aren't discovered right now.
+
+### 5.1 Windows
+
+`%APPDATA%\Browserdoor\config.json`, same keys and rules; `extraApps` holds `.exe` paths. What the app remembers besides that (onboarding done, tray icon shown, update check) is in `state.json` next to it; problems are logged to `browserdoor.log` there.
 
 ## 6. Menu bar and settings
 
@@ -161,6 +194,16 @@ An `NSWindow` with a toolbar tab per pane, SwiftUI inside. It also opens when Br
 - The picker's ⌘, and its empty-state button open the Targets pane.
 - An invisible main menu provides About, ⌘C/⌘V/⌘A, ⌘W, ⌘M, ⌘H and ⌘, for the window.
 
+### 6.4 Windows
+
+- **Tray icon**: the door, white or dark to match the taskbar (`SystemUsesLightTheme`), with the dot while Browserdoor isn't the default browser (the https `UserChoice`/`UserChoiceLatest` ProgID is not `BrowserdoorURL`); the tooltip says so too. Icon and menu are rebuilt when the pointer reaches the icon, every 60 s and after actions. Left and right click open the menu.
+- **Menu**: About Browserdoor (version, repository, license); Open Link from Clipboard… (links in the clipboard text as in 6.2, filtered like any incoming link); Make Default Browser…, only when needed; Check for Updates… or Update to Browserdoor X…; Settings…; Quit Browserdoor.
+- **Settings window**: Mica background, the panes as tabs.
+  - *General*: the default browser button opens the Windows settings for Browserdoor (`ms-settings:defaultapps?registeredAppUser=Browserdoor`); Windows lets only the user choose. "Start at login" (the `Run` value), "Show in notification area" (without the icon, starting Browserdoor again opens the settings), updates.
+  - *Targets*: as in 6.3. **+** picks an `.exe`. The key recorder removes a key with Delete or Backspace. Alt+↑/↓ moves a row, F2 or a double-click renames.
+  - *Advanced*: Zen profile (a folder picker), "Show in Explorer" for the configuration file.
+  - The window reloads its state whenever it comes to the front.
+
 ## 7. Updates
 
 Both builds check once a day while "Check for updates automatically" is on (one defaults key, on by default, `UserDefaultsUpdatePreferences`) and when the user asks. Dev builds (version `0.0.0`) are never offered updates. The menu and the settings use one interface, `UpdateChecking`, which each build's `UpdateChecker` conforms to.
@@ -183,6 +226,12 @@ Both builds check once a day while "Check for updates automatically" is on (one 
   - A check starts only while Sparkle can start one (`canCheckForUpdates`); otherwise it just brings its window back.
   - A check that ends without an answer (cancelled) clears "checking". An error shows only for a check the user asked for.
 - Dev builds don't start Sparkle; "Check for Updates…" says they don't update themselves.
+
+### 7.3 Scoop build (Windows)
+
+- Once a day while "Check for updates automatically" is on (`state.json`), first 20 s after start, and when asked. Dev builds (`0.0.0`) never update.
+- The newest version is the `version` of the Scoop manifest, `https://raw.githubusercontent.com/schowave/scoop-bucket/main/browserdoor.json`: exactly what `scoop update` would install, without GitHub's API rate limit.
+- A newer version shows a dialog; "Later" suppresses the automatic notice for it. "Update" opens a PowerShell window that waits for Browserdoor to quit, runs `scoop update browserdoor` and starts Browserdoor again (`--background`); Browserdoor quits right after opening it. Without a Scoop installation the release page opens instead.
 
 ## 8. Launch and installation
 
@@ -221,6 +270,15 @@ Up to 0.4.x the bundle ID was `io.github.schowave.doorman`, since 0.5.0 it is `i
 - A LaunchAgent under the old label is replaced by one under the new label (`Legacy.moveLoginItem`). Without one, none is created.
 - If the old ID was the `https` handler (read from `com.apple.launchservices.secure.plist`, because the old app is gone after `brew cleanup`), Browserdoor asks right away via `setDefaultApplication`, and macOS shows its confirmation. If the user declines, the notice stays in the menu.
 
+### 8.6 Windows
+
+- **Arguments**: `--background` (autostart: no window), `--quit` (ends the resident instance), `--list-targets` (prints the targets as `mise run targets` does on macOS, see 12; launches nothing), `--unregister` (ends the resident instance and removes the registration; Scoop's uninstaller calls it).
+- **Resident instance**: the named mutex `Local\Browserdoor-resident` decides who it is. Every later launch connects to the pipe `\\.\pipe\Browserdoor-<user>` (local clients only), allows the resident instance into the foreground (`AllowSetForegroundWindow` with the pipe server's PID), sends its links as JSON and exits; it retries for 5 s while the resident instance starts. Links open the picker; a launch without links opens the settings.
+- **Registration**, on every launch, under HKCU and without admin rights: the ProgIDs `BrowserdoorURL` and `BrowserdoorHTML`, `Software\Clients\StartMenuInternet\Browserdoor` with `Capabilities` (http, https; `.htm`, `.html`, `.xhtml`) and the `RegisteredApplications` entry. Windows is notified (`SHChangeNotify`) only if something changed.
+- **Stable path**: the registration and the login item point at Scoop's `apps\browserdoor\current\browserdoor.exe`, which survives `scoop update`, not at the versioned folder.
+- **First launch**: autostart on (`Run` value `Browserdoor` = `"<stable path>" --background`), then a dialog offers to open the Windows settings to choose Browserdoor as the default browser.
+- **Dev builds** (debug) run as "Browserdoor Dev" with their own mutex, pipe and settings folder, and register nothing.
+
 ## 9. Architecture
 
 Terms: see [GLOSSARY.md](GLOSSARY.md). The logic lives in a few deep modules in `BrowserdoorCore`, tested through their interface; the app (`Sources/Browserdoor`) renders and provides the adapters for the seams.
@@ -239,6 +297,10 @@ Terms: see [GLOSSARY.md](GLOSSARY.md). The logic lives in a few deep modules in 
 | Parsers | `MozLz4`, `ZenSpaces`, `ZenProfile`, `ChromiumProfiles`, `FirefoxProfiles`, `WeblocParser` | in-process |
 
 App: `AppDelegate` (main menu, onboarding dialog), `StatusMenu` (menu bar icon and menu), `About`, `PickerController` (shows the session directly, runs effects), `Settings` (window, binds the edits of `CatalogState`), `UpdateChecker` (dialogs and the upgrade script; in the download build Sparkle's updater), `UpgradeWatcher` (restarts after `brew upgrade`), `IconProvider` (loads NSImages; observable, so open windows reload the Zen icons as soon as they are extracted), adapters (`SystemEnvironment`, `SystemLaunchPort`, `SystemStartupPort`, `SMAppServiceLoginItem`).
+
+### 9.1 Windows
+
+`windows/core` has the same modules under the same names (Rust spelling): `catalog` (`TargetCatalog`, `CatalogState`), `discovery` behind `BrowserEnvironment`, `families` (Chromium, Firefox and Zen parsers and data locations), `picker` (`PickerSession`, keys), `opener` (`LinkOpener` behind `LaunchPort`), `link_display`, `badge`, `placement`, `update` (`UpdatePreferences`, versions), `url_policy`, `target_id`, `config`, `listing`. `windows/app` provides the adapters (`system::WinEnv`, `system::WinLaunch`) and the shell: `ipc` (resident instance), `registry`, `picker` and `settings` (windows and commands), `tray`, `updates`, `icons` (the `.exe` icon as PNG), `views` (what the pages get, mirrored in `windows/ui/src/lib/api.ts`).
 
 ## 10. Build and distribution
 
@@ -267,6 +329,12 @@ App: `AppDelegate` (main menu, onboarding dialog), `StatusMenu` (menu bar icon a
 ### 10.4 Homepage
 
 `site/` holds the homepage. `mise run site` (part of `ci`) assembles it in `build/site` with the shared images, gives stylesheet and script a version from their content (`style.css?v=…`) and checks that every local reference exists. `pages.yml` deploys it to `https://schowave.github.io/browserdoor/` when one of its sources changes on `main`. Its download button links `releases/latest/download/Browserdoor.dmg`.
+
+### 10.5 Windows
+
+- mise also pins Rust, Node and uv. Tasks: `windows-core` (format, lint and test `windows/core`; part of `check`, runs on any OS), `windows-check` (everything, on Windows: core, UI check and build, app lint and tests, release build), `windows-smoke <exe>` (see 11.5), `windows-icons` (renders `windows/app/icons` from `Resources/Icon`), `render-scoop`, `release-windows`.
+- The build is a single `browserdoor.exe` (the pages are embedded); the release zips it with `LICENSE` per architecture. The version comes from `BROWSERDOOR_VERSION` at build time.
+- **Scoop**: the manifest template `packaging/scoop/browserdoor.json` (`@VERSION@`, `@SHA256_X64@`, `@SHA256_ARM64@`) becomes `browserdoor.json` in `schowave/scoop-bucket`. It adds a Start menu shortcut and the `browserdoor` command; its uninstaller runs `--unregister` on uninstall and `--quit` before an update.
 
 ## 11. CI and release
 
@@ -310,6 +378,15 @@ App: `AppDelegate` (main menu, onboarding dialog), `StatusMenu` (menu bar icon a
   - Tags created with the `GITHUB_TOKEN` start no workflows, so the job calls `release.yml` directly.
   - Without any `v*` tag nothing happens; the first release is made by hand.
 
+### 11.5 Windows
+
+- `ci.yml`, job `windows` (Windows, x64): `windows-check`, then `windows-smoke` on the release build: `--list-targets` must find Microsoft Edge; a resident instance starts; a second launch with a link hands it over and exits within 10 s, leaving one process; the registration and the login item exist; `--quit` ends it; `--unregister` removes the registration. A screenshot and the log are kept as an artifact.
+- `ci.yml`, job `parity`: `check-parity` fails if the domain changed on one side only (`Sources/BrowserdoorCore` or `windows/core/src`) without a `Parity: …` line in a commit message saying why.
+- `zen-contract.yml`: weekly and when a Zen parser or the contract changes; on macOS, Windows x64 and Windows ARM against the newest Zen (see 12).
+- `release-windows.yml`, on a `windows-v*` tag (`mise run release-windows windows-vX.Y.Z` checks `windows/CHANGELOG.md`, tags and waits): builds and smoke-tests x64 and arm64 on Windows runners, creates the release `windows-vX.Y.Z` with both zips and their SHA-256 and the version's section of `windows/CHANGELOG.md`, **never as latest** (the macOS update checks follow `releases/latest`), then pushes the rendered manifest to `schowave/scoop-bucket` (secret `TAP_GITHUB_TOKEN`, which needs contents:write there too). Safe to rerun.
+
 ## 12. Tests
 
 The core (`BrowserdoorCore`) is tested through its modules' interfaces with Swift Testing, against fakes for the seams in 9 and fixtures for the file formats (`Tests/BrowserdoorCoreTests`). The release scripts have their own tests (`mise run test-scripts`). The UI is tested by hand; `mise run targets` shows what discovery finds on the real Mac and the command each target would run.
+
+The Windows domain (`windows/core`) is tested the same way with `cargo test`, against a fake Windows (`BrowserEnvironment`) and the fixtures. `fixtures/` is shared by both test suites: `fixtures/zen/zen-sessions.jsonlz4` was written by a real Zen, and both parsers must read the spaces in `fixtures/zen/spaces.json` from it. The **Zen contract test** (`contract/zen_contract.py`, `uv run`) drives a real Zen on a throwaway profile through Marionette: it creates two spaces, checks the session file's `spaces[]` fields, a cold start with `--space <uuid>`, and hand-overs to the running Zen by UUID and by name; CI then reads the session file Zen wrote with Browserdoor's parser. On Windows, `browserdoor.exe --list-targets` shows what discovery finds and the command each target would run.
