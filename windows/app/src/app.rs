@@ -58,6 +58,12 @@ pub fn main() {
 }
 
 fn run(server: ipc::Server, first: Launch) {
+    // Serve the pipe before anything slow (WebView2's first start at login): launches that arrive
+    // meanwhile wait in the channel until the windows exist.
+    let (sender, launches) = std::sync::mpsc::channel::<Launch>();
+    server.serve(move |launch| {
+        let _ = sender.send(launch);
+    });
     let prefs = prefs::Prefs::load();
     let state = AppState {
         picker: Mutex::new(picker::PickerState::default()),
@@ -97,12 +103,14 @@ fn run(server: ipc::Server, first: Launch) {
             startup(&handle);
             picker::create_window(&handle)?;
             tray::create(&handle)?;
-            let h = handle.clone();
-            server.serve(move |launch| {
-                let h2 = h.clone();
-                let _ = h.run_on_main_thread(move || handle_launch(&h2, launch));
-            });
             handle_launch(&handle, first.clone());
+            let h = handle.clone();
+            std::thread::spawn(move || {
+                for launch in launches {
+                    let h2 = h.clone();
+                    let _ = h.run_on_main_thread(move || handle_launch(&h2, launch));
+                }
+            });
             updates::schedule(&handle);
             Ok(())
         })

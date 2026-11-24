@@ -210,7 +210,7 @@ fn key_action(press: &KeyPress, hotkeys: &[Option<char>]) -> KeyAction {
     let mut chars = press.key.chars();
     let (Some(c), None) = (chars.next(), chars.next()) else { return KeyAction::Ignore };
     let key = c.to_lowercase().next().unwrap_or(c);
-    let ctrl_only = press.ctrl && !press.alt && !press.meta;
+    let ctrl_only = press.ctrl && !press.alt && !press.meta && !press.shift;
     if ctrl_only && key == 'c' {
         return KeyAction::Copy;
     }
@@ -289,6 +289,9 @@ mod tests {
         assert!(s.copied);
         assert_eq!(s.handle(ctrl(",")), Some(vec![PickerEffect::Close, PickerEffect::OpenSettings]));
         assert_eq!(s.handle(ctrl("1")), None);
+        let ctrl_shift_c =
+            PickerInput::Key(KeyPress { key: "C".into(), ctrl: true, alt: false, shift: true, meta: false });
+        assert_eq!(s.handle(ctrl_shift_c), None, "exactly Ctrl, as macOS wants exactly ⌘");
         let alt_gr = PickerInput::Key(KeyPress { key: "w".into(), ctrl: true, alt: true, shift: false, meta: false });
         assert!(matches!(&s.handle(alt_gr).unwrap()[1], PickerEffect::Open(_, t) if t.id == "c"));
     }

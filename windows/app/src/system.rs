@@ -56,19 +56,27 @@ pub fn stable_exe() -> String {
     stable_path(&exe)
 }
 
+/// Scoop installs to `<root>\apps\browserdoor\<version>\` and links `current` to it; the root
+/// can be anywhere (`$env:SCOOP`), so the shape of the path decides, not a folder name.
 pub fn stable_path(exe: &str) -> String {
-    let lower = exe.to_lowercase();
-    if let Some(i) = lower.find(r"\scoop\apps\browserdoor\") {
-        let start = i + r"\scoop\apps\browserdoor\".len();
-        if let Some(rel) = exe[start..].find('\\') {
-            return format!("{}current{}", &exe[..start], &exe[start + rel..]);
-        }
-    }
-    exe.to_string()
+    let path = std::path::Path::new(exe);
+    let (Some(version_dir), Some(name)) = (path.parent(), path.file_name()) else { return exe.to_string() };
+    let Some(app_dir) = version_dir.parent() else { return exe.to_string() };
+    let is_scoop_app = app_dir.file_name().is_some_and(|n| n.eq_ignore_ascii_case("browserdoor"))
+        && app_dir.parent().and_then(|p| p.file_name()).is_some_and(|n| n.eq_ignore_ascii_case("apps"));
+    let current = app_dir.join("current").join(name);
+    if is_scoop_app && current.is_file() { current.display().to_string() } else { exe.to_string() }
 }
 
 pub fn is_scoop_install() -> bool {
-    stable_exe().to_lowercase().contains(r"\scoop\apps\browserdoor\current\")
+    let stable = stable_exe();
+    let path = std::path::Path::new(&stable);
+    path.parent().and_then(|p| p.file_name()).is_some_and(|n| n.eq_ignore_ascii_case("current"))
+        && path
+            .parent()
+            .and_then(|p| p.parent())
+            .and_then(|p| p.file_name())
+            .is_some_and(|n| n.eq_ignore_ascii_case("browserdoor"))
 }
 
 pub fn app_data_dir() -> PathBuf {

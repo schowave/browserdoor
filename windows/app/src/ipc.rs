@@ -12,7 +12,8 @@ use windows_sys::Win32::Foundation::{
     INVALID_HANDLE_VALUE,
 };
 use windows_sys::Win32::Storage::FileSystem::{
-    CreateFileW, FILE_ATTRIBUTE_NORMAL, OPEN_EXISTING, PIPE_ACCESS_INBOUND, ReadFile, WriteFile,
+    CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_FLAG_FIRST_PIPE_INSTANCE, OPEN_EXISTING, PIPE_ACCESS_INBOUND, ReadFile,
+    WriteFile,
 };
 use windows_sys::Win32::System::Pipes::{
     ConnectNamedPipe, CreateNamedPipeW, DisconnectNamedPipe, GetNamedPipeServerProcessId, PIPE_READMODE_BYTE,
@@ -24,14 +25,55 @@ use windows_sys::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use crate::app::Launch;
 use crate::system::{identity, wide};
 
+/// The mutex is per session (`Local\`); the pipe name carries the user's SID, so another user
+/// can't predict it, and the first instance is created with FILE_FLAG_FIRST_PIPE_INSTANCE, so
+/// nobody can hold the name before the resident instance does.
 fn names() -> (Vec<u16>, Vec<u16>) {
-    let user: String = std::env::var("USERNAME")
-        .unwrap_or_default()
-        .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
-        .collect();
+    let user = user_sid().unwrap_or_else(|| {
+        std::env::var("USERNAME")
+            .unwrap_or_default()
+            .chars()
+            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+            .collect()
+    });
     let id = identity().replace(' ', "");
     (wide(&format!(r"Local\{id}-resident")), wide(&format!(r"\\.\pipe\{id}-{user}")))
+}
+
+/// The current user's SID as text (`S-1-5-21-…`).
+fn user_sid() -> Option<String> {
+    use windows_sys::Win32::Foundation::LocalFree;
+    use windows_sys::Win32::Security::Authorization::ConvertSidToStringSidW;
+    use windows_sys::Win32::Security::{GetTokenInformation, TOKEN_QUERY, TOKEN_USER, TokenUser};
+    use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
+    // SAFETY: the token handle is closed; the buffer is sized by the first call; the string
+    // ConvertSidToStringSidW allocates is freed with LocalFree.
+    unsafe {
+        let mut token: HANDLE = std::ptr::null_mut();
+        if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) == 0 {
+            return None;
+        }
+        let mut len = 0u32;
+        GetTokenInformation(token, TokenUser, std::ptr::null_mut(), 0, &mut len);
+        let mut buf = vec![0u8; len as usize];
+        let ok = GetTokenInformation(token, TokenUser, buf.as_mut_ptr().cast(), len, &mut len);
+        CloseHandle(token);
+        if ok == 0 {
+            return None;
+        }
+        let user = &*(buf.as_ptr() as *const TOKEN_USER);
+        let mut text: *mut u16 = std::ptr::null_mut();
+        if ConvertSidToStringSidW(user.User.Sid, &mut text) == 0 {
+            return None;
+        }
+        let mut n = 0;
+        while *text.add(n) != 0 {
+            n += 1;
+        }
+        let sid = String::from_utf16_lossy(std::slice::from_raw_parts(text, n));
+        LocalFree(text.cast());
+        Some(sid)
+    }
 }
 
 /// The pipe server of the resident instance.
@@ -58,7 +100,8 @@ pub fn claim(launch: &Launch) -> Option<Server> {
 pub fn forward(launch: &Launch) -> Result<(), String> {
     let (_, pipe_name) = names();
     let payload = serde_json::to_vec(launch).map_err(|e| e.to_string())?;
-    for _ in 0..50 {
+    // Up to 30 s: at login the resident instance may still be starting WebView2.
+    for _ in 0..300 {
         // SAFETY: NUL-terminated name; the handle is closed below.
         let h = unsafe {
             CreateFileW(
@@ -108,12 +151,14 @@ impl Server {
     /// Serves the pipe on its own thread; `f` gets every launch that arrives.
     pub fn serve(self, f: impl Fn(Launch) + Send + 'static) {
         thread::spawn(move || {
+            let mut first = true;
             loop {
+                let flags = PIPE_ACCESS_INBOUND | if first { FILE_FLAG_FIRST_PIPE_INSTANCE } else { 0 };
                 // SAFETY: NUL-terminated name; inbound only, local clients only.
                 let h = unsafe {
                     CreateNamedPipeW(
                         self.pipe_name.as_ptr(),
-                        PIPE_ACCESS_INBOUND,
+                        flags,
                         PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS,
                         PIPE_UNLIMITED_INSTANCES,
                         0,
@@ -122,6 +167,7 @@ impl Server {
                         std::ptr::null(),
                     )
                 };
+                first = false;
                 if h == INVALID_HANDLE_VALUE {
                     crate::system::log("CreateNamedPipeW failed");
                     thread::sleep(Duration::from_secs(1));

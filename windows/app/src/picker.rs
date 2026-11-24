@@ -38,13 +38,22 @@ pub fn create_window(app: &AppHandle) -> tauri::Result<()> {
         .effects(tauri::window::EffectsBuilder::new().effect(tauri::window::Effect::Acrylic).build())
         .build()?;
     let handle = app.clone();
-    window.on_window_event(move |event| {
-        if let WindowEvent::Focused(false) = event {
+    window.on_window_event(move |event| match event {
+        WindowEvent::Focused(false) => {
             let is_open = handle.state::<AppState>().picker.lock().map(|p| p.session.is_some()).unwrap_or(false);
             if is_open {
                 let _ = input(&handle, PickerInput::LostFocus);
             }
         }
+        // Alt+F4 closes the picker like Esc; the window itself stays for the next link.
+        WindowEvent::CloseRequested { api, .. } => {
+            api.prevent_close();
+            let _ = input(&handle, PickerInput::LostFocus);
+            if let Some(w) = handle.get_webview_window(LABEL) {
+                let _ = w.hide();
+            }
+        }
+        _ => {}
     });
     Ok(())
 }
@@ -142,8 +151,9 @@ pub fn picker_state(app: AppHandle) -> Option<PickerView> {
     picker.session.as_ref().map(|s| views::picker(&state, s))
 }
 
+/// Async: its effects may open the settings window, which must not be built in a sync command.
 #[tauri::command]
-pub fn picker_input(app: AppHandle, input: PickerInput) -> Option<PickerView> {
+pub async fn picker_input(app: AppHandle, input: PickerInput) -> Option<PickerView> {
     self::input(&app, input)
 }
 

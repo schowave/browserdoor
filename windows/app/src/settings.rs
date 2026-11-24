@@ -24,7 +24,15 @@ pub fn show(app: &AppHandle, tab: Option<&str>) {
         }
         return;
     }
-    let url = match tab {
+    // Built on its own thread: on Windows, building a webview window from the event loop (a menu
+    // or tray handler, a sync command) deadlocks; from another thread Tauri hands it over.
+    let app = app.clone();
+    let tab = tab.map(str::to_string);
+    std::thread::spawn(move || build(&app, tab));
+}
+
+fn build(app: &AppHandle, tab: Option<String>) {
+    let url = match &tab {
         Some(tab) => format!("settings.html#{tab}"),
         None => "settings.html".to_string(),
     };
@@ -39,7 +47,6 @@ pub fn show(app: &AppHandle, tab: Option<&str>) {
     match built {
         Ok(window) => {
             let handle = app.clone();
-            let tab = tab.map(str::to_string);
             window.on_window_event(move |event| match event {
                 // Back in front: the default browser or the config may have changed meanwhile.
                 WindowEvent::Focused(true) => {
@@ -52,13 +59,7 @@ pub fn show(app: &AppHandle, tab: Option<&str>) {
                 }
                 _ => {}
             });
-            if let Some(tab) = tab {
-                let h = app.clone();
-                std::thread::spawn(move || {
-                    std::thread::sleep(std::time::Duration::from_millis(400));
-                    let _ = h.emit_to(LABEL, "settings-tab", tab);
-                });
-            }
+            let _ = window.set_focus();
         }
         Err(e) => system::log(&format!("settings window: {e}")),
     }
