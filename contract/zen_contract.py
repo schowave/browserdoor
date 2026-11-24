@@ -75,14 +75,18 @@ class Zen:
         self.client: Marionette | None = None
 
     def args(self, *extra: str) -> list[str]:
-        return [str(self.binary), "--profile", str(self.profile), *extra]
+        # CI runners are elevated: without -no-deelevate Zen's launcher restarts a call at medium
+        # integrity, and Windows then blocks its hand-over to the (elevated) running Zen. Normal
+        # users run unelevated and need nothing.
+        win = ["-no-deelevate"] if sys.platform == "win32" else []
+        return [str(self.binary), "--profile", str(self.profile), *win, *extra]
 
     def start(self, *extra: str) -> None:
         port_file = self.profile / "MarionetteActivePort"
         port_file.unlink(missing_ok=True)
-        # Windows: the launcher process would exit at once (-wait-for-browser keeps it until the
-        # browser ends) and, when elevated, restart Zen through the shell without our environment.
-        win = ["-wait-for-browser", "-no-deelevate"] if sys.platform == "win32" else []
+        # Windows: the launcher process would exit at once; -wait-for-browser keeps it until the
+        # browser ends.
+        win = ["-wait-for-browser"] if sys.platform == "win32" else []
         cmd = self.args("--marionette", *win, *extra)
         log("start: " + " ".join(cmd))
         env = {**os.environ, "MOZ_REMOTE_ALLOW_SYSTEM_ACCESS": "1"}
