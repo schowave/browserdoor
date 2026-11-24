@@ -5,14 +5,15 @@ Domain terms used in Browserdoor's code, docs and reviews. Module names in `code
 | Term | Meaning |
 |---|---|
 | **Link** | A URL Browserdoor may hand to a browser: `http`, `https` or `file`. Anything else (`javascript:`, `--flags`, …) never becomes a link. |
-| **Incoming item** | What macOS hands Browserdoor: a URL, an `.html` file or a `.webloc` file. `LinkOpener.links(from:)` turns items into links. |
+| **Incoming item** | What the operating system hands Browserdoor (on macOS): a URL, an `.html` file or a `.webloc` file. `LinkOpener.links(from:)` turns items into links. |
 | **Target** | One entry the user can pick: a Zen space, a Chromium or Firefox profile, or a browser/app. Has a stable ID (`zen:{uuid}`, `chromium:<bundleId>:<dir>`, `firefox:<bundleId>:<path>`, `app:<bundleId>`). |
+| **App ID** | The platform's stable name for an installed app: the bundle ID on macOS, on Windows the `StartMenuInternet` key for a registered browser, otherwise the path of its `.exe`. Target IDs embed it, so they are only meaningful on the computer they were made on; config is per computer, never exchanged. |
 | **Zen space** | A Zen workspace, read from `zen-sessions.jsonlz4` and opened with `zen --space`. |
 | **Chromium profile** | A profile of Chrome, Brave, Edge, Vivaldi or Chromium, opened with `--profile-directory`. |
 | **Firefox profile** | A Firefox profile from `profiles.ini` or a profile group database, opened with `--profile <dir>`. |
 | **Profile group** | Firefox's newer profile manager (since 138): profiles stored in `Profile Groups/<StoreID>.sqlite`, with one representative in `profiles.ini`. |
 | **Extra app** | An app the user added as a target even though it isn't a known browser. |
-| **Discovery** | Finding the targets on this Mac (`Discovery`, behind the `BrowserEnvironment` seam). |
+| **Discovery** | Finding the targets on this computer (`Discovery`, behind the `BrowserEnvironment` seam). |
 | **Target catalog** | `TargetCatalog`: config + discovery → the targets, their labels, hotkeys and order; saves edits. The single source for the picker and the settings window. |
 | **Default target** | The target `Enter` opens (star in the settings). |
 | **Hotkey** | The key that picks a target in the picker: custom, or an automatic number key. |
@@ -21,8 +22,9 @@ Domain terms used in Browserdoor's code, docs and reviews. Module names in `code
 | **Picker session** | `PickerSession`: one appearance of the picker, its links, entries and selection; turns input into effects (close, open, copy). The picker view shows it as is. |
 | **Link opening** | `LinkOpener`: links + target → launch, including Zen's running/cold handling, behind the `LaunchPort` seam. |
 | **Installation** | `Installation`: where Browserdoor lives, the stable link and the login item. |
-| **Stable link** | `~/Applications/Browserdoor.app`, a symlink to Homebrew's `opt` path that survives `brew upgrade`. |
-| **Login item** | The LaunchAgent that runs `open -a <stable link>` at login. |
+| **Stable link** | The path that keeps pointing at the installed version across updates, so the login item and default-browser registration never go stale: on macOS `~/Applications/Browserdoor.app` (a symlink to Homebrew's `opt` path), on Windows Scoop's `apps\browserdoor\current\browserdoor.exe`. |
+| **Login item** | What starts Browserdoor at login: on macOS the LaunchAgent that runs `open -a <stable link>`, on Windows a `Run` value in the user's registry. |
+| **Resident instance** | The one Browserdoor process that stays running (menu bar or tray) and shows the picker. Later launches with links hand them to it and exit. |
 | **Update policy** | `UpdatePolicy`: when to check for a new release and what to announce, behind `ReleaseSource` and `UpdatePreferences`. |
 | **Put off** | "Later" on an update notice: automatic checks don't announce that release again. |
 | **Zen icon cache** | `ZenIconCache`: Zen's space icons extracted from `omni.ja`, once per Zen version. |
@@ -33,4 +35,5 @@ Domain terms used in Browserdoor's code, docs and reviews. Module names in `code
 | **Startup** | `Startup`: everything a launch does before any UI, ending in what to show next (onboarding, reclaiming the default browser, nothing). |
 | **Legacy** | What earlier versions left behind (SMAppService login item, the Doorman name, the old bundle ID), moved over by `Startup`, one step per version. |
 | **Release build / dev build** | `BundleIdentity`: the Homebrew build runs as `io.github.schowave.browserdoor` and owns the user's data; dev builds run as `….dev` and stay apart. |
+| **Scoop build** | The Windows release build, installed and updated with Scoop from the `schowave` bucket; released under `windows-v*` tags. |
 | **Homebrew build / download build** | Two release builds with the same bundle ID. The Homebrew build updates through `brew upgrade`; the download build (DMG, `SPARKLE`) is signed with Developer ID, notarized and updates itself with Sparkle from the **appcast** attached to the latest release. |
