@@ -1,0 +1,20 @@
+[
+  {
+    "uuid": "{a20add09-88d0-4a18-a87d-4b392783d3ab}",
+    "name": "Space",
+    "icon": null,
+    "color": null
+  },
+  {
+    "uuid": "{11eb2d6b-2866-49e5-962a-88b0a3f61173}",
+    "name": "Alpha",
+    "icon": "🅰️",
+    "color": null
+  },
+  {
+    "uuid": "{237fc520-af0f-4c8a-8658-8f50044f67b8}",
+    "name": "Beta",
+    "icon": null,
+    "color": null
+  }
+]
