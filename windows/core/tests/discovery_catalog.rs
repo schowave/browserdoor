@@ -64,6 +64,7 @@ fn windows() -> FakeWindows {
         .app("Zen Browser", "Zen", ZEN_EXE)
         .app("Google Chrome", "Google Chrome", CHROME_EXE)
         .app("Opera", "Opera", r"C:\Users\anna\AppData\Local\Programs\Opera\opera.exe")
+        .app("IEXPLORE.EXE", "Internet Explorer", r"C:\Program Files\Internet Explorer\iexplore.exe")
         .file(r"C:\Program Files\Zen Browser\application.ini", "[App]\nVersion=1.24.3b\n")
         .file(&format!(r"{ROAMING}\zen\profiles.ini"), "[Install1]\nDefault=Profiles/z.Default (release)\n")
         .file(

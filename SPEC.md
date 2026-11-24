@@ -99,7 +99,7 @@ URLs reach the browsers as command-line arguments, so Browserdoor lets only `htt
 ### 3.6 Windows
 
 - **App ID** instead of bundle ID: the browser's key under `Software\Clients\StartMenuInternet`, or the path of the `.exe` for an added app. Target IDs keep their schemes (`zen:{uuid}`, `chromium:<appId>:<dir>`, `firefox:<appId>:<path>`, `app:<appId>`), so a configuration only works on the computer it was made on.
-- **Discovery** reads the browsers registered under `StartMenuInternet` in HKCU, then HKLM (64- and 32-bit view); the first entry per App ID and per `.exe` wins, Browserdoor's own entry is skipped. That list holds browsers only, so there is no allowlist. Name: the key's default value, else `Capabilities\ApplicationName`; program: `shell\open\command`.
+- **Discovery** reads the browsers registered under `StartMenuInternet` in HKCU, then HKLM (64- and 32-bit view); the first entry per App ID and per `.exe` wins, Browserdoor's own entry and Internet Explorer (which only opens Edge on Windows 11) are skipped. That list holds browsers only, so there is no allowlist. Name: the key's default value, else `Capabilities\ApplicationName`; program: `shell\open\command`.
 - **Families** are recognized by the end of the `.exe` path:
   - Chromium (data under `%LOCALAPPDATA%`): `\Google\Chrome\Application\chrome.exe` → `Google\Chrome\User Data`, likewise `Chrome Beta`, `Chrome Dev`, `Chrome SxS` (Canary), `BraveSoftware\Brave-Browser\Application\brave.exe`, `Microsoft\Edge…\Application\msedge.exe` (Edge, Beta, Dev), `Vivaldi\Application\vivaldi.exe`, `Chromium\Application\chrome.exe`. Profiles as in 3.2.
   - Firefox: `\Mozilla Firefox\firefox.exe` with `%APPDATA%\Mozilla\Firefox`; profiles and profile groups as in 3.3.

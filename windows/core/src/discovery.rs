@@ -60,7 +60,7 @@ impl Discovery<'_> {
             .environment
             .registered_browsers()
             .into_iter()
-            .filter(|a| a.app_id != own && !a.exe.is_empty())
+            .filter(|a| a.app_id != own && !a.exe.is_empty() && !is_retired(&a.exe))
             .filter(|a| seen_ids.insert(a.app_id.clone()) && seen_exes.insert(paths::normalized(&a.exe)))
             .collect();
 
@@ -202,6 +202,11 @@ impl Discovery<'_> {
             &self.environment.contents(&paths::join(&profile, families::ZEN_SESSION_FILE))?,
         )
     }
+}
+
+/// Registered but no browser of its own any more: Internet Explorer only opens Edge on Windows 11.
+fn is_retired(exe: &str) -> bool {
+    paths::file_name(exe).eq_ignore_ascii_case("iexplore.exe")
 }
 
 fn plain(app_id: &str, name: &str, exe: &str) -> Target {
