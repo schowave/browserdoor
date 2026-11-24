@@ -51,11 +51,11 @@ NAME_URL = "https://example.net/?browserdoor=name"
 
 
 def log(msg: str) -> None:
-    print(f"[zen-contract] {msg}", flush=True)
+    print(f"[zen-contract] {msg}".encode("ascii", "backslashreplace").decode(), flush=True)
 
 
 def fail(msg: str) -> None:
-    print(f"::error::Zen contract: {msg}", flush=True)
+    print(f"::error::Zen contract: {msg}".encode("ascii", "backslashreplace").decode(), flush=True)
     sys.exit(1)
 
 
@@ -183,7 +183,7 @@ def main() -> None:
     profile = tmp / "profile"
     profile.mkdir()
     (profile / "user.js").write_text(
-        "".join(f'user_pref("{k}", {json.dumps(v)});\n' for k, v in PREFS.items())
+        "".join(f'user_pref("{k}", {json.dumps(v)});\n' for k, v in PREFS.items()), encoding="utf-8"
     )
     zen = Zen(a.zen.resolve(), profile)
     try:
@@ -226,7 +226,7 @@ def main() -> None:
         if a.spaces_out:
             a.spaces_out.write_text(json.dumps(
                 [{"uuid": s["uuid"], "name": s["name"], "icon": s.get("icon") or ""} for s in spaces],
-                ensure_ascii=False, indent=2) + "\n")
+                ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         if a.profile_out:
             shutil.copy(profile / "zen-sessions.jsonlz4", a.profile_out)
 

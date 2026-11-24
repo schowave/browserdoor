@@ -43,6 +43,12 @@ url = "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_
 url_api = "https://api.github.com/repos/rhysd/actionlint/releases/assets/384924880"
 provenance = "github-attestations"
 
+[tools.actionlint."platforms.windows-arm64"]
+checksum = "sha256:cadcf7ea4efe3a68728893813643cebe1185e5b1d4be5b96245f65c9a4d5ea41"
+url = "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_windows_arm64.zip"
+url_api = "https://api.github.com/repos/rhysd/actionlint/releases/assets/384924915"
+provenance = "github-attestations"
+
 [tools.actionlint."platforms.windows-x64"]
 checksum = "sha256:6e7241b51e6817ea6a047693d8e6fed13b31819c9a0dd6c5a726e1592d22f6e9"
 url = "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_windows_amd64.zip"
@@ -77,6 +83,10 @@ url = "https://nodejs.org/dist/v24.22.3/node-v24.22.3-darwin-arm64.tar.gz"
 [tools.node."platforms.macos-x64"]
 checksum = "sha256:977614af0504c81045e7fd85596dbca0e5f951b96681516dadafedcca8c447f7"
 url = "https://nodejs.org/dist/v24.22.3/node-v24.22.3-darwin-x64.tar.gz"
+
+[tools.node."platforms.windows-arm64"]
+checksum = "sha256:b3cc74a295b39d4f273271e96f58c06dd2b35757ca12abec64c7d0598b434f14"
+url = "https://nodejs.org/dist/v24.22.3/node-v24.22.3-win-arm64.zip"
 
 [tools.node."platforms.windows-x64"]
 checksum = "sha256:e612af99f626ab415ea225af6bce5c971feb448cb5cae250bb1c3fa50c5f7d9f"
@@ -125,6 +135,12 @@ checksum = "sha256:3c89db4edcab7cf1c27bff178882e0f6f27f7afdf54e859fa041fca10febe
 url = "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.darwin.x86_64.tar.xz"
 url_api = "https://api.github.com/repos/koalaman/shellcheck/releases/assets/279056930"
 
+[tools.shellcheck."platforms.windows-arm64"]
+checksum = "sha256:8a4e35ab0b331c85d73567b12f2a444df187f483e5079ceffa6bda1faa2e740e"
+checksum_source = "mise-versions"
+url = "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.zip"
+url_api = "https://api.github.com/repos/koalaman/shellcheck/releases/assets/279056944"
+
 [tools.shellcheck."platforms.windows-x64"]
 checksum = "sha256:8a4e35ab0b331c85d73567b12f2a444df187f483e5079ceffa6bda1faa2e740e"
 url = "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.zip"
@@ -165,6 +181,12 @@ url_api = "https://api.github.com/repos/nicklockwood/SwiftFormat/releases/assets
 
 [tools.swiftformat."platforms.macos-x64"]
 checksum = "sha256:70e6b2057647fb1c54d620ebbb6649274de56534c57f91f67461a129ebaaba3e"
+url = "https://github.com/nicklockwood/SwiftFormat/releases/download/0.64.6/swiftformat.zip"
+url_api = "https://api.github.com/repos/nicklockwood/SwiftFormat/releases/assets/716496056"
+
+[tools.swiftformat."platforms.windows-arm64"]
+checksum = "sha256:70e6b2057647fb1c54d620ebbb6649274de56534c57f91f67461a129ebaaba3e"
+checksum_source = "mise-versions"
 url = "https://github.com/nicklockwood/SwiftFormat/releases/download/0.64.6/swiftformat.zip"
 url_api = "https://api.github.com/repos/nicklockwood/SwiftFormat/releases/assets/716496056"
 
@@ -212,6 +234,12 @@ provenance = "github-attestations"
 checksum = "sha256:617a3211261b0fc739562f0071aa34e9739797c510208ede8e2977c30903d041"
 url = "https://github.com/astral-sh/uv/releases/download/0.13.9/uv-x86_64-apple-darwin.tar.gz"
 url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/758513912"
+provenance = "github-attestations"
+
+[tools.uv."platforms.windows-arm64"]
+checksum = "sha256:edd61f7f5728a56cc62455386661860bdfc7bab65872f39b0c25bdcc1d8e1beb"
+url = "https://github.com/astral-sh/uv/releases/download/0.13.9/uv-x86_64-pc-windows-msvc.zip"
+url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/758513940"
 provenance = "github-attestations"
 
 [tools.uv."platforms.windows-x64"]

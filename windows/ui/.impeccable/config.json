@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/picker/Picker.svelte"
+        ],
+        "createdAt": "2026-11-24T23:09:37.150Z",
+        "reason": "Claude: the 3px inset pill on the selected row is the Windows 11 Fluent list selection indicator (agreed Windows-11 look, Q32), not a card side border"
+      }
+    ]
+  }
+}
