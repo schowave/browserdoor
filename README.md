@@ -4,7 +4,7 @@
 
 # Browserdoor
 
-A link picker for macOS. Click a link anywhere, then choose the Zen space, Chrome or Firefox profile, or browser it opens in.
+A link picker for macOS and Windows. Click a link anywhere, then choose the Zen space, Chrome or Firefox profile, or browser it opens in.
 
 [schowave.github.io/browserdoor](https://schowave.github.io/browserdoor/)
 
@@ -30,13 +30,14 @@ What it does:
 - lists every Firefox profile separately, including the ones from Firefox's new profile manager
 - only shows real browsers, so terminals, web-app wrappers and test builds stay out of the list
 - collects links that arrive at the same moment into one picker, so one choice opens them all
-- runs as a small menu bar app (Swift/SwiftUI). The only network request is the update check, which you can turn off.
+- runs as a small menu bar app on macOS (Swift/SwiftUI) and a tray app on Windows (Rust/Tauri). The only network request is the update check, which you can turn off.
 
 ## Requirements
 
-- macOS 14 (Sonoma) or later
+- macOS 14 (Sonoma) or later, or Windows 11 (x64 or Arm)
 - No Xcode on macOS 15 or later (Apple Silicon and Intel): Homebrew installs a prebuilt bottle. On macOS 14 it builds from source and needs Xcode 16.
 - For spaces: [Zen](https://zen-browser.app) 1.24 or later. Older versions show up as a single entry.
+- Windows: [Scoop](https://scoop.sh) to install and update it.
 
 ## Installation
 
@@ -50,6 +51,16 @@ browserdoor
 **Without Homebrew:** [download Browserdoor.dmg](https://github.com/schowave/browserdoor/releases/latest/download/Browserdoor.dmg) (older versions are on the [releases page](https://github.com/schowave/browserdoor/releases)), open it and drag Browserdoor to Applications. The DMG is signed and notarized by Apple, so it opens without a warning. This build updates itself: it checks once a day (switch it off under *Settings*), shows what's new and installs the update when you agree.
 
 On first launch Browserdoor asks whether it should become your default browser (macOS asks you to confirm) and adds a login item. A Homebrew install also gets a link at `~/Applications/Browserdoor.app`. That link keeps working after `brew upgrade`, and Browserdoor restarts itself once an upgrade is in. Upgrading from 0.6.1 or earlier, quit Browserdoor from the menu bar once and run `browserdoor` again.
+
+### Windows
+
+```powershell
+scoop bucket add schowave https://github.com/schowave/scoop-bucket
+scoop install schowave/browserdoor
+browserdoor
+```
+
+The first start registers Browserdoor as a browser, turns on autostart and offers to open the Windows settings, where you choose Browserdoor as the default web browser (Windows lets only you make that choice). Browserdoor then lives in the notification area; its menu has the settings, and a dot on the icon means it isn't the default browser. The Windows app has its own [changelog](windows/CHANGELOG.md) and version numbers.
 
 <details>
 <summary><b>Upgrading from Doorman (0.2.x) or Browserdoor 0.4.x</b></summary>
@@ -183,6 +194,8 @@ brew upgrade browserdoor
 
 A running Browserdoor notices the new version a few seconds later and restarts itself.
 
+**Windows:** Browserdoor checks the Scoop bucket once a day. **Update** quits it, runs `scoop update browserdoor` in a terminal window and starts it again. To update by hand, quit Browserdoor from its tray menu first, then run `scoop update browserdoor`.
+
 ## Uninstall
 
 Quit Browserdoor from the menu bar, then remove the app: `brew uninstall browserdoor`, or for the download, move `/Applications/Browserdoor.app` to the Trash. Then remove what it left behind:
@@ -194,6 +207,8 @@ defaults delete io.github.schowave.browserdoor
 ```
 
 Then pick another default browser in **System Settings → Desktop & Dock → Default web browser**.
+
+**Windows:** `scoop uninstall browserdoor` quits Browserdoor and removes its registration and autostart. Your settings stay in `%APPDATA%\Browserdoor`; delete that folder too if you like. Then pick another default browser in **Settings → Apps → Default apps**.
 
 ## Development
 

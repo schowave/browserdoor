@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
   <meta name="referrer" content="strict-origin-when-cross-origin">
-  <title>Browserdoor – a link picker for macOS</title>
+  <title>Browserdoor – a link picker for macOS and Windows</title>
   <meta name="description" content="Click a link anywhere on your Mac, then choose the Zen space, Chrome or Firefox profile, or browser it opens in. Free and open source.">
   <link rel="canonical" href="https://schowave.github.io/browserdoor/">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -13,7 +13,7 @@
   <meta name="color-scheme" content="light dark">
 
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Browserdoor – a link picker for macOS">
+  <meta property="og:title" content="Browserdoor – a link picker for macOS and Windows">
   <meta property="og:description" content="Open every link in the right Zen space, Chrome or Firefox profile, or browser.">
   <meta property="og:url" content="https://schowave.github.io/browserdoor/">
   <meta property="og:image" content="https://schowave.github.io/browserdoor/preview.png">
@@ -29,9 +29,9 @@
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     "name": "Browserdoor",
-    "operatingSystem": "macOS 14 or later",
+    "operatingSystem": "macOS 14 or later, Windows 11",
     "applicationCategory": "UtilitiesApplication",
-    "description": "A link picker for macOS: choose the Zen space, Chrome or Firefox profile, or browser a link opens in.",
+    "description": "A link picker for macOS and Windows: choose the Zen space, Chrome or Firefox profile, or browser a link opens in.",
     "url": "https://schowave.github.io/browserdoor/",
     "downloadUrl": "https://github.com/schowave/browserdoor/releases/latest",
     "license": "https://opensource.org/licenses/MIT",
@@ -51,7 +51,7 @@
     <div class="hero-body">
       <div class="hero-text">
         <h1>Every link through the right door.</h1>
-        <p class="lede">Click a link anywhere on your Mac. Browserdoor asks where it should go: a Zen space, a Chrome or Firefox profile, or any browser you have.</p>
+        <p class="lede">Click a link anywhere on your Mac or PC. Browserdoor asks where it should go: a Zen space, a Chrome or Firefox profile, or any browser you have.</p>
         <div class="get-it" id="install">
           <a class="download" href="https://github.com/schowave/browserdoor/releases/latest/download/Browserdoor.dmg">Download for Mac</a>
           <p class="download-note">Updates itself.</p>
@@ -61,7 +61,12 @@
           <pre><code id="brew">brew install schowave/tap/browserdoor</code></pre>
           <button type="button" class="copy" data-copy="brew" hidden>Copy</button>
         </div>
-        <p class="fine">Free and open source. macOS 14 or later, Apple Silicon and Intel.</p>
+        <p class="or">On Windows, with <a href="#windows">Scoop</a>:</p>
+        <div class="install">
+          <pre><code id="scoop">scoop bucket add schowave https://github.com/schowave/scoop-bucket; scoop install schowave/browserdoor</code></pre>
+          <button type="button" class="copy" data-copy="scoop" hidden>Copy</button>
+        </div>
+        <p class="fine">Free and open source. macOS 14 or later (Apple Silicon and Intel), Windows 11 (x64 and Arm).</p>
       </div>
 
       <figure class="doorway">
@@ -85,7 +90,7 @@
         <div><dt>Firefox profiles</dt><dd>Including the ones from Firefox’s new profile manager.</dd></div>
         <div><dt>Only real browsers</dt><dd>Terminals, web-app wrappers and test builds stay out of the list. Add any other app yourself.</dd></div>
         <div><dt>Several links at once</dt><dd>Links that arrive together share one picker, so one choice opens them all.</dd></div>
-        <div><dt>Quiet</dt><dd>A small native menu bar app. Its only network request is the daily update check, which you can switch off.</dd></div>
+        <div><dt>Quiet</dt><dd>A small menu bar app on the Mac, a tray app on Windows. Its only network request is the daily update check, which you can switch off.</dd></div>
       </dl>
     </section>
 
@@ -95,11 +100,11 @@
         <tbody>
           <tr><th scope="row"><kbd>1</kbd> … <kbd>9</kbd>, <kbd>0</kbd> or your own key</th><td>Open the link in that target</td></tr>
           <tr><th scope="row"><kbd>↑</kbd> <kbd>↓</kbd> then <kbd>Return</kbd></th><td>Move the selection, then open</td></tr>
-          <tr><th scope="row"><kbd>⌘</kbd><kbd>C</kbd></th><td>Copy the link</td></tr>
+          <tr><th scope="row"><kbd>⌘</kbd><kbd>C</kbd> (Windows: <kbd>Ctrl</kbd><kbd>C</kbd>)</th><td>Copy the link</td></tr>
           <tr><th scope="row"><kbd>Esc</kbd></th><td>Cancel</td></tr>
         </tbody>
       </table>
-      <p>Order, names, keys and hidden entries live in <code>~/.config/browserdoor/config.json</code>, so you can keep them in your dotfiles.</p>
+      <p>Order, names, keys and hidden entries live in <code>~/.config/browserdoor/config.json</code>, so you can keep them in your dotfiles (on Windows: <code>%APPDATA%\Browserdoor\config.json</code>).</p>
     </section>
 
     <section class="get" aria-labelledby="get">
@@ -118,7 +123,14 @@
         <li>Confirm Browserdoor as your default browser when macOS asks.</li>
       </ol>
       <p>Updates arrive through <code>brew upgrade</code>, and Browserdoor restarts itself afterwards.</p>
-      <p>The <a href="https://github.com/schowave/browserdoor#readme">README</a> covers configuration, troubleshooting and uninstalling, the <a href="https://github.com/schowave/browserdoor/blob/main/CHANGELOG.md">changelog</a> what changed.</p>
+      <h3 id="windows">On Windows, with <a href="https://scoop.sh">Scoop</a></h3>
+      <ol>
+        <li>Add the bucket: <code>scoop bucket add schowave https://github.com/schowave/scoop-bucket</code></li>
+        <li>Install: <code>scoop install schowave/browserdoor</code>, then start it: <code>browserdoor</code></li>
+        <li>Choose Browserdoor as your default web browser in the Windows settings it opens.</li>
+      </ol>
+      <p>Browserdoor lives in the notification area. Once a day it checks for a new version and updates through Scoop when you agree.</p>
+      <p>The <a href="https://github.com/schowave/browserdoor#readme">README</a> covers configuration, troubleshooting and uninstalling, the changelogs for <a href="https://github.com/schowave/browserdoor/blob/main/CHANGELOG.md">macOS</a> and <a href="https://github.com/schowave/browserdoor/blob/main/windows/CHANGELOG.md">Windows</a> what changed.</p>
     </section>
   </main>
 
