@@ -196,7 +196,7 @@ An `NSWindow` with a toolbar tab per pane, SwiftUI inside. It also opens when Br
 
 ### 6.4 Windows
 
-- **Tray icon**: the door, white or dark to match the taskbar (`SystemUsesLightTheme`), with the dot while Browserdoor isn't the default browser (the https `UserChoice`/`UserChoiceLatest` ProgID is not `BrowserdoorURL`); the tooltip says so too. Icon and menu are rebuilt when the pointer reaches the icon, every 60 s and after actions. Left and right click open the menu.
+- **Tray icon**: the door, white or dark to match the taskbar (`SystemUsesLightTheme`), with the dot while Browserdoor isn't the default browser (the shell's effective https handler, `AssocQueryStringW`, is not `BrowserdoorURL`; newer Windows 11 builds keep the choice under `UserChoiceLatest\ProgId`, so the registry is only the fallback); the tooltip says so too. Icon and menu are rebuilt when the pointer reaches the icon, every 60 s and after actions. Left and right click open the menu.
 - **Menu**: About Browserdoor (version, repository, license); Open Link from Clipboard… (links in the clipboard text as in 6.2, filtered like any incoming link); Make Default Browser…, only when needed; Check for Updates… or Update to Browserdoor X…; Settings…; Quit Browserdoor.
 - **Settings window**: Mica background, the panes as tabs.
   - *General*: the default browser button opens the Windows settings for Browserdoor (`ms-settings:defaultapps?registeredAppUser=Browserdoor`); Windows lets only the user choose. "Start at login" (the `Run` value), "Show in notification area" (without the icon, starting Browserdoor again opens the settings), updates.

@@ -4,6 +4,10 @@ What changes for users of the Windows app, released as `windows-vX.Y.Z` (see [AD
 
 ## Unreleased
 
+## 0.1.1 – 2026-11-25
+
+- Browserdoor now recognizes that it is the default browser on current Windows 11 builds: the tray icon's dot, the menu's "Make Default Browser…" and the settings no longer say otherwise.
+
 ## 0.1.0 – 2026-11-25
 
 The first Windows version of Browserdoor: the same link picker as on macOS.

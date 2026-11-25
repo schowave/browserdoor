@@ -4,7 +4,10 @@
 //! and later let only the user pick the default browser, in the Settings app.
 
 use browserdoor_core::RegisteredApp;
-use windows_sys::Win32::UI::Shell::{SHCNE_ASSOCCHANGED, SHCNF_IDLIST, SHChangeNotify, SHLoadIndirectString};
+use windows_sys::Win32::UI::Shell::{
+    ASSOCF_IS_PROTOCOL, ASSOCSTR_PROGID, AssocQueryStringW, SHCNE_ASSOCCHANGED, SHCNF_IDLIST, SHChangeNotify,
+    SHLoadIndirectString,
+};
 use winreg::RegKey;
 use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ, KEY_WOW64_32KEY};
 
@@ -88,15 +91,51 @@ pub fn unregister() {
     unsafe { SHChangeNotify(SHCNE_ASSOCCHANGED as i32, SHCNF_IDLIST, std::ptr::null(), std::ptr::null()) };
 }
 
-/// Whether the user chose Browserdoor for `https` links.
+/// Whether the user chose Browserdoor for `https` links. Asks the shell for the effective
+/// handler: Windows 11 keeps newer choices in `UserChoiceLatest\ProgId`, while `UserChoice` can
+/// still name the previous browser, so reading one key is not enough.
 pub fn is_default_browser() -> bool {
     let (_, url_prog, _) = names();
+    match effective_https_prog_id() {
+        Some(prog) => prog.eq_ignore_ascii_case(&url_prog),
+        None => registry_https_prog_id().is_some_and(|p| p.eq_ignore_ascii_case(&url_prog)),
+    }
+}
+
+/// The ProgID Windows opens `https` links with (`AssocQueryStringW`).
+fn effective_https_prog_id() -> Option<String> {
+    let scheme = wide("https");
+    let mut buf = [0u16; 256];
+    let mut len = buf.len() as u32;
+    // SAFETY: NUL-terminated input; the output buffer holds `len` characters.
+    let hr = unsafe {
+        AssocQueryStringW(
+            ASSOCF_IS_PROTOCOL,
+            ASSOCSTR_PROGID,
+            scheme.as_ptr(),
+            std::ptr::null(),
+            buf.as_mut_ptr(),
+            &mut len,
+        )
+    };
+    if hr != 0 {
+        return None;
+    }
+    let end = buf.iter().position(|c| *c == 0).unwrap_or(0);
+    let prog = String::from_utf16_lossy(&buf[..end]);
+    (!prog.is_empty()).then_some(prog)
+}
+
+/// Fallback: the newest choice in the registry, `UserChoiceLatest` (value or `ProgId` subkey)
+/// before `UserChoice`.
+fn registry_https_prog_id() -> Option<String> {
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let base = r"Software\Microsoft\Windows\Shell\Associations\UrlAssociations\https";
-    ["UserChoiceLatest", "UserChoice"].iter().any(|sub| {
+    [r"UserChoiceLatest\ProgId", "UserChoiceLatest", "UserChoice"].iter().find_map(|sub| {
         hkcu.open_subkey(format!(r"{base}\{sub}"))
             .and_then(|k| k.get_value::<String, _>("ProgId"))
-            .is_ok_and(|p| p.eq_ignore_ascii_case(&url_prog))
+            .ok()
+            .filter(|p| !p.is_empty())
     })
 }
 
